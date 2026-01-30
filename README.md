@@ -19,7 +19,19 @@ A comprehensive agent skill for building production-ready notification systems a
 
 ## Installation
 
-Use your package manager or skill installer to add this skill to your project.
+**Cursor** (global, available in all projects):
+
+```bash
+git clone https://github.com/trycourier/courier-skills.git ~/.cursor/skills/courier-skills
+```
+
+**Project-specific** (add to a single project):
+
+```bash
+git clone https://github.com/trycourier/courier-skills.git .cursor/skills/courier-skills
+```
+
+Also works with Windsurf, Cline, and other AI coding assistants that support skills.
 
 ## What This Skill Covers
 
