@@ -14,11 +14,10 @@
 - No permission required - works for all users
 
 ### Common Mistakes
-- Using deprecated v7 packages (`@trycourier/react-provider`, `@trycourier/react-inbox`) instead of v8 (`@trycourier/courier-react`)
 - Using deprecated clientKey instead of JWT authentication
 - Exposing Courier API key in client-side code
 - Generating JWT client-side (must be server-side)
-- Not calling `inbox.startListening()` after auth (required for real-time updates in v8)
+- Not calling `inbox.startListening()` after auth (required for real-time updates)
 - Sending individual notifications instead of batching
 - Missing deep link data (user clicks, nothing happens)
 - Not syncing read state across channels
@@ -42,7 +41,7 @@ const response = await fetch('https://api.courier.com/auth/issue-token', {
 const { token } = await response.json();
 ```
 
-**React Setup (v8):**
+**React Setup:**
 ```tsx
 import { useCourier, CourierInbox } from "@trycourier/courier-react";
 
@@ -149,7 +148,7 @@ function App() {
 import { CourierInbox } from "@trycourier/courier-react";
 
 <CourierInbox
-  // Appearance - use lightTheme/darkTheme for v8
+  // Appearance
   lightTheme={{
     brand: {
       colors: {
@@ -490,7 +489,7 @@ await courier.messages.readAll(userId);
 
 ## Real-Time Updates
 
-Courier Inbox uses WebSocket for real-time updates. In v8, you must call `inbox.startListening()` after authentication to enable real-time functionality:
+Courier Inbox uses WebSocket for real-time updates. You must call `inbox.startListening()` after authentication to enable real-time functionality:
 
 ```tsx
 import { useCourier, CourierInbox } from "@trycourier/courier-react";
@@ -553,7 +552,7 @@ import { CourierInbox } from "@trycourier/courier-react";
 
 ### Theming
 
-In v8, use `lightTheme` and `darkTheme` props for automatic theme switching:
+Use `lightTheme` and `darkTheme` props for automatic theme switching:
 
 ```tsx
 import { CourierInbox } from "@trycourier/courier-react";
