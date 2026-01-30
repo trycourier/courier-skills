@@ -25,11 +25,19 @@ A comprehensive agent skill for building production-ready notification systems a
 git clone https://github.com/trycourier/courier-skills.git ~/.cursor/skills/courier-skills
 ```
 
-**Project-specific** (add to a single project):
+**Cursor** (project-specific):
 
 ```bash
 git clone https://github.com/trycourier/courier-skills.git .cursor/skills/courier-skills
 ```
+
+**Claude Code** (auto-discovered from personal skills folder):
+
+```bash
+git clone https://github.com/trycourier/courier-skills.git ~/.claude/skills/courier-skills
+```
+
+Claude Code automatically loads skills from `~/.claude/skills/`. No additional configuration needed.
 
 Also works with Windsurf, Cline, and other AI coding assistants that support skills.
 
