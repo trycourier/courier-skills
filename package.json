@@ -1,0 +1,32 @@
+{
+  "name": "@trycourier/courier-skills",
+  "version": "1.0.0",
+  "description": "Best practices for building and sending notifications across email, SMS, push, in-app, and chat channels using Courier.",
+  "keywords": [
+    "courier",
+    "notifications",
+    "email",
+    "sms",
+    "push",
+    "in-app",
+    "slack",
+    "teams",
+    "whatsapp",
+    "transactional",
+    "growth",
+    "ai-skills",
+    "cursor"
+  ],
+  "homepage": "https://github.com/trycourier/courier-skills",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trycourier/courier-skills.git"
+  },
+  "license": "MIT",
+  "author": "Courier",
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "resources/**/*.md"
+  ]
+}
