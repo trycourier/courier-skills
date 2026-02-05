@@ -99,6 +99,84 @@ Drive viral growth through referral programs and social sharing.
 3. Referee qualifies (completes action like purchase)
 4. Both parties notified of rewards
 
+### Qualification Validation
+
+Always require a qualification action before issuing rewards to prevent fraud:
+
+```typescript
+interface Referral {
+  referrerId: string;
+  refereeId: string;
+  refereeEmail: string;
+  signedUpAt: Date;
+  qualifiedAt?: Date;
+  rewardIssuedAt?: Date;
+}
+
+async function onRefereeAction(
+  referral: Referral,
+  action: "signup" | "purchase" | "activation"
+): Promise<void> {
+  if (action === "signup") {
+    // Notify referrer their friend signed up (no reward yet)
+    await courier.send({
+      message: {
+        to: { user_id: referral.referrerId },
+        content: {
+          title: `${referral.refereeEmail} signed up!`,
+          body: "They need to make a purchase for you both to earn $10.",
+        },
+        routing: { method: "all", channels: ["push", "inbox"] },
+      },
+    });
+  }
+
+  if (action === "purchase" && !referral.qualifiedAt) {
+    // Validate against fraud rules before issuing reward
+    const isValid = await validateReferral(referral);
+    if (!isValid) return;
+
+    referral.qualifiedAt = new Date();
+    await issueReward(referral.referrerId, "$10");
+    await issueReward(referral.refereeId, "$10");
+
+    // Notify both parties
+    await courier.send({
+      message: {
+        to: { user_id: referral.referrerId },
+        template: "REFERRAL_REWARD_EARNED",
+        data: {
+          refereeName: referral.refereeEmail,
+          rewardAmount: "$10",
+        },
+        routing: { method: "all", channels: ["email", "push", "inbox"] },
+      },
+    });
+  }
+}
+```
+
+### Basic Fraud Prevention
+
+```typescript
+async function validateReferral(referral: Referral): Promise<boolean> {
+  // Same IP address as referrer
+  const referrerIp = await getSignupIp(referral.referrerId);
+  const refereeIp = await getSignupIp(referral.refereeId);
+  if (referrerIp === refereeIp) return false;
+
+  // Referrer hit daily/monthly limit
+  const recentReferrals = await getReferralCount(referral.referrerId, "30d");
+  if (recentReferrals >= 25) return false;
+
+  // Referee signed up too quickly after link click (bot)
+  const signupLatency = referral.signedUpAt.getTime() - Date.now();
+  if (signupLatency < 5000) return false; // Under 5 seconds
+
+  return true;
+}
+```
+
 ## Inviting / Sharing
 
 ### Invite Email
@@ -265,9 +343,10 @@ Share prompts work best after:
 
 ### Prevent Fraud
 
-- Require qualification (purchase, activity)
-- Limit referrals per user if needed
-- Detect suspicious patterns
+- Require qualification action (purchase, activity threshold) before issuing rewards
+- Limit referrals per user (e.g., 25/month)
+- Detect suspicious patterns (same IP, rapid signups, disposable emails)
+- See fraud validation code in the [Referral Flow](#referral-flow) section above
 
 ## Related
 

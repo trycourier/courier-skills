@@ -130,9 +130,77 @@ Channels: In-app + Push for real-time, Email for important mentions
 - 2 actors: "Jane and Bob liked your post"
 - 3+ actors: "Jane, Bob, and 3 others liked your post"
 
-### Implementation Strategy
+### Implementation
 
-Instead of sending immediately, queue notifications and batch after 5-10 minutes. Group by type and summarize.
+Queue events and batch after a delay window. Group by type and target, then summarize:
+
+```typescript
+interface ActivityEvent {
+  type: "like" | "comment" | "follow" | "share";
+  actorId: string;
+  actorName: string;
+  targetId: string;
+  targetOwnerId: string;
+  createdAt: Date;
+}
+
+function formatActors(names: string[]): string {
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names[0]}, ${names[1]}, and ${names.length - 2} others`;
+}
+
+async function processBatchedEvents(events: ActivityEvent[]): Promise<void> {
+  // Group by target owner + type + target
+  const grouped = new Map<string, ActivityEvent[]>();
+  for (const event of events) {
+    const key = `${event.targetOwnerId}:${event.type}:${event.targetId}`;
+    const group = grouped.get(key) ?? [];
+    group.push(event);
+    grouped.set(key, group);
+  }
+
+  for (const [, group] of grouped) {
+    const actorNames = [...new Set(group.map((e) => e.actorName))];
+    const summary = formatActors(actorNames);
+
+    await courier.send({
+      message: {
+        to: { user_id: group[0].targetOwnerId },
+        content: {
+          title: `${summary} ${group[0].type}d your post`,
+          body: `You have ${group.length} new ${group[0].type}s`,
+        },
+        routing: { method: "all", channels: ["push", "inbox"] },
+      },
+    });
+  }
+}
+```
+
+### Batch Window Strategy
+
+Use a 5-10 minute delay queue. When the first event arrives, start a timer. Send the batch when either the timer expires or the event count hits a threshold:
+
+```typescript
+const BATCH_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const BATCH_MAX_EVENTS = 50;
+
+async function onActivityEvent(event: ActivityEvent): Promise<void> {
+  const batchKey = `batch:${event.targetOwnerId}:${event.type}`;
+
+  await queue.add(batchKey, event);
+  const count = await queue.length(batchKey);
+
+  if (count === 1) {
+    // First event — schedule batch processing
+    setTimeout(() => flushBatch(batchKey), BATCH_WINDOW_MS);
+  } else if (count >= BATCH_MAX_EVENTS) {
+    // Threshold hit — flush immediately
+    await flushBatch(batchKey);
+  }
+}
+```
 
 ## Digests
 
@@ -181,24 +249,56 @@ Include:
 
 ## Streak Notifications
 
-### Building Habits
+### Streak Calculation
 
-Celebrate streak milestones: 3, 7, 14, 30, 60, 90, 365 days.
+```typescript
+interface StreakData {
+  userId: string;
+  currentStreak: number;
+  lastActiveDate: Date;
+  longestStreak: number;
+}
 
-Use increasing celebration intensity:
+const STREAK_MILESTONES = [3, 7, 14, 30, 60, 90, 365];
+
+function checkStreakStatus(streak: StreakData): "active" | "at_risk" | "broken" {
+  const hoursSinceActive =
+    (Date.now() - streak.lastActiveDate.getTime()) / (1000 * 60 * 60);
+
+  if (hoursSinceActive < 20) return "active";
+  if (hoursSinceActive < 28) return "at_risk"; // 4-hour warning window
+  return "broken";
+}
+
+async function handleStreakCheck(streak: StreakData): Promise<void> {
+  const status = checkStreakStatus(streak);
+
+  if (status === "at_risk" && streak.currentStreak >= 3) {
+    const hoursLeft = Math.floor(
+      28 - (Date.now() - streak.lastActiveDate.getTime()) / (1000 * 60 * 60)
+    );
+    await courier.send({
+      message: {
+        to: { user_id: streak.userId },
+        content: {
+          title: "Your streak is at risk!",
+          body: `Log in within ${hoursLeft} hours to keep your ${streak.currentStreak}-day streak alive.`,
+        },
+        routing: { method: "single", channels: ["push"] },
+      },
+    });
+  }
+}
+```
+
+### Milestone Celebrations
+
+Celebrate streak milestones with increasing intensity:
 - 7 days: "One week! You're building a habit."
 - 30 days: "One month! You're unstoppable."
 - 365 days: "ONE YEAR! You're a legend."
 
 Channel: In-app + Push
-
-### Streak at Risk
-
-If user has streak > 3 days and hasn't been active for 20+ hours, send reminder.
-
-Channel: Push + SMS (if critical)
-
-Example: "Your 14-day streak is at risk! Log in within the next 4 hours to keep it alive."
 
 ## Channel Strategy
 

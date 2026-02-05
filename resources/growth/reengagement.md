@@ -88,18 +88,9 @@ Win back inactive users and prevent churn.
 
 ## When to Re-engage
 
-### Inactivity Triggers
+### Inactivity Detection
 
-| User Type | Inactive Period | Action |
-|-----------|----------------|--------|
-| New user (< 7 days) | 3 days | Onboarding help |
-| Active user | 7 days | Light nudge |
-| Active user | 14 days | Stronger outreach |
-| Active user | 30+ days | Win-back campaign |
-
-### Define "Inactive"
-
-Depends on your product's natural usage pattern:
+Define "inactive" based on your product's natural usage pattern:
 
 | Product Type | Consider Inactive After |
 |--------------|------------------------|
@@ -107,6 +98,45 @@ Depends on your product's natural usage pattern:
 | Weekly tool | 2 weeks |
 | Monthly service | 6 weeks |
 | Seasonal product | Varies |
+
+```typescript
+interface UserActivity {
+  userId: string;
+  lastActiveAt: Date;
+  accountCreatedAt: Date;
+  reengagementAttempts: number;
+}
+
+type InactivityTier = "nudge" | "outreach" | "winback" | "dormant" | "none";
+
+function getInactivityTier(user: UserActivity): InactivityTier {
+  const daysSinceActive = Math.floor(
+    (Date.now() - user.lastActiveAt.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const isNewUser =
+    Date.now() - user.accountCreatedAt.getTime() < 7 * 24 * 60 * 60 * 1000;
+
+  // New users get onboarding help, not re-engagement
+  if (isNewUser) return "none";
+
+  // Stop after 2-3 attempts
+  if (user.reengagementAttempts >= 3) return "dormant";
+
+  if (daysSinceActive >= 30) return "winback";
+  if (daysSinceActive >= 14) return "outreach";
+  if (daysSinceActive >= 7) return "nudge";
+  return "none";
+}
+```
+
+### Inactivity Triggers
+
+| User Type | Inactive Period | Action |
+|-----------|----------------|--------|
+| New user (< 7 days) | 3 days | Onboarding help (not re-engagement) |
+| Active user | 7 days | Light nudge |
+| Active user | 14 days | Stronger outreach |
+| Active user | 30+ days | Win-back campaign |
 
 ## Inactivity Nudges
 
@@ -175,6 +205,46 @@ Include:
 - Discount offer with code
 - Expiration date
 - CTA to claim discount
+
+### Automation with Cancellation
+
+Start a win-back sequence that auto-cancels when the user returns:
+
+```typescript
+// Start win-back sequence
+await courier.automations.invoke("winback-sequence", {
+  user_id: userId,
+  cancelation_token: `reengagement-${userId}`,
+  data: {
+    userName: user.name,
+    lastActivity: user.lastActiveAt.toISOString(),
+    whatsNew: await getRecentFeatures(),
+  },
+});
+
+// When user returns — cancel the sequence and welcome back
+async function onUserReturn(userId: string): Promise<void> {
+  // Cancel any active re-engagement sequence
+  await courier.automations.cancel({
+    cancelation_token: `reengagement-${userId}`,
+  });
+
+  // Increment return count for analytics
+  await incrementReengagementSuccess(userId);
+
+  // Send welcome back via in-app
+  await courier.send({
+    message: {
+      to: { user_id: userId },
+      content: {
+        title: "Welcome back!",
+        body: "Here's what's new since you left.",
+      },
+      routing: { method: "single", channels: ["inbox"] },
+    },
+  });
+}
+```
 
 ### Exit Condition
 

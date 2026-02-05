@@ -7,12 +7,35 @@ description: Use when building notifications across email, SMS, push, in-app, Sl
 
 Guidance for building deliverable, compliant, and engaging notifications across all channels.
 
-> Use the routing tables below to find implementation details for your specific task.
+## How to Use This Skill
+
+1. **Identify the task** — What channel, notification type, or cross-cutting concern is the user working on?
+2. **Read only what's needed** — Use the routing tables below to find the 1-2 files relevant to the task. Do NOT read all files.
+3. **Check for live docs** — For current API signatures and SDK methods, fetch `https://www.courier.com/docs/llms.txt`
+4. **Synthesize before coding** — Plan the complete implementation (channels, routing, compliance, error handling) before writing code.
+5. **Apply the rules** — Each resource file starts with a "Quick Reference" section containing hard rules. Treat these as constraints, not suggestions.
+6. **Check universal rules** — Before generating any notification code, verify it doesn't violate the Universal Rules below.
+
+## Universal Rules (Never Violate)
+
+- NEVER send promotional content in transactional notifications (CAN-SPAM violation)
+- NEVER batch or delay OTP, password reset, or security alert notifications
+- NEVER send SMS without TCPA-compliant consent records
+- NEVER skip idempotency keys for transactional sends
+- NEVER send during quiet hours (10pm-8am local) unless critical/security
+- NEVER expose full email/phone in security change notifications (mask them)
+- ALWAYS include "I didn't request this" links in security-related emails
+- ALWAYS use E.164 format for phone numbers
+- ALWAYS configure SPF + DKIM + DMARC before sending production email
+- ALWAYS respect user opt-out preferences immediately
+- ALWAYS use `method: "single"` unless the notification is critical enough to warrant all channels
 
 ## Official Courier Documentation
 
-For complete and current documentation, fetch the index at:
-https://www.courier.com/docs/llms.txt
+When you need current API signatures, SDK methods, or features not covered in these resources:
+1. Fetch `https://www.courier.com/docs/llms.txt` — returns a structured index of all Courier documentation
+2. Use it to find specific endpoint details, SDK method signatures, and configuration options
+3. Prefer the patterns in THIS skill for best practices; use llms.txt for API specifics
 
 ## Architecture Overview
 
@@ -98,6 +121,7 @@ https://www.courier.com/docs/llms.txt
 | Combine notifications, build digests | [Batching](./resources/guides/batching.md) |
 | Control frequency, prevent fatigue | [Throttling](./resources/guides/throttling.md) |
 | Plan notifications for your app type | [Catalog](./resources/guides/catalog.md) |
+| Reusable code patterns (consent, quiet hours, masking, retry) | [Patterns](./resources/guides/patterns.md) |
 
 ## Minimal File Sets by Task
 
@@ -120,19 +144,30 @@ For common tasks, you only need to read these specific files:
 | WhatsApp templates | [whatsapp.md](./resources/channels/whatsapp.md) |
 | Slack/Teams integration | [slack.md](./resources/channels/slack.md) or [ms-teams.md](./resources/channels/ms-teams.md) |
 
-## Start Here
+## Decision Guide
 
-**New app?**
-Start with the [Catalog](./resources/guides/catalog.md) to plan which notifications your app needs, then set up [Email deliverability](./resources/channels/email.md) and review [Multi-Channel routing](./resources/guides/multi-channel.md).
+**What are you building?**
 
-**Building transactional notifications?**
-Check [Transactional Overview](./resources/transactional/index.md) for principles, then dive into the specific type you're building (authentication, orders, billing, appointments, or account).
+- **A specific notification** (OTP, order confirm, password reset, etc.)
+  → Use the [Minimal File Sets](#minimal-file-sets-by-task) table above to find exactly which 1-2 files to read.
 
-**Building growth notifications?**
-Check [Growth Overview](./resources/growth/index.md) to understand consent requirements and lifecycle stages, then dive into onboarding, adoption, engagement, re-engagement, referral, or campaigns.
+- **A new notification channel** (email, SMS, push, Slack, etc.)
+  → See [By Channel](#by-channel) for the channel-specific guide.
 
-**Compliance concerns?**
-Review [Compliance](./resources/guides/compliance.md) for regulations by channel, then check channel-specific requirements in [SMS](./resources/channels/sms.md) (TCPA/10DLC) and [Email](./resources/channels/email.md) (CAN-SPAM).
+- **Notification infrastructure** (routing, preferences, reliability, batching)
+  → See [Cross-Cutting Guides](#cross-cutting-guides) for the relevant guide.
 
-**Deliverability issues?**
-For email going to spam, check [Email](./resources/channels/email.md). For SMS delivery issues, check [SMS](./resources/channels/sms.md) for 10DLC registration requirements.
+- **Planning which notifications to build** for a new app
+  → Start with [Catalog](./resources/guides/catalog.md), then [Email](./resources/channels/email.md), then [Multi-Channel](./resources/guides/multi-channel.md).
+
+- **Growth / lifecycle notifications** (onboarding, engagement, referral)
+  → Read [Growth Overview](./resources/growth/index.md) for consent requirements first, then the specific type.
+
+- **Compliance concerns** (GDPR, TCPA, CAN-SPAM)
+  → Read [Compliance](./resources/guides/compliance.md), then channel-specific rules in [SMS](./resources/channels/sms.md) or [Email](./resources/channels/email.md).
+
+- **Debugging delivery issues**
+  → Email going to spam? [Email](./resources/channels/email.md). SMS not arriving? [SMS](./resources/channels/sms.md). General failures? [Reliability](./resources/guides/reliability.md).
+
+- **Reusable code patterns** (consent check, quiet hours, idempotency, fallback)
+  → See [Patterns](./resources/guides/patterns.md) for copy-paste implementations.

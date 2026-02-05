@@ -156,23 +156,66 @@ Include:
 
 ## Targeting Strategies
 
-### By Behavior
+### Feature Usage Check
 
-Target users who:
-- View but don't use a feature
-- Use a related feature frequently
-- Would benefit based on their workflow
+Before announcing a feature, verify the user isn't already using it:
+
+```typescript
+interface FeatureUsage {
+  featureId: string;
+  userId: string;
+  firstUsed?: Date;
+  usageCount: number;
+}
+
+async function shouldAnnounce(
+  userId: string,
+  featureId: string
+): Promise<boolean> {
+  const usage = await getFeatureUsage(userId, featureId);
+  // Don't announce to users already using the feature
+  return !usage || usage.usageCount === 0;
+}
+
+// Only send if user hasn't used the feature
+if (await shouldAnnounce(userId, "dark-mode")) {
+  await courier.send({
+    message: {
+      to: { user_id: userId },
+      template: "FEATURE_ANNOUNCEMENT",
+      data: {
+        featureName: "Dark Mode",
+        benefits: ["Reduce eye strain", "Save battery"],
+        ctaUrl: "https://app.acme.com/settings/appearance",
+      },
+    },
+  });
+}
+```
 
 ### By User Segment
 
-Map features to user roles:
-- Developers: API, webhooks, CLI
-- Designers: Templates, branding, export
-- Managers: Reports, permissions, audit log
+Map features to user roles and only announce to the right segment:
+
+```typescript
+type UserRole = "developer" | "designer" | "manager" | "general";
+
+const featureTargets: Record<string, UserRole[]> = {
+  "api-webhooks": ["developer"],
+  "template-builder": ["designer"],
+  "team-permissions": ["manager"],
+  "dark-mode": ["developer", "designer", "manager", "general"],
+};
+
+function shouldTarget(userRole: UserRole, featureId: string): boolean {
+  const targets = featureTargets[featureId] ?? ["general"];
+  return targets.includes(userRole) || targets.includes("general");
+}
+```
 
 ### By Usage Pattern
 
-If user does X a lot, suggest related feature Y:
+If user does X frequently, suggest related feature Y:
 - Frequent manual task creation → Templates
 - Frequent exports → Scheduled reports
 - Many team mentions → Channel notifications

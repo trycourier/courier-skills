@@ -31,15 +31,17 @@ git clone https://github.com/trycourier/courier-skills.git ~/.cursor/skills/cour
 git clone https://github.com/trycourier/courier-skills.git .cursor/skills/courier-skills
 ```
 
-**Claude Code** (auto-discovered from personal skills folder):
+**Claude Code**:
 
 ```bash
 git clone https://github.com/trycourier/courier-skills.git ~/.claude/skills/courier-skills
 ```
 
-Claude Code automatically loads skills from `~/.claude/skills/`. No additional configuration needed.
+Claude Code discovers skills from `~/.claude/skills/` automatically. The skill's `SKILL.md` frontmatter (`name` and `description` fields) is used for discovery — no additional configuration needed.
 
-Also works with Windsurf, Cline, and other AI coding assistants that support skills.
+**Other AI Assistants** (Windsurf, Cline, etc.):
+
+Clone to the skill directory supported by your assistant, or point it at the `SKILL.md` file manually. The skill follows standard markdown conventions and works with any AI coding tool that supports agent skills.
 
 ## What This Skill Covers
 
@@ -114,7 +116,8 @@ courier-notification-skills/
         ├── reliability.md
         ├── batching.md
         ├── throttling.md
-        └── catalog.md
+        ├── catalog.md
+        └── patterns.md
 ```
 
 ## Quick Start

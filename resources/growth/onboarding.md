@@ -197,31 +197,104 @@ If user selected a goal during signup (increase productivity, team collaboration
 
 ### Courier Automations
 
-Use Courier Automations to build onboarding sequences without code:
+Use Courier Automations to build onboarding sequences with delays, conditions, and cancellation:
 
 ```typescript
-// Trigger an automation programmatically
+// Start onboarding when user signs up
 await courier.automations.invoke("onboarding-sequence", {
   user_id: "user-123",
+  cancelation_token: `onboarding-${userId}`,
   data: {
     userName: "Jane",
-    signupDate: new Date().toISOString()
+    signupDate: new Date().toISOString(),
+    timezone: user.timezone || "America/New_York"
   }
 });
 ```
 
-Automations support:
-- **Delays:** Wait days/hours between steps
-- **Conditions:** Branch based on user actions
-- **Cancellation:** Stop if user completes goal
-
-### Drip Sequence
-
-Set up an automated onboarding sequence that sends messages based on days since signup and user actions.
-
 ### Exit Conditions
 
-Stop sending onboarding messages when user activates. Send activation success message instead.
+When the user activates, cancel the onboarding sequence and send a success message:
+
+```typescript
+// User completed their aha moment — stop onboarding
+await courier.automations.cancel({
+  cancelation_token: `onboarding-${userId}`
+});
+
+// Send activation success
+await courier.send({
+  message: {
+    to: { user_id: userId },
+    template: "ACTIVATION_SUCCESS",
+    data: {
+      achievement: "First dashboard created!",
+      nextStep: "Invite your team"
+    },
+    routing: { method: "all", channels: ["email", "push", "inbox"] }
+  }
+});
+```
+
+### Timezone-Aware Scheduling
+
+Onboarding emails should arrive during business hours in the user's local timezone:
+
+```typescript
+function getNextDeliveryTime(
+  timezone: string,
+  targetHour: number = 9
+): Date {
+  const now = new Date();
+  const userTime = new Date(
+    now.toLocaleString("en-US", { timeZone: timezone })
+  );
+  const userHour = userTime.getHours();
+
+  // If past target hour today, schedule for tomorrow
+  if (userHour >= targetHour) {
+    userTime.setDate(userTime.getDate() + 1);
+  }
+  userTime.setHours(targetHour, 0, 0, 0);
+  return userTime;
+}
+
+// Schedule Day 1 reminder for 9am user local time
+const deliverAt = getNextDeliveryTime(user.timezone, 9);
+```
+
+### Incomplete Step Detection
+
+Track which onboarding steps are incomplete to send targeted reminders:
+
+```typescript
+interface OnboardingProgress {
+  userId: string;
+  steps: {
+    id: string;
+    title: string;
+    completed: boolean;
+    completedAt?: Date;
+  }[];
+}
+
+async function sendStepReminder(progress: OnboardingProgress): Promise<void> {
+  const nextStep = progress.steps.find((s) => !s.completed);
+  if (!nextStep) return; // All steps complete
+
+  await courier.send({
+    message: {
+      to: { user_id: progress.userId },
+      template: "ONBOARDING_STEP_REMINDER",
+      data: {
+        stepTitle: nextStep.title,
+        completedCount: progress.steps.filter((s) => s.completed).length,
+        totalSteps: progress.steps.length,
+      },
+    },
+  });
+}
+```
 
 ## Metrics
 

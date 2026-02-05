@@ -21,62 +21,6 @@
 - Too many buttons (cluttered, confusing)
 - Not handling webhook expiration
 
-### Templates
-
-**Via Webhook:**
-```typescript
-await courier.send({
-  message: {
-    to: {
-      ms_teams: {
-        webhook_url: "https://outlook.office.com/webhook/..."
-      }
-    },
-    content: { title: "Build Complete", body: "Build #456 succeeded." }
-  }
-});
-```
-
-**Adaptive Card Override:**
-```typescript
-channels: {
-  ms_teams: {
-    override: {
-      body: {
-        type: "AdaptiveCard",
-        version: "1.4",
-        body: [
-          { type: "TextBlock", text: "Title", weight: "bolder", size: "large" },
-          { type: "FactSet", facts: [
-            { title: "Status", value: "Complete" },
-            { title: "Duration", value: "2m 34s" }
-          ]}
-        ],
-        actions: [
-          { type: "Action.OpenUrl", title: "View", url: "https://..." }
-        ]
-      }
-    }
-  }
-}
-```
-
-**Via Bot (DM):**
-```typescript
-await courier.send({
-  message: {
-    to: {
-      ms_teams: {
-        tenant_id: process.env.AZURE_TENANT_ID,
-        service_url: "https://smba.trafficmanager.net/...",
-        user_id: "29:1abc..."
-      }
-    },
-    template: "TASK_ASSIGNED"
-  }
-});
-```
-
 ---
 
 Best practices for sending Microsoft Teams notifications with Adaptive Cards.
@@ -391,45 +335,6 @@ With entities:
 ```
 
 ## Common Use Cases
-
-### Deployment Notification
-
-```typescript
-const deployCard = {
-  type: "AdaptiveCard",
-  version: "1.4",
-  body: [
-    {
-      type: "TextBlock",
-      text: "🚀 Deployment Complete",
-      weight: "bolder",
-      size: "large"
-    },
-    {
-      type: "FactSet",
-      facts: [
-        { title: "Service", value: "api-gateway" },
-        { title: "Environment", value: "Production" },
-        { title: "Version", value: "v2.3.1" },
-        { title: "Deployed by", value: "Jane Doe" },
-        { title: "Duration", value: "2m 34s" }
-      ]
-    }
-  ],
-  actions: [
-    {
-      type: "Action.OpenUrl",
-      title: "View Logs",
-      url: "https://logs.acme.com/deploy/123"
-    },
-    {
-      type: "Action.OpenUrl",
-      title: "Release Notes",
-      url: "https://acme.com/releases/v2.3.1"
-    }
-  ]
-};
-```
 
 ### Incident Alert
 

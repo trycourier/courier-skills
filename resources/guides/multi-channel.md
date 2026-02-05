@@ -29,36 +29,6 @@
 - Not respecting user preferences
 - Forgetting idempotency keys (causes duplicates)
 
-### Templates
-
-**Single with Fallback:**
-```typescript
-await courier.send({
-  message: {
-    to: { user_id: "user-123" },
-    template: "OTP_CODE",
-    routing: {
-      method: "single",
-      channels: ["sms", "email"]
-    }
-  }
-});
-```
-
-**All Channels (Critical):**
-```typescript
-await courier.send({
-  message: {
-    to: { user_id: "user-123" },
-    template: "SECURITY_ALERT",
-    routing: {
-      method: "all",
-      channels: ["email", "push", "sms", "inbox"]
-    }
-  }
-});
-```
-
 ---
 
 Orchestrate notifications across channels for maximum deliverability and engagement.
@@ -139,43 +109,6 @@ await courier.send({
 | **Appointment reminder** | SMS + Push | Email | Time-sensitive |
 
 ## Channel Selection Examples
-
-### Password Reset
-
-```typescript
-// Email only - secure link delivery
-await courier.send({
-  message: {
-    to: { user_id: "user-123" },
-    template: "PASSWORD_RESET",
-    data: { 
-      resetUrl: "https://acme.com/reset?token=abc123",
-      expiresIn: "1 hour"
-    },
-    routing: {
-      method: "single",
-      channels: ["email"]
-    }
-  }
-});
-```
-
-### OTP Code with Fallback
-
-```typescript
-// SMS preferred, email fallback
-await courier.send({
-  message: {
-    to: { user_id: "user-123" },
-    template: "OTP_CODE",
-    data: { code: "847293" },
-    routing: {
-      method: "single",
-      channels: ["sms", "email"] // Try SMS first
-    }
-  }
-});
-```
 
 ### Security Alert (Maximum Reach)
 
@@ -556,21 +489,6 @@ const analytics = {
 - **Ignore context:** User active in app? Don't also send email
 - **Over-escalate:** Not everything needs SMS
 - **Forget mobile:** 60%+ of notifications read on mobile
-
-## Quick Reference
-
-| Use Case | Recommended Approach |
-|----------|---------------------|
-| OTP/2FA | `single` → [sms, email] |
-| Password reset | `single` → [email] |
-| Order confirmation | `single` → [email] |
-| Order shipped | `all` → [email, push, inbox] |
-| Delivery update | `all` → [push, sms] |
-| Security alert | `all` → [email, push, sms, inbox] |
-| Direct message | `all` → [push, inbox] |
-| Activity mention | `all` → [push, inbox] |
-| Weekly digest | `single` → [email] |
-| Appointment reminder | `all` → [sms, push] |
 
 ## Related
 
