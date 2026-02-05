@@ -84,7 +84,6 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 courier-notification-skills/
 ├── SKILL.md                    # Start here - routes to the right resource
 ├── README.md                   # This file
-├── package.json                # npm package config
 └── resources/
     ├── channels/               # Channel-specific best practices
     │   ├── email.md
