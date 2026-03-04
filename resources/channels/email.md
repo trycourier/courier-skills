@@ -27,7 +27,7 @@
 
 ### Templates
 
-**Basic Email Send:**
+**Basic Email Send (TypeScript):**
 ```typescript
 await courier.send({
   message: {
@@ -38,7 +38,18 @@ await courier.send({
 });
 ```
 
-**With Provider Override:**
+**Basic Email Send (Python):**
+```python
+client.send(
+    message={
+        "to": {"email": "jane@example.com"},
+        "template": "TEMPLATE_NAME",
+        "data": {"userName": "Jane"},
+    }
+)
+```
+
+**With Provider Override (TypeScript):**
 ```typescript
 await courier.send({
   message: {

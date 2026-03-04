@@ -32,7 +32,7 @@
 
 ### Templates
 
-**Send with Idempotency Key:**
+**Send with Idempotency Key (TypeScript):**
 ```typescript
 await courier.send({
   message: {
@@ -45,14 +45,32 @@ await courier.send({
 });
 ```
 
-**Webhook Handler:**
+**Send with Idempotency Key (Python):**
+```python
+client.send(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "ORDER_CONFIRMATION",
+        "data": {"orderId": "12345"},
+    },
+    idempotency_key="order-confirmation-12345",
+)
+```
+
+**Webhook Handler (TypeScript):**
 ```typescript
 app.post('/webhooks/courier', async (req, res) => {
-  res.sendStatus(200); // Respond immediately
-  
-  // Process async
+  res.sendStatus(200);
   await queue.add('process-webhook', req.body);
 });
+```
+
+**Webhook Handler (Python):**
+```python
+@app.route("/webhooks/courier", methods=["POST"])
+def courier_webhook():
+    queue.enqueue("process_webhook", request.get_json())
+    return "", 200
 ```
 
 **Retry with Backoff:**
@@ -78,6 +96,7 @@ Without idempotency, you might send duplicate notifications if:
 
 Add the `Idempotency-Key` header to your API requests. Courier stores keys for 24 hours and returns cached responses for duplicate requests.
 
+**TypeScript:**
 ```typescript
 await courier.send({
   message: {
@@ -88,6 +107,18 @@ await courier.send({
 }, {
   idempotencyKey: `order-confirmation-12345`
 });
+```
+
+**Python:**
+```python
+client.send(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "ORDER_CONFIRMATION",
+        "data": {"orderId": "12345"},
+    },
+    idempotency_key="order-confirmation-12345",
+)
 ```
 
 Or with raw HTTP:
