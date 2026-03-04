@@ -114,6 +114,7 @@ When you need current API signatures, SDK methods, or features not covered in th
 
 | Need to... | See |
 |------------|-----|
+| Get started sending your first notification | [Quickstart](./resources/guides/quickstart.md) |
 | Route across multiple channels, set up fallbacks | [Multi-Channel](./resources/guides/multi-channel.md) |
 | Manage user notification preferences | [Preferences](./resources/guides/preferences.md) |
 | Ensure GDPR, TCPA, CAN-SPAM compliance | [Compliance](./resources/guides/compliance.md) |
@@ -121,6 +122,7 @@ When you need current API signatures, SDK methods, or features not covered in th
 | Combine notifications, build digests | [Batching](./resources/guides/batching.md) |
 | Control frequency, prevent fatigue | [Throttling](./resources/guides/throttling.md) |
 | Plan notifications for your app type | [Catalog](./resources/guides/catalog.md) |
+| Use the CLI for ad-hoc operations, debugging, agent workflows | [CLI](./resources/guides/cli.md) |
 | Reusable code patterns (consent, quiet hours, masking, retry) | [Patterns](./resources/guides/patterns.md) |
 
 ## Minimal File Sets by Task
@@ -143,6 +145,9 @@ For common tasks, you only need to read these specific files:
 | Appointment reminders | [appointments.md](./resources/transactional/appointments.md), [sms.md](./resources/channels/sms.md) |
 | WhatsApp templates | [whatsapp.md](./resources/channels/whatsapp.md) |
 | Slack/Teams integration | [slack.md](./resources/channels/slack.md) or [ms-teams.md](./resources/channels/ms-teams.md) |
+| New to Courier / first notification | [quickstart.md](./resources/guides/quickstart.md) |
+| CLI debugging / ad-hoc operations | [cli.md](./resources/guides/cli.md) |
+| CLI + delivery debugging | [cli.md](./resources/guides/cli.md), [reliability.md](./resources/guides/reliability.md) |
 
 ## Decision Guide
 
@@ -166,8 +171,14 @@ For common tasks, you only need to read these specific files:
 - **Compliance concerns** (GDPR, TCPA, CAN-SPAM)
   → Read [Compliance](./resources/guides/compliance.md), then channel-specific rules in [SMS](./resources/channels/sms.md) or [Email](./resources/channels/email.md).
 
+- **New to Courier** or sending your first notification
+  → Start with [Quickstart](./resources/guides/quickstart.md).
+
 - **Debugging delivery issues**
-  → Email going to spam? [Email](./resources/channels/email.md). SMS not arriving? [SMS](./resources/channels/sms.md). General failures? [Reliability](./resources/guides/reliability.md).
+  → Use the [CLI](./resources/guides/cli.md) to inspect messages and delivery history. Email going to spam? [Email](./resources/channels/email.md). SMS not arriving? [SMS](./resources/channels/sms.md). General failures? [Reliability](./resources/guides/reliability.md).
+
+- **Ad-hoc operations, CI/CD, or AI agent workflows**
+  → See [CLI](./resources/guides/cli.md) for installation, commands, and zero-config agent patterns.
 
 - **Reusable code patterns** (consent check, quiet hours, idempotency, fallback)
-  → See [Patterns](./resources/guides/patterns.md) for copy-paste implementations.
+  → See [Patterns](./resources/guides/patterns.md) for copy-paste implementations in TypeScript, Python, CLI, and curl.

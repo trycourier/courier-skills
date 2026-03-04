@@ -41,6 +41,7 @@ Courier provides two core routing methods:
 
 Try channels in priority order until one succeeds. Best for most notifications where you want exactly one delivery.
 
+**TypeScript:**
 ```typescript
 await courier.send({
   message: {
@@ -48,10 +49,21 @@ await courier.send({
     template: "PASSWORD_RESET",
     routing: {
       method: "single",
-      channels: ["email", "sms"] // Try email first, SMS if email fails
+      channels: ["email", "sms"]
     }
   }
 });
+```
+
+**Python:**
+```python
+client.send(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "PASSWORD_RESET",
+        "routing": {"method": "single", "channels": ["email", "sms"]},
+    }
+)
 ```
 
 **Behavior:**
@@ -63,6 +75,7 @@ await courier.send({
 
 Send to all specified channels simultaneously. Best for critical notifications.
 
+**TypeScript:**
 ```typescript
 await courier.send({
   message: {
@@ -70,10 +83,21 @@ await courier.send({
     template: "SECURITY_ALERT",
     routing: {
       method: "all",
-      channels: ["email", "push", "sms"] // Send to all three
+      channels: ["email", "push", "sms"]
     }
   }
 });
+```
+
+**Python:**
+```python
+client.send(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "SECURITY_ALERT",
+        "routing": {"method": "all", "channels": ["email", "push", "sms"]},
+    }
+)
 ```
 
 **Behavior:**

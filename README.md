@@ -9,7 +9,7 @@ A comprehensive agent skill for building production-ready notification systems a
 - **Multi-channel notifications** — Send messages via email, SMS, push, Slack, Microsoft Teams, WhatsApp, and in-app inbox from a single API
 - **Production-ready patterns** — Battle-tested code examples for authentication flows, order updates, billing alerts, and more
 - **Compliance built-in** — GDPR, TCPA, CAN-SPAM, and CCPA guidance for every channel
-- **Developer-first** — TypeScript/JavaScript, Python, Ruby, Go, and cURL examples throughout
+- **Developer-first** — TypeScript, Python, CLI, and curl examples for key patterns
 
 ## Who This Is For
 
@@ -70,6 +70,7 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 - Campaigns (promotional, upgrades)
 
 **Cross-Cutting Guides**
+- Quickstart (send your first notification)
 - Multi-channel orchestration and routing
 - User preference management
 - Compliance (GDPR, TCPA, CAN-SPAM)
@@ -77,11 +78,12 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 - Batching and digests
 - Throttling and rate limiting
 - Notification catalog by app type
+- CLI (ad-hoc operations, debugging, agent workflows)
 
 ## Structure
 
 ```
-courier-notification-skills/
+courier-skills/
 ├── SKILL.md                    # Start here - routes to the right resource
 ├── README.md                   # This file
 └── resources/
@@ -109,6 +111,9 @@ courier-notification-skills/
     │   ├── referral.md
     │   └── campaigns.md
     └── guides/                 # Cross-cutting concerns
+        ├── index.md
+        ├── quickstart.md
+        ├── cli.md
         ├── multi-channel.md
         ├── preferences.md
         ├── compliance.md

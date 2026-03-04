@@ -38,7 +38,7 @@
 
 ### Templates
 
-**Send OTP:**
+**Send OTP (TypeScript):**
 ```typescript
 await courier.send({
   message: {
@@ -52,7 +52,21 @@ await courier.send({
 });
 ```
 
-**Security Alert:**
+**Send OTP (Python):**
+```python
+import time
+client.send(
+    message={
+        "to": {"phone_number": "+15551234567"},
+        "content": {
+            "body": "Your Acme code is 847293. Expires in 10 min. Never share this code."
+        },
+    },
+    idempotency_key=f"otp-user123-{int(time.time())}",
+)
+```
+
+**Security Alert (TypeScript):**
 ```typescript
 await courier.send({
   message: {
@@ -62,6 +76,18 @@ await courier.send({
     routing: { method: "all", channels: ["email", "push", "sms"] }
   }
 });
+```
+
+**Security Alert (Python):**
+```python
+client.send(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "NEW_DEVICE_LOGIN",
+        "data": {"device": "Chrome on Windows", "location": "New York"},
+        "routing": {"method": "all", "channels": ["email", "push", "sms"]},
+    }
+)
 ```
 
 ---
