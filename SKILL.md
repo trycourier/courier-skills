@@ -123,6 +123,7 @@ When you need current API signatures, SDK methods, or features not covered in th
 | Control frequency, prevent fatigue | [Throttling](./resources/guides/throttling.md) |
 | Plan notifications for your app type | [Catalog](./resources/guides/catalog.md) |
 | Use the CLI for ad-hoc operations, debugging, agent workflows | [CLI](./resources/guides/cli.md) |
+| Migrate React SDK from v7 to v8, fix silent inbox failures | [React SDK Migration](./resources/guides/react-sdk-migration.md) |
 | Reusable code patterns (consent, quiet hours, masking, retry) | [Patterns](./resources/guides/patterns.md) |
 
 ## Minimal File Sets by Task
@@ -138,6 +139,8 @@ For common tasks, you only need to read these specific files:
 | SMS setup & compliance | [sms.md](./resources/channels/sms.md) (includes 10DLC, TCPA) |
 | Push notification setup | [push.md](./resources/channels/push.md) |
 | In-app inbox setup | [inbox.md](./resources/channels/inbox.md) |
+| React SDK v7→v8 migration | [react-sdk-migration.md](./resources/guides/react-sdk-migration.md) |
+| React inbox not showing messages | [react-sdk-migration.md](./resources/guides/react-sdk-migration.md), [inbox.md](./resources/channels/inbox.md) |
 | Onboarding sequence | [onboarding.md](./resources/growth/onboarding.md), [multi-channel.md](./resources/guides/multi-channel.md) |
 | Security alerts | [authentication.md](./resources/transactional/authentication.md), [multi-channel.md](./resources/guides/multi-channel.md) |
 | Digest/batching | [batching.md](./resources/guides/batching.md), [preferences.md](./resources/guides/preferences.md) |
@@ -173,6 +176,9 @@ For common tasks, you only need to read these specific files:
 
 - **New to Courier** or sending your first notification
   → Start with [Quickstart](./resources/guides/quickstart.md).
+
+- **Migrating or building with Courier React SDK** (Inbox, Toast, hooks)
+  → Read [React SDK Migration](./resources/guides/react-sdk-migration.md). If the inbox renders but shows no messages, this is almost certainly a v7/v8 mixing issue.
 
 - **Debugging delivery issues**
   → Use the [CLI](./resources/guides/cli.md) to inspect messages and delivery history. Email going to spam? [Email](./resources/channels/email.md). SMS not arriving? [SMS](./resources/channels/sms.md). General failures? [Reliability](./resources/guides/reliability.md).
