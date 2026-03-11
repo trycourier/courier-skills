@@ -56,18 +56,6 @@ npm install -g @trycourier/cli
 
 Downloads a platform-specific binary via postinstall. No Node.js runtime needed after installation.
 
-**Homebrew** (macOS):
-
-```bash
-brew install trycourier/courier/courier
-```
-
-macOS Gatekeeper may quarantine the binary on first run. If you see "Apple could not verify", run:
-
-```bash
-xattr -d com.apple.quarantine "$(which courier)"
-```
-
 **Direct download**:
 
 Download from [GitHub Releases](https://github.com/trycourier/courier-cli/releases) and add to your `PATH`.
