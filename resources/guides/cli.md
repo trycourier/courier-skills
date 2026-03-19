@@ -24,11 +24,18 @@
 
 | Task | Command |
 |------|---------|
-| Send a message | `courier send message --message.to.user_id "user-123" --message.template "TEMPLATE"` |
+| Send with a template | `courier send message --message.to.user_id "user-123" --message.template "TEMPLATE"` |
+| Send inline (no template) | `courier send message --message.to.email "a@b.com" --message.content.title "Title" --message.content.body "Body"` |
+| Send to a list | `courier send message --message.to.list_id "beta-testers" --message.template "TEMPLATE"` |
 | List recent messages | `courier messages list` |
 | Inspect a message | `courier messages retrieve --message-id "1-abc123"` |
 | View delivery history | `courier messages history --message-id "1-abc123"` |
+| View rendered output | `courier messages output --message-id "1-abc123"` |
+| Create a user profile | `courier profiles create --user-id "user-123" --profile '{"email": "a@b.com"}'` |
 | Get a user profile | `courier profiles retrieve --user-id "user-123"` |
+| Check user preferences | `courier preferences retrieve --user-id "user-123"` |
+| Trigger an automation | `courier automations invoke --template-id "onboarding-sequence"` |
+| Create a bulk job | `courier bulk create --message.template "monthly-digest"` |
 | List templates | `courier notifications list` |
 
 ### Output Formats
@@ -80,9 +87,131 @@ Override per command with `--api-key`:
 courier messages list --api-key "different-key"
 ```
 
+## Inline Sends
+
+Send without a pre-built template by passing content directly:
+
+```bash
+courier send message \
+  --message.to.email "alex@example.com" \
+  --message.content.title "New comment on your design file" \
+  --message.content.body "Sara left a comment on Homepage Redesign: 'Love the new hero section.'"
+```
+
+Route across multiple channels with fallback:
+
+```bash
+courier send message \
+  --message.to.email "alex@example.com" \
+  --message.to.phone_number "+15551234567" \
+  --message.content.title "New login detected" \
+  --message.content.body "New login from {{city}}, {{country}}. If this wasn't you, reset your password." \
+  --message.data '{"city": "San Francisco", "country": "US"}' \
+  --message.routing.method "single" \
+  --message.routing.channels '["email", "sms"]'
+```
+
+`--message.routing.method "single"` tries channels in order and stops at the first successful delivery. Use `"all"` only for critical notifications that must reach every channel.
+
+## User Profiles
+
+Create a profile so you can send by `user_id` instead of passing contact info every time:
+
+```bash
+courier profiles create \
+  --user-id "user-123" \
+  --profile '{"email": "alex@example.com", "phone_number": "+15551234567", "name": "Alex Chen"}'
+```
+
+Add custom attributes (merges with existing profile, won't overwrite contact info):
+
+```bash
+courier profiles create \
+  --user-id "user-123" \
+  --profile '{"custom": {"plan": "pro", "company": "Acme Corp", "locale": "en-US"}}'
+```
+
+Look up a profile:
+
+```bash
+courier profiles retrieve --user-id "user-123" --format json
+```
+
+## Lists and Bulk
+
+**Send to a group via lists:**
+
+```bash
+courier lists update --list-id "beta-testers" --name "Beta Testers"
+courier lists subscribe --list-id "beta-testers" --user-id "user-123"
+
+courier send message \
+  --message.to.list_id "beta-testers" \
+  --message.template "feature-announcement" \
+  --message.data '{"feature": "Design Studio"}'
+```
+
+Target multiple lists with a pattern (e.g., all `eng.*` lists):
+
+```bash
+courier send message \
+  --message.to.list_pattern "eng.*" \
+  --message.template "engineering-update"
+```
+
+**Bulk sends** for large audiences (product launches, digests):
+
+```bash
+courier bulk create --message.template "monthly-digest"
+
+courier bulk add-users --job-id "job-abc" \
+  --users '[{"user_id": "user-1", "data": {"highlights": 12}}, {"user_id": "user-2", "data": {"highlights": 7}}]'
+
+courier bulk run --job-id "job-abc"
+courier bulk retrieve --job-id "job-abc"
+```
+
+## Tenants, Automations, and Preferences
+
+**Tenants** scope branding and preferences per customer organization (B2B):
+
+```bash
+courier tenants create \
+  --tenant-id "acme-corp" \
+  --name "Acme Corp" \
+  --properties '{"brandId": "brand-acme"}'
+
+courier user-tenants add --user-id "user-123" --tenant-id "acme-corp"
+
+courier send message \
+  --message.to.user_id "user-123" \
+  --message.to.tenant_id "acme-corp" \
+  --message.template "welcome-email"
+```
+
+**Automations** trigger multi-step notification sequences (delays, conditions, batching):
+
+```bash
+courier automations invoke \
+  --template-id "onboarding-sequence" \
+  --data '{"userId": "user-123", "plan": "pro"}'
+
+courier automations list
+```
+
+**Preferences** — check what a user has opted into or out of:
+
+```bash
+courier preferences retrieve --user-id "user-123" --format pretty
+
+courier preferences retrieve-topic \
+  --user-id "user-123" \
+  --topic-id "marketing-updates"
+```
+
 ## Debugging Workflow
 
-Trace why a notification failed in three steps:
+Trace why a notification failed in four steps:
 
 **1. Find the message:**
 
@@ -103,6 +232,14 @@ courier messages history --message-id "1-abc123" --format json
 ```
 
 The history shows each routing step, provider attempt, and delivery status with timestamps.
+
+**4. View rendered output:**
+
+```bash
+courier messages output --message-id "1-abc123" --format json
+```
+
+Shows the final content sent to the provider, after template variables and routing logic were applied. Useful for verifying what the recipient actually received.
 
 ## Machine-Readable Output
 

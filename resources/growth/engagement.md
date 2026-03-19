@@ -40,7 +40,7 @@
 
 **Batched Activity:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -54,7 +54,7 @@ await courier.send({
 
 **Streak Celebration:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -68,7 +68,7 @@ await courier.send({
 
 **Streak at Risk:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -132,75 +132,7 @@ Channels: In-app + Push for real-time, Email for important mentions
 
 ### Implementation
 
-Queue events and batch after a delay window. Group by type and target, then summarize:
-
-```typescript
-interface ActivityEvent {
-  type: "like" | "comment" | "follow" | "share";
-  actorId: string;
-  actorName: string;
-  targetId: string;
-  targetOwnerId: string;
-  createdAt: Date;
-}
-
-function formatActors(names: string[]): string {
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names[0]}, ${names[1]}, and ${names.length - 2} others`;
-}
-
-async function processBatchedEvents(events: ActivityEvent[]): Promise<void> {
-  // Group by target owner + type + target
-  const grouped = new Map<string, ActivityEvent[]>();
-  for (const event of events) {
-    const key = `${event.targetOwnerId}:${event.type}:${event.targetId}`;
-    const group = grouped.get(key) ?? [];
-    group.push(event);
-    grouped.set(key, group);
-  }
-
-  for (const [, group] of grouped) {
-    const actorNames = [...new Set(group.map((e) => e.actorName))];
-    const summary = formatActors(actorNames);
-
-    await courier.send({
-      message: {
-        to: { user_id: group[0].targetOwnerId },
-        content: {
-          title: `${summary} ${group[0].type}d your post`,
-          body: `You have ${group.length} new ${group[0].type}s`,
-        },
-        routing: { method: "all", channels: ["push", "inbox"] },
-      },
-    });
-  }
-}
-```
-
-### Batch Window Strategy
-
-Use a 5-10 minute delay queue. When the first event arrives, start a timer. Send the batch when either the timer expires or the event count hits a threshold:
-
-```typescript
-const BATCH_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-const BATCH_MAX_EVENTS = 50;
-
-async function onActivityEvent(event: ActivityEvent): Promise<void> {
-  const batchKey = `batch:${event.targetOwnerId}:${event.type}`;
-
-  await queue.add(batchKey, event);
-  const count = await queue.length(batchKey);
-
-  if (count === 1) {
-    // First event — schedule batch processing
-    setTimeout(() => flushBatch(batchKey), BATCH_WINDOW_MS);
-  } else if (count >= BATCH_MAX_EVENTS) {
-    // Threshold hit — flush immediately
-    await flushBatch(batchKey);
-  }
-}
-```
+Queue events and batch after a delay window. Group by type and target, then summarize. Use `formatActors()` from [Patterns](../guides/patterns.md#actor-aggregation) for actor name formatting. See [Batching](../guides/batching.md) for time-window and count-based batching strategies.
 
 ## Digests
 
@@ -277,7 +209,7 @@ async function handleStreakCheck(streak: StreakData): Promise<void> {
     const hoursLeft = Math.floor(
       28 - (Date.now() - streak.lastActiveDate.getTime()) / (1000 * 60 * 60)
     );
-    await courier.send({
+    await client.send.message({
       message: {
         to: { user_id: streak.userId },
         content: {

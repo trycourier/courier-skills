@@ -26,7 +26,7 @@
 
 **Send DM by Email:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -41,7 +41,7 @@ await courier.send({
 
 **Send to Channel:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -108,7 +108,7 @@ Best practices for sending Slack notifications with Block Kit formatting.
 Send to individual users:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -126,7 +126,7 @@ await courier.send({
 Send to a channel:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -231,11 +231,11 @@ Block Kit is Slack's UI framework for rich messages.
 ### Basic Slack Message
 
 ```typescript
-import { CourierClient } from "@trycourier/courier";
+import Courier from "@trycourier/courier";
 
-const courier = new CourierClient();
+const client = new Courier();
 
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -254,7 +254,7 @@ await courier.send({
 ### With Block Kit Override
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -306,7 +306,7 @@ await courier.send({
 
 ```typescript
 // If user has connected Slack via OAuth
-await courier.send({
+await client.send.message({
   message: {
     to: { 
       user_id: "user-123" // Must have slack token in profile
@@ -343,7 +343,7 @@ Use standard emoji codes: `:rocket:`, `:white_check_mark:`, `:warning:`
 Keep conversations organized by replying in threads:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -371,7 +371,7 @@ await courier.send({
 
 ```typescript
 // Update a previously sent message
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -407,7 +407,7 @@ await courier.send({
 // Schedule a message for later
 const sendAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
 
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -437,7 +437,7 @@ await courier.send({
 
 ```typescript
 // Build status notification
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -491,7 +491,7 @@ await courier.send({
 ### Incident Alert
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       slack: {
@@ -537,7 +537,7 @@ await courier.send({
 - **Keep it scannable** - Use headers, bullet points
 - **Be actionable** - Include clear next steps or buttons
 - **Add context** - Who, what, when, where
-- **Use FactSets** - For structured data (key-value pairs)
+- **Use Section fields** - For structured key-value data
 - **Use attachments sparingly** - Prefer Block Kit
 
 ### Channel vs DM

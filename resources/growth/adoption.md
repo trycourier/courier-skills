@@ -39,7 +39,7 @@
 
 **Feature Announcement Email:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "FEATURE_ANNOUNCEMENT",
@@ -55,7 +55,7 @@ await courier.send({
 
 **First-Use Celebration:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -179,7 +179,7 @@ async function shouldAnnounce(
 
 // Only send if user hasn't used the feature
 if (await shouldAnnounce(userId, "dark-mode")) {
-  await courier.send({
+  await client.send.message({
     message: {
       to: { user_id: userId },
       template: "FEATURE_ANNOUNCEMENT",

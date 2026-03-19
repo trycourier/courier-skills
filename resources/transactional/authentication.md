@@ -40,7 +40,7 @@
 
 **Send OTP (TypeScript):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     content: {
@@ -48,45 +48,47 @@ await courier.send({
     }
   }
 }, {
-  idempotencyKey: `otp-user123-${Date.now()}`
+  idempotencyKey: `otp-user123-${otpRequestId}`
 });
 ```
 
 **Send OTP (Python):**
 ```python
-import time
-client.send(
+client.send.message(
     message={
         "to": {"phone_number": "+15551234567"},
         "content": {
             "body": "Your Acme code is 847293. Expires in 10 min. Never share this code."
         },
     },
-    idempotency_key=f"otp-user123-{int(time.time())}",
+    idempotency_key=f"otp-user123-{otp_request_id}",
 )
 ```
 
 **Security Alert (TypeScript):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "NEW_DEVICE_LOGIN",
     data: { device: "Chrome on Windows", location: "New York" },
     routing: { method: "all", channels: ["email", "push", "sms"] }
   }
+}, {
+  idempotencyKey: `login-alert-user-123-${sessionId}`
 });
 ```
 
 **Security Alert (Python):**
 ```python
-client.send(
+client.send.message(
     message={
         "to": {"user_id": "user-123"},
         "template": "NEW_DEVICE_LOGIN",
         "data": {"device": "Chrome on Windows", "location": "New York"},
         "routing": {"method": "all", "channels": ["email", "push", "sms"]},
-    }
+    },
+    idempotency_key=f"login-alert-user-123-{session_id}",
 )
 ```
 
@@ -207,7 +209,7 @@ Include:
 | New device login | High | Email + Push |
 | Password changed | High | Email + Push + SMS |
 | Email changed | Critical | Email (old) + Email (new) + SMS |
-| 2FA disabled | Critical | Email + SMS |
+| 2FA disabled | Critical | Email + Push + SMS |
 | Suspicious activity | Critical | All channels |
 
 ### Password Changed Alert

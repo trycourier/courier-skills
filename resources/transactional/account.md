@@ -5,7 +5,7 @@
 ### Rules
 - Transactional welcome: NO promotional content (or it becomes marketing)
 - Email changed: Send to BOTH old and new email addresses
-- Security changes: ALWAYS include "I didn't do this" option
+- Security changes: ALWAYS include "I didn't request this" option
 - 2FA disabled: High urgency - send to all channels
 - Mask sensitive data: email (j***@example.com), phone (•••• 4567)
 
@@ -29,7 +29,7 @@ Include in ALL of these:
 ### Common Mistakes
 - Promotional content in welcome email (reclassifies as marketing)
 - Email change only sent to new address (old address owner unaware)
-- No "I didn't do this" in security emails
+- No "I didn't request this" in security emails
 - Exposing full email/phone in notifications (security risk)
 - 2FA disabled treated as low priority (it's critical!)
 - No confirmation for significant profile changes
@@ -38,7 +38,7 @@ Include in ALL of these:
 
 **Transactional Welcome:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "WELCOME",
@@ -54,7 +54,7 @@ await courier.send({
 
 **Email Changed (send to old email):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "old-email@example.com" },
     template: "EMAIL_CHANGED_OLD",
@@ -64,12 +64,14 @@ await courier.send({
       secureAccountUrl: "https://acme.com/security"
     }
   }
+}, {
+  idempotencyKey: `email-changed-user-123-${changeEventId}`
 });
 ```
 
 **2FA Disabled (critical):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "2FA_DISABLED",
@@ -79,6 +81,8 @@ await courier.send({
     },
     routing: { method: "all", channels: ["email", "push", "sms"] }
   }
+}, {
+  idempotencyKey: `2fa-disabled-user-123-${changeEventId}`
 });
 ```
 

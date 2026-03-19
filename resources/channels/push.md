@@ -12,7 +12,7 @@
 - Respect quiet hours (10pm-8am local time) for non-urgent
 - Batch similar notifications ("3 new messages" not 3 separate)
 - Push tokens can change - always handle token refresh
-- Store tokens in E.164 format with device/platform info
+- Store tokens with device/platform info for proper routing
 
 ### Common Mistakes
 - Requesting iOS permission immediately on first launch (low opt-in)
@@ -29,7 +29,8 @@
 
 **Register Push Token:**
 ```typescript
-await courier.users.tokens.add("user-123", "device-token-abc", {
+await client.users.tokens.addSingle("device-token-abc", {
+  user_id: "user-123",
   provider_key: "apn", // or "firebase-fcm"
   device: {
     app_id: "com.acme.app",
@@ -40,7 +41,7 @@ await courier.users.tokens.add("user-123", "device-token-abc", {
 
 **Basic Push:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -57,7 +58,7 @@ await courier.send({
 
 **With Deep Link:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_SHIPPED",
@@ -178,6 +179,41 @@ notificationManager.createNotificationChannels(listOf(orderChannel, socialChanne
 }
 ```
 
+## Web Push
+
+Web Push uses the Firebase Cloud Messaging (FCM) provider in Courier. Register the token the same way as Android:
+
+```typescript
+// After obtaining FCM token in the browser via Firebase SDK
+await client.users.tokens.addSingle(fcmToken, {
+  user_id: userId,
+  provider_key: "firebase-fcm",
+  device: {
+    app_id: "com.acme.web",
+    platform: "web",
+  },
+});
+```
+
+Web Push requires HTTPS and a service worker. Configure FCM credentials in the Courier dashboard under **Channels > Push > Firebase Cloud Messaging**.
+
+## Expo Push Notifications
+
+For React Native apps using [Expo](https://docs.expo.dev/push-notifications/overview/), register the Expo push token:
+
+```typescript
+await client.users.tokens.addSingle(expoPushToken, {
+  user_id: userId,
+  provider_key: "expo",
+  device: {
+    app_id: "com.acme.app",
+    platform: "expo",
+  },
+});
+```
+
+Configure your Expo access token in the Courier dashboard under **Channels > Push > Expo**. Courier handles the translation from Expo tokens to APNs/FCM delivery.
+
 ## Permission Priming
 
 ### The Problem
@@ -240,9 +276,16 @@ UNUserNotificationCenter.current().requestAuthorization(
 
 ```typescript
 // When your app receives a push token
-async function registerPushToken(userId: string, token: string, platform: 'ios' | 'android') {
-  await courier.users.tokens.add(userId, token, {
-    provider_key: platform === 'ios' ? 'apn' : 'firebase-fcm',
+async function registerPushToken(userId: string, token: string, platform: 'ios' | 'android' | 'web') {
+  const providerMap = {
+    ios: 'apn',
+    android: 'firebase-fcm',
+    web: 'firebase-fcm',  // Web Push via FCM
+  } as const;
+
+  await client.users.tokens.addSingle(token, {
+    user_id: userId,
+    provider_key: providerMap[platform],
     device: {
       app_id: 'com.acme.app',
       platform: platform
@@ -254,12 +297,12 @@ async function registerPushToken(userId: string, token: string, platform: 'ios' 
 ### Send Push Notification
 
 ```typescript
-import { CourierClient } from "@trycourier/courier";
+import Courier from "@trycourier/courier";
 
-const courier = new CourierClient();
+const client = new Courier();
 
 // Basic push
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -277,7 +320,7 @@ await courier.send({
 ### With Deep Link
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_SHIPPED",
@@ -301,7 +344,7 @@ await courier.send({
 ### With Image (Rich Push)
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -325,7 +368,7 @@ await courier.send({
 ### With Action Buttons
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -353,7 +396,7 @@ await courier.send({
 
 ```typescript
 // Update app data without showing notification
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     channels: {
@@ -415,7 +458,7 @@ Users may have multiple devices. Store all tokens:
 }
 
 // Courier sends to all registered tokens
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" }, // All devices receive
     template: "NEW_MESSAGE"
@@ -431,7 +474,7 @@ app.post('/webhooks/courier', async (req, res) => {
   const { event, error, recipient } = req.body;
   
   if (event === 'undelivered' && error?.code === 'token_expired') {
-    await courier.users.tokens.delete(recipient.user_id, error.token);
+    await client.users.tokens.delete(error.token, { user_id: recipient.user_id });
   }
   
   res.sendStatus(200);
@@ -489,24 +532,7 @@ Body: We have some exciting news for you that we think you might like...
 
 ### Quiet Hours
 
-```typescript
-async function sendPushRespectingQuietHours(userId: string, notification: any) {
-  const user = await getUser(userId);
-  const userHour = getLocalHour(user.timezone);
-  
-  // Default quiet hours: 10pm - 8am
-  const quietStart = user.quietHours?.start ?? 22;
-  const quietEnd = user.quietHours?.end ?? 8;
-  
-  const isQuiet = userHour >= quietStart || userHour < quietEnd;
-  
-  if (isQuiet && !notification.urgent) {
-    await scheduleFor(userId, notification, nextActiveHour(user.timezone, quietEnd));
-  } else {
-    await sendNow(userId, notification);
-  }
-}
-```
+Don't send non-urgent push between 10 PM - 8 AM local time. See [Patterns > Quiet Hours](../guides/patterns.md#quiet-hours) for the implementation.
 
 ### Batching
 
@@ -519,7 +545,7 @@ async function sendPushRespectingQuietHours(userId: string, notification: any) {
 // "Tom liked your post"
 
 // Send one batched notification:
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {

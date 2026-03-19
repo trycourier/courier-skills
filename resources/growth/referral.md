@@ -36,7 +36,7 @@ Referrer shares → Referee signs up → Referee qualifies → Both notified
 
 **Referral Signed Up (to referrer):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "referrer-123" },
     content: {
@@ -50,7 +50,7 @@ await courier.send({
 
 **Referral Qualified (to referrer):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "referrer-123" },
     template: "REFERRAL_REWARD_EARNED",
@@ -67,7 +67,7 @@ await courier.send({
 
 **Share Prompt (after positive moment):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -119,7 +119,7 @@ async function onRefereeAction(
 ): Promise<void> {
   if (action === "signup") {
     // Notify referrer their friend signed up (no reward yet)
-    await courier.send({
+    await client.send.message({
       message: {
         to: { user_id: referral.referrerId },
         content: {
@@ -140,13 +140,26 @@ async function onRefereeAction(
     await issueReward(referral.referrerId, "$10");
     await issueReward(referral.refereeId, "$10");
 
-    // Notify both parties
-    await courier.send({
+    // Notify referrer
+    await client.send.message({
       message: {
         to: { user_id: referral.referrerId },
         template: "REFERRAL_REWARD_EARNED",
         data: {
           refereeName: referral.refereeEmail,
+          rewardAmount: "$10",
+        },
+        routing: { method: "all", channels: ["email", "push", "inbox"] },
+      },
+    });
+
+    // Notify referee
+    await client.send.message({
+      message: {
+        to: { user_id: referral.refereeId },
+        template: "REFERRAL_REWARD_EARNED",
+        data: {
+          referrerName: referral.referrerName,
           rewardAmount: "$10",
         },
         routing: { method: "all", channels: ["email", "push", "inbox"] },
@@ -170,7 +183,7 @@ async function validateReferral(referral: Referral): Promise<boolean> {
   if (recentReferrals >= 25) return false;
 
   // Referee signed up too quickly after link click (bot)
-  const signupLatency = referral.signedUpAt.getTime() - Date.now();
+  const signupLatency = Date.now() - referral.signedUpAt.getTime();
   if (signupLatency < 5000) return false; // Under 5 seconds
 
   return true;

@@ -39,7 +39,7 @@
 
 **Getting Started (Day 0 +1hr):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "GETTING_STARTED",
@@ -56,7 +56,7 @@ await courier.send({
 
 **Activation Success:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ACTIVATION_SUCCESS",
@@ -201,10 +201,10 @@ Use Courier Automations to build onboarding sequences with delays, conditions, a
 
 ```typescript
 // Start onboarding when user signs up
-await courier.automations.invoke("onboarding-sequence", {
-  user_id: "user-123",
-  cancelation_token: `onboarding-${userId}`,
+await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
+  recipient: "user-123",
   data: {
+    cancelation_token: `onboarding-${userId}`,
     userName: "Jane",
     signupDate: new Date().toISOString(),
     timezone: user.timezone || "America/New_York"
@@ -218,12 +218,17 @@ When the user activates, cancel the onboarding sequence and send a success messa
 
 ```typescript
 // User completed their aha moment — stop onboarding
-await courier.automations.cancel({
-  cancelation_token: `onboarding-${userId}`
+await client.automations.invoke.invokeAdHoc({
+  recipient: userId,
+  automation: {
+    steps: [
+      { action: "cancel", cancelation_token: `onboarding-${userId}` }
+    ]
+  }
 });
 
 // Send activation success
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: userId },
     template: "ACTIVATION_SUCCESS",
@@ -282,7 +287,7 @@ async function sendStepReminder(progress: OnboardingProgress): Promise<void> {
   const nextStep = progress.steps.find((s) => !s.completed);
   if (!nextStep) return; // All steps complete
 
-  await courier.send({
+  await client.send.message({
     message: {
       to: { user_id: progress.userId },
       template: "ONBOARDING_STEP_REMINDER",

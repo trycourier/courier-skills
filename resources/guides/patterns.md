@@ -8,11 +8,11 @@ Always use idempotency keys for transactional sends. Courier stores keys for 24 
 
 **TypeScript:**
 ```typescript
-import { CourierClient } from "@trycourier/courier";
+import Courier from "@trycourier/courier";
 
-const courier = new CourierClient();
+const client = new Courier();
 
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_CONFIRMATION",
@@ -25,11 +25,11 @@ await courier.send({
 
 **Python:**
 ```python
-from courier.client import Courier
+from courier import Courier
 
 client = Courier()
 
-client.send(
+client.send.message(
     message={
         "to": {"user_id": "user-123"},
         "template": "ORDER_CONFIRMATION",
@@ -72,8 +72,8 @@ Check user consent before sending growth/marketing notifications. Courier auto-c
 ```typescript
 async function hasConsent(userId: string, topic: string): Promise<boolean> {
   try {
-    const prefs = await courier.users.preferences.get(userId);
-    const topicPref = prefs.topics?.[topic];
+    const prefs = await client.users.preferences.retrieve(userId);
+    const topicPref = prefs.items?.find((p: any) => p.topic_id === topic);
     return topicPref?.status === "OPTED_IN";
   } catch {
     return false;
@@ -81,7 +81,7 @@ async function hasConsent(userId: string, topic: string): Promise<boolean> {
 }
 
 if (await hasConsent(userId, "growth-notifications")) {
-  await courier.send({ ... });
+  await client.send.message({ ... });
 }
 ```
 
@@ -89,14 +89,14 @@ if (await hasConsent(userId, "growth-notifications")) {
 ```python
 def has_consent(user_id: str, topic: str) -> bool:
     try:
-        prefs = client.users.preferences.get(user_id)
+        prefs = client.users.preferences.retrieve(user_id)
         topic_pref = next((t for t in prefs.items if t.topic_id == topic), None)
         return topic_pref is not None and topic_pref.status == "OPTED_IN"
     except Exception:
         return False
 
 if has_consent(user_id, "growth-notifications"):
-    client.send(message={...})
+    client.send.message(message={...})
 ```
 
 ### Consent Record Structure
@@ -141,7 +141,7 @@ async function sendWithQuietHours(
   message: object
 ): Promise<void> {
   if (priority === "critical") {
-    await courier.send(message);
+    await client.send.message(message);
     return;
   }
 
@@ -150,7 +150,7 @@ async function sendWithQuietHours(
     return;
   }
 
-  await courier.send(message);
+  await client.send.message(message);
 }
 ```
 
@@ -201,7 +201,7 @@ Standard pattern for sending with fallback channels. See [Multi-Channel](./multi
 
 **TypeScript:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "IMPORTANT_UPDATE",
@@ -215,7 +215,7 @@ await courier.send({
 
 **Python:**
 ```python
-client.send(
+client.send.message(
     message={
         "to": {"user_id": "user-123"},
         "template": "IMPORTANT_UPDATE",
@@ -257,7 +257,7 @@ For critical alerts that send to all channels simultaneously, use `method: "all"
 
 ## Webhook Handler
 
-Always respond 200 immediately and process asynchronously. Handle duplicates. See [Reliability > Webhooks](./reliability.md#webhooks) for event types and best practices.
+Always respond 200 immediately and process asynchronously. Handle duplicates. In production, also verify the webhook signature — see [Reliability > Verify Webhook Signatures](./reliability.md#verify-webhook-signatures) for the full pattern.
 
 **TypeScript (Express):**
 ```typescript
@@ -303,7 +303,7 @@ async function sendWithRetry(
 ): Promise<void> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      await courier.send(message);
+      await client.send.message(message);
       return;
     } catch (error: any) {
       if (error.statusCode >= 400 && error.statusCode < 500) {
@@ -323,12 +323,12 @@ async function sendWithRetry(
 ```python
 import time
 import random
-from courier.client import Courier
+from courier import Courier
 
 def send_with_retry(client: Courier, message: dict, max_attempts: int = 3):
     for attempt in range(max_attempts):
         try:
-            return client.send(message=message)
+            return client.send.message(message=message)
         except Exception as e:
             status = getattr(e, "status_code", 500)
             if 400 <= status < 500:
@@ -339,35 +339,74 @@ def send_with_retry(client: Courier, message: dict, max_attempts: int = 3):
             time.sleep(delay)
 ```
 
+## Actor Aggregation
+
+Format actor names for batched notifications ("Jane and 5 others").
+
+**TypeScript:**
+```typescript
+function formatActors(names: string[]): string {
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names[0]}, ${names[1]}, and ${names.length - 2} others`;
+}
+```
+
+**Python:**
+```python
+def format_actors(names: list[str]) -> str:
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return f"{names[0]}, {names[1]}, and {len(names) - 2} others"
+```
+
 ## Automation Cancellation
 
 Cancel an automation sequence when the user takes the desired action.
 
 **TypeScript:**
 ```typescript
-await courier.automations.invoke("onboarding-sequence", {
-  user_id: "user-123",
-  cancelation_token: `onboarding-${userId}`,
-  data: { userName: "Jane" }
+await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
+  recipient: "user-123",
+  data: {
+    userName: "Jane",
+    cancelation_token: `onboarding-${userId}`
+  }
 });
 
 // Later, when user activates
-await courier.automations.cancel({
-  cancelation_token: `onboarding-${userId}`
+await client.automations.invoke.invokeAdHoc({
+  recipient: userId,
+  automation: {
+    steps: [
+      { action: "cancel", cancelation_token: `onboarding-${userId}` }
+    ]
+  }
 });
 ```
 
 **Python:**
 ```python
-client.automations.invoke(
+client.automations.invoke.invoke_by_template(
     "onboarding-sequence",
-    user_id="user-123",
-    cancelation_token=f"onboarding-{user_id}",
-    data={"userName": "Jane"},
+    recipient="user-123",
+    data={
+        "userName": "Jane",
+        "cancelation_token": f"onboarding-{user_id}",
+    },
 )
 
 # Later, when user activates
-client.automations.cancel(cancelation_token=f"onboarding-{user_id}")
+client.automations.invoke.invoke_ad_hoc(
+    recipient=user_id,
+    automation={
+        "steps": [
+            {"action": "cancel", "cancelation_token": f"onboarding-{user_id}"}
+        ]
+    },
+)
 ```
 
 ## Data Masking
@@ -402,6 +441,132 @@ def mask_phone(phone: str) -> str:
 def mask_card(last4: str) -> str:
     return f"****-****-****-{last4}"
 ```
+
+## Lists and Bulk Sends
+
+Send to groups of users via lists, or use the Bulk API for large audiences.
+
+### Lists
+
+**TypeScript:**
+```typescript
+await client.lists.update("beta-testers", { name: "Beta Testers" });
+
+await client.lists.subscribe("beta-testers", "user-123");
+await client.lists.subscribe("beta-testers", "user-456");
+
+await client.send.message({
+  message: {
+    to: { list_id: "beta-testers" },
+    template: "FEATURE_ANNOUNCEMENT",
+    data: { feature: "Design Studio" },
+  },
+});
+```
+
+**Python:**
+```python
+client.lists.update("beta-testers", name="Beta Testers")
+
+client.lists.subscribe("beta-testers", "user-123")
+client.lists.subscribe("beta-testers", "user-456")
+
+client.send.message(
+    message={
+        "to": {"list_id": "beta-testers"},
+        "template": "FEATURE_ANNOUNCEMENT",
+        "data": {"feature": "Design Studio"},
+    }
+)
+```
+
+Send to multiple lists with a pattern:
+
+```typescript
+await client.send.message({
+  message: {
+    to: { list_pattern: "eng.*" },
+    template: "ENGINEERING_UPDATE",
+  },
+});
+```
+
+### Bulk API
+
+For large audiences (product launches, monthly digests) where per-user data varies:
+
+**TypeScript:**
+```typescript
+const job = await client.bulk.createJob({
+  message: { template: "MONTHLY_DIGEST" },
+});
+
+await client.bulk.addUsers(job.jobId, {
+  users: [
+    { to: { user_id: "user-1" }, data: { highlights: 12 } },
+    { to: { user_id: "user-2" }, data: { highlights: 7 } },
+  ],
+});
+
+await client.bulk.runJob(job.jobId);
+```
+
+**Python:**
+```python
+job = client.bulk.create_job(message={"template": "MONTHLY_DIGEST"})
+
+client.bulk.add_users(job.job_id, users=[
+    {"to": {"user_id": "user-1"}, "data": {"highlights": 12}},
+    {"to": {"user_id": "user-2"}, "data": {"highlights": 7}},
+])
+
+client.bulk.run_job(job.job_id)
+```
+
+## Tenants (Multi-Tenant / B2B)
+
+Tenants let you scope branding, preferences, and data per customer organization.
+
+**TypeScript:**
+```typescript
+await client.tenants.createOrReplace("acme-corp", {
+  name: "Acme Corp",
+  brand: {
+    logo: "https://acme.com/logo.png",
+    colors: { primary: "#1a73e8" },
+  },
+});
+
+await client.users.tenants.add("user-123", "acme-corp");
+
+await client.send.message({
+  message: {
+    to: { user_id: "user-123", tenant_id: "acme-corp" },
+    template: "WELCOME_EMAIL",
+    data: { name: "Jane" },
+  },
+});
+```
+
+**Python:**
+```python
+client.tenants.create_or_replace("acme-corp",
+    name="Acme Corp",
+    brand={"logo": "https://acme.com/logo.png", "colors": {"primary": "#1a73e8"}},
+)
+
+client.users.tenants.add("user-123", "acme-corp")
+
+client.send.message(
+    message={
+        "to": {"user_id": "user-123", "tenant_id": "acme-corp"},
+        "template": "WELCOME_EMAIL",
+        "data": {"name": "Jane"},
+    }
+)
+```
+
+When `tenant_id` is included, Courier applies that tenant's brand (logo, colors) to the rendered template automatically.
 
 ## Related
 

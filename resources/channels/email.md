@@ -29,7 +29,7 @@
 
 **Basic Email Send (TypeScript):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "jane@example.com" },
     template: "TEMPLATE_NAME",
@@ -40,7 +40,7 @@ await courier.send({
 
 **Basic Email Send (Python):**
 ```python
-client.send(
+client.send.message(
     message={
         "to": {"email": "jane@example.com"},
         "template": "TEMPLATE_NAME",
@@ -51,7 +51,7 @@ client.send(
 
 **With Provider Override (TypeScript):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "jane@example.com" },
     template: "ORDER_SHIPPED",
@@ -85,7 +85,7 @@ v=spf1 include:sendgrid.net include:_spf.google.com ~all
 ```
 
 - Add the SPF TXT record provided by your email provider
-- `~all` (soft fail) for setup flexibility, `−all` (hard fail) for production
+- `~all` (soft fail) for setup flexibility, `-all` (hard fail) for production
 - Only one SPF record per domain (combine includes if multiple providers)
 
 ### DKIM (DomainKeys Identified Mail)
@@ -245,11 +245,11 @@ The preview text shown after the subject line:
 ### Basic Email Send
 
 ```typescript
-import { CourierClient } from "@trycourier/courier";
+import Courier from "@trycourier/courier";
 
-const courier = new CourierClient();
+const client = new Courier();
 
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "jane@example.com" },
     template: "WELCOME_EMAIL",
@@ -264,7 +264,7 @@ await courier.send({
 ### With Inline Content
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "jane@example.com" },
     content: {
@@ -278,7 +278,7 @@ await courier.send({
 ### With Email-Specific Overrides
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "jane@example.com" },
     template: "ORDER_SHIPPED",
@@ -319,7 +319,7 @@ Courier handles failover automatically based on your configuration.
 Courier can track link clicks for analytics:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "jane@example.com" },
     template: "WEEKLY_DIGEST",
@@ -451,7 +451,7 @@ To land in Primary (not Promotions):
 
 ```typescript
 // Send to yourself first
-await courier.send({
+await client.send.message({
   message: {
     to: { email: "your-test@example.com" },
     template: "ORDER_SHIPPED",

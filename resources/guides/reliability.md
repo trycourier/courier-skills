@@ -32,52 +32,7 @@
 
 ### Templates
 
-**Send with Idempotency Key (TypeScript):**
-```typescript
-await courier.send({
-  message: {
-    to: { user_id: "user-123" },
-    template: "ORDER_CONFIRMATION",
-    data: { orderId: "12345" }
-  }
-}, {
-  idempotencyKey: `order-confirmation-12345`
-});
-```
-
-**Send with Idempotency Key (Python):**
-```python
-client.send(
-    message={
-        "to": {"user_id": "user-123"},
-        "template": "ORDER_CONFIRMATION",
-        "data": {"orderId": "12345"},
-    },
-    idempotency_key="order-confirmation-12345",
-)
-```
-
-**Webhook Handler (TypeScript):**
-```typescript
-app.post('/webhooks/courier', async (req, res) => {
-  res.sendStatus(200);
-  await queue.add('process-webhook', req.body);
-});
-```
-
-**Webhook Handler (Python):**
-```python
-@app.route("/webhooks/courier", methods=["POST"])
-def courier_webhook():
-    queue.enqueue("process_webhook", request.get_json())
-    return "", 200
-```
-
-**Retry with Backoff:**
-```typescript
-const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
-await sleep(delay + Math.random() * 1000);
-```
+See [Patterns](./patterns.md) for full copy-paste implementations: [Idempotency Keys](./patterns.md#idempotency-keys), [Webhook Handler](./patterns.md#webhook-handler), [Retry with Backoff](./patterns.md#retry-with-exponential-backoff).
 
 ---
 
@@ -94,42 +49,7 @@ Without idempotency, you might send duplicate notifications if:
 
 ### Courier Idempotency Keys
 
-Add the `Idempotency-Key` header to your API requests. Courier stores keys for 24 hours and returns cached responses for duplicate requests.
-
-**TypeScript:**
-```typescript
-await courier.send({
-  message: {
-    to: { user_id: "user-123" },
-    template: "ORDER_CONFIRMATION",
-    data: { orderId: "12345" }
-  }
-}, {
-  idempotencyKey: `order-confirmation-12345`
-});
-```
-
-**Python:**
-```python
-client.send(
-    message={
-        "to": {"user_id": "user-123"},
-        "template": "ORDER_CONFIRMATION",
-        "data": {"orderId": "12345"},
-    },
-    idempotency_key="order-confirmation-12345",
-)
-```
-
-Or with raw HTTP:
-
-```bash
-curl -X POST https://api.courier.com/send \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -H "Idempotency-Key: order-confirmation-12345" \
-  -d '{"message": {...}}'
-```
+Add the `Idempotency-Key` header to your API requests. Courier stores keys for 24 hours and returns cached responses for duplicate requests. See [Patterns > Idempotency Keys](./patterns.md#idempotency-keys) for TypeScript, Python, CLI, and curl examples.
 
 ### Key Patterns
 
@@ -193,22 +113,103 @@ Example: 1s base, 30s max → delays of ~1s, ~2s, ~4s, ~8s, ~16s, ~30s
 
 ## Webhooks
 
-### Receiving Courier Webhooks
+### Setup
 
-Process delivery events, bounces, complaints from Courier:
+1. Go to **Settings > Webhooks** in the [Courier dashboard](https://app.courier.com/settings/webhooks)
+2. Add your endpoint URL (e.g., `https://api.acme.com/webhooks/courier`)
+3. Copy the **signing secret** — you'll use it to verify payloads
+4. Select which events to subscribe to (or receive all)
 
-1. **Verify signature:** Ensure webhook is from Courier
-2. **Respond quickly:** Return 200 before heavy processing
-3. **Process asynchronously:** Queue work for background processing
-4. **Handle duplicates:** Webhooks may be delivered multiple times
+Courier retries failed webhook deliveries (non-2xx response) with exponential backoff for up to 24 hours.
+
+### Verify Webhook Signatures
+
+Courier signs every webhook payload with an HMAC-SHA256 signature in the request headers. Always verify in production.
+
+**TypeScript (Express):**
+
+Use `express.raw()` on the webhook route so you verify against the exact bytes Courier sent, not a re-serialized version:
+
+```typescript
+import crypto from "crypto";
+import express from "express";
+
+function verifyWebhookSignature(
+  rawBody: Buffer,
+  signature: string,
+  secret: string
+): boolean {
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex");
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+
+app.post(
+  "/webhooks/courier",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const signature = req.headers["x-courier-signature"] as string;
+    if (
+      !signature ||
+      !verifyWebhookSignature(
+        req.body,
+        signature,
+        process.env.COURIER_WEBHOOK_SECRET!
+      )
+    ) {
+      return res.sendStatus(401);
+    }
+
+    const payload = JSON.parse(req.body.toString());
+    res.sendStatus(200);
+    queue.add("process-webhook", payload);
+  }
+);
+```
+
+**Python (Flask):**
+
+Use `request.get_data()` to get the raw bytes before Flask parses JSON:
+
+```python
+import hmac
+import hashlib
+import os
+
+def verify_webhook_signature(raw_body: bytes, signature: str, secret: str) -> bool:
+    expected = hmac.new(
+        secret.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(signature, expected)
+
+@app.route("/webhooks/courier", methods=["POST"])
+def courier_webhook():
+    raw_body = request.get_data()
+    signature = request.headers.get("X-Courier-Signature", "")
+    if not verify_webhook_signature(
+        raw_body, signature, os.environ["COURIER_WEBHOOK_SECRET"]
+    ):
+        return "", 401
+
+    queue.enqueue("process_webhook", request.get_json())
+    return "", 200
+```
 
 ### Common Webhook Events
 
-- `message.delivered` - Message was delivered
-- `message.bounced` - Email bounced
-- `message.complained` - User marked as spam
-- `message.opened` - Email was opened
-- `message.clicked` - Link was clicked
+| Event | Trigger | Useful for |
+|-------|---------|------------|
+| `message.delivered` | Message reached recipient | Delivery tracking |
+| `message.undeliverable` | All channels/providers failed | Alerting, fallback logic |
+| `message.bounced` | Email hard/soft bounce | List hygiene |
+| `message.complained` | User marked as spam | Remove from lists |
+| `message.opened` | Email opened (pixel tracked) | Engagement metrics |
+| `message.clicked` | Link clicked | Conversion tracking |
 
 ### Webhook Best Practices
 
@@ -216,77 +217,7 @@ Process delivery events, bounces, complaints from Courier:
 2. Process in background queue
 3. Use idempotent processing (check if already handled)
 4. Verify webhook signatures
-
-## Dead Letter Queue
-
-### Handle Permanently Failed Notifications
-
-When a notification exceeds maximum retries:
-1. Move to dead letter queue
-2. Mark as permanently failed
-3. Alert operations team
-4. Log for debugging
-
-### Monitor Dead Letter Queue
-
-Set up alerts when DLQ grows beyond threshold. Items in DLQ need manual investigation.
-
-## Circuit Breaker
-
-### Prevent Cascade Failures
-
-If Courier (or any downstream service) is experiencing issues, a circuit breaker prevents overwhelming it:
-
-**States:**
-- **Closed:** Normal operation, requests go through
-- **Open:** Service is down, requests fail fast (don't wait)
-- **Half-Open:** Testing if service recovered
-
-**Transitions:**
-- Closed → Open: After N consecutive failures
-- Open → Half-Open: After timeout period
-- Half-Open → Closed: On successful request
-- Half-Open → Open: On failed request
-
-## Monitoring
-
-### Key Metrics
-
-- **Send success rate:** % of sends that succeed
-- **Delivery rate:** % delivered (not bounced)
-- **Latency:** Time from trigger to delivery
-- **Retry rate:** How often retries are needed
-- **DLQ size:** Items in dead letter queue
-
-### Alerting
-
-Set up alerts for:
-- Success rate below 95%
-- Latency exceeds 5 seconds
-- Dead letter queue exceeds threshold
-- Circuit breaker opens
-
-## Best Practices
-
-### Always Use Idempotency Keys
-
-Every notification send should include an idempotency key to prevent duplicates.
-
-### Log for Debugging
-
-Log every send attempt with:
-- Notification ID
-- Template name
-- Result (success/failure)
-- Duration
-- Error details (if failed)
-
-### Graceful Degradation
-
-If primary channel fails, fall back to secondary:
-1. Try primary channel (e.g., push)
-2. If failed, try fallback (e.g., email)
-3. Log which channel succeeded
+5. Store the signing secret in environment variables, never in code
 
 ## Related
 

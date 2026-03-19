@@ -22,6 +22,8 @@
 | Plan notifications for your app type | [Catalog](./catalog.md) |
 | Use the CLI for debugging and agent workflows | [CLI](./cli.md) |
 | Find reusable code patterns | [Patterns](./patterns.md) |
+| Migrate from Knock to Courier | [Migrate from Knock](./migrate-from-knock.md) |
+| Migrate from Novu to Courier | [Migrate from Novu](./migrate-from-novu.md) |
 
 ---
 
@@ -43,6 +45,8 @@ Cross-cutting guides cover concerns that span multiple channels and notification
 | [Catalog](./catalog.md) | Notification planning by app type (SaaS, e-commerce, marketplace, mobile) |
 | [CLI](./cli.md) | Courier CLI for ad-hoc operations, debugging, CI/CD, and AI agent workflows |
 | [Patterns](./patterns.md) | Copy-paste implementations: idempotency, consent check, quiet hours, retry, webhooks, data masking |
+| [Migrate from Knock](./migrate-from-knock.md) | Concept mapping, API mapping, side-by-side code migration from Knock to Courier |
+| [Migrate from Novu](./migrate-from-novu.md) | Concept mapping, API mapping, side-by-side code migration from Novu to Courier |
 
 ## Common Combinations
 
@@ -55,9 +59,11 @@ Cross-cutting guides cover concerns that span multiple channels and notification
 | Reducing notification fatigue | [Throttling](./throttling.md), [Batching](./batching.md), [Preferences](./preferences.md) |
 | Debugging delivery issues | [CLI](./cli.md), [Reliability](./reliability.md) |
 | Planning notification system | [Catalog](./catalog.md), [Multi-Channel](./multi-channel.md) |
+| Migrating from Knock | [Migrate from Knock](./migrate-from-knock.md), [Quickstart](./quickstart.md) |
+| Migrating from Novu | [Migrate from Novu](./migrate-from-novu.md), [Quickstart](./quickstart.md) |
 
 ## Related
 
-- [Channels](../channels/email.md) - Channel-specific best practices
+- [Email](../channels/email.md) - Email channel best practices (see also [SMS](../channels/sms.md), [Push](../channels/push.md), [Inbox](../channels/inbox.md))
 - [Transactional](../transactional/index.md) - Transactional notification types
 - [Growth](../growth/index.md) - Growth and lifecycle notifications

@@ -29,10 +29,10 @@
 - Templates must be approved by Meta
 - Record consent with timestamp
 
-### Penalties Quick Reference
+### Penalties Quick Reference (approximate, subject to annual adjustment)
 | Regulation | Penalty |
 |------------|---------|
-| CAN-SPAM | Up to $53k/email |
+| CAN-SPAM | Up to ~$50k/email |
 | GDPR | €20M or 4% revenue |
 | CASL | $10M CAD |
 | TCPA | $500-$1,500/message |

@@ -79,6 +79,8 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 - Throttling and rate limiting
 - Notification catalog by app type
 - CLI (ad-hoc operations, debugging, agent workflows)
+- Migrate from Knock (concept mapping, code migration)
+- Migrate from Novu (concept mapping, code migration)
 
 ## Structure
 
@@ -121,7 +123,9 @@ courier-skills/
         ├── batching.md
         ├── throttling.md
         ├── catalog.md
-        └── patterns.md
+        ├── patterns.md
+        ├── migrate-from-knock.md
+        └── migrate-from-novu.md
 ```
 
 ## Quick Start

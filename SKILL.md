@@ -16,26 +16,45 @@ Guidance for building deliverable, compliant, and engaging notifications across 
 5. **Apply the rules** — Each resource file starts with a "Quick Reference" section containing hard rules. Treat these as constraints, not suggestions.
 6. **Check universal rules** — Before generating any notification code, verify it doesn't violate the Universal Rules below.
 
-## Universal Rules (Never Violate)
+## Universal Rules
 
-- NEVER send promotional content in transactional notifications (CAN-SPAM violation)
 - NEVER batch or delay OTP, password reset, or security alert notifications
-- NEVER send SMS without TCPA-compliant consent records
-- NEVER skip idempotency keys for transactional sends
-- NEVER send during quiet hours (10pm-8am local) unless critical/security
+- Use idempotency keys for sends where duplicates would be harmful (payments, security alerts, OTPs)
 - NEVER expose full email/phone in security change notifications (mask them)
 - ALWAYS include "I didn't request this" links in security-related emails
 - ALWAYS use E.164 format for phone numbers
-- ALWAYS configure SPF + DKIM + DMARC before sending production email
-- ALWAYS respect user opt-out preferences immediately
-- ALWAYS use `method: "single"` unless the notification is critical enough to warrant all channels
+- Only send to channels the user has asked for or that make sense for the use case — don't blast every channel by default
+
+### Courier Inbox Version Detection
+
+Before providing Inbox guidance, **determine which SDK version the user is on**:
+
+1. **Check for v7 indicators** — Look for any of: `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast`, `@trycourier/react-hooks`, `<CourierProvider>`, `useInbox()`, `useToast()`, `<Inbox />` (not `<CourierInbox />`), `clientKey` prop, `renderMessage` prop. Check `package.json` if available.
+2. **Check for v8 indicators** — Look for any of: `@trycourier/courier-react`, `@trycourier/courier-react-17`, `@trycourier/courier-ui-inbox`, `useCourier()`, `<CourierInbox />`, `<CourierToast />`, `courier.shared.signIn()`, `registerFeeds`, `listenForUpdates`.
+3. **If unclear, ask** — "Which version of the Courier Inbox SDK are you using? If you have `@trycourier/react-inbox` in your package.json, that's v7. If you have `@trycourier/courier-react`, that's v8."
+
+**Default to v8** for new projects. If the user is on v7:
+- **Don't use the v8 patterns from inbox.md** — the APIs are completely different and will break their code.
+- **Work with their existing v7 code** but recommend upgrading to v8 (smaller bundle, no third-party dependencies, built-in dark mode, modern UI).
+- **If they want to upgrade**, fetch the migration guide for step-by-step instructions: `https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide.md`
+- v8 does not yet support Tags or Pins. If the user depends on those, they should stay on v7 for now.
 
 ## Official Courier Documentation
 
 When you need current API signatures, SDK methods, or features not covered in these resources:
-1. Fetch `https://www.courier.com/docs/llms.txt` — returns a structured index of all Courier documentation
-2. Use it to find specific endpoint details, SDK method signatures, and configuration options
+
+1. Fetch `https://www.courier.com/docs/llms.txt` — returns a structured markdown index of all Courier documentation pages with URLs and descriptions
+2. Scan the index for the relevant page, then fetch that page's URL for full details
 3. Prefer the patterns in THIS skill for best practices; use llms.txt for API specifics
+
+**When to use llms.txt:**
+- You need the exact signature for a method not shown in these resources (e.g., `client.audiences.create()`)
+- A developer asks about a Courier feature this skill doesn't cover (e.g., Audiences, Brands, Translations)
+- You need to verify that a code example in this skill matches the current SDK version
+
+**When NOT to use llms.txt:**
+- The answer is already in these resource files (prefer this skill's opinionated patterns over raw docs)
+- The question is about best practices, compliance, or notification design (llms.txt won't help)
 
 ## Architecture Overview
 
@@ -123,8 +142,9 @@ When you need current API signatures, SDK methods, or features not covered in th
 | Control frequency, prevent fatigue | [Throttling](./resources/guides/throttling.md) |
 | Plan notifications for your app type | [Catalog](./resources/guides/catalog.md) |
 | Use the CLI for ad-hoc operations, debugging, agent workflows | [CLI](./resources/guides/cli.md) |
-| Migrate React SDK from v7 to v8, fix silent inbox failures | [React SDK Migration](./resources/guides/react-sdk-migration.md) |
 | Reusable code patterns (consent, quiet hours, masking, retry) | [Patterns](./resources/guides/patterns.md) |
+| Migrate from Knock to Courier | [Migrate from Knock](./resources/guides/migrate-from-knock.md) |
+| Migrate from Novu to Courier | [Migrate from Novu](./resources/guides/migrate-from-novu.md) |
 
 ## Minimal File Sets by Task
 
@@ -138,9 +158,7 @@ For common tasks, you only need to read these specific files:
 | Email setup & deliverability | [email.md](./resources/channels/email.md), [compliance.md](./resources/guides/compliance.md) |
 | SMS setup & compliance | [sms.md](./resources/channels/sms.md) (includes 10DLC, TCPA) |
 | Push notification setup | [push.md](./resources/channels/push.md) |
-| In-app inbox setup | [inbox.md](./resources/channels/inbox.md) |
-| React SDK v7→v8 migration | [react-sdk-migration.md](./resources/guides/react-sdk-migration.md) |
-| React inbox not showing messages | [react-sdk-migration.md](./resources/guides/react-sdk-migration.md), [inbox.md](./resources/channels/inbox.md) |
+| In-app inbox setup | [inbox.md](./resources/channels/inbox.md) — check SDK version first (v7 vs v8) |
 | Onboarding sequence | [onboarding.md](./resources/growth/onboarding.md), [multi-channel.md](./resources/guides/multi-channel.md) |
 | Security alerts | [authentication.md](./resources/transactional/authentication.md), [multi-channel.md](./resources/guides/multi-channel.md) |
 | Digest/batching | [batching.md](./resources/guides/batching.md), [preferences.md](./resources/guides/preferences.md) |
@@ -151,6 +169,14 @@ For common tasks, you only need to read these specific files:
 | New to Courier / first notification | [quickstart.md](./resources/guides/quickstart.md) |
 | CLI debugging / ad-hoc operations | [cli.md](./resources/guides/cli.md) |
 | CLI + delivery debugging | [cli.md](./resources/guides/cli.md), [reliability.md](./resources/guides/reliability.md) |
+| Migrating from Knock | [migrate-from-knock.md](./resources/guides/migrate-from-knock.md), [quickstart.md](./resources/guides/quickstart.md) |
+| Migrating from Novu | [migrate-from-novu.md](./resources/guides/migrate-from-novu.md), [quickstart.md](./resources/guides/quickstart.md) |
+| Lists, bulk sends, multi-tenant | [patterns.md](./resources/guides/patterns.md) |
+| Provider failover setup | [multi-channel.md](./resources/guides/multi-channel.md) |
+| Webhook setup & signature verification | [reliability.md](./resources/guides/reliability.md) |
+| Preference topics and opt-out | [preferences.md](./resources/guides/preferences.md) |
+| Inbox JWT auth and React setup | [inbox.md](./resources/channels/inbox.md) — check SDK version first (v7 vs v8) |
+| Understanding `to` field / addressing | [quickstart.md](./resources/guides/quickstart.md) |
 
 ## Decision Guide
 
@@ -177,9 +203,6 @@ For common tasks, you only need to read these specific files:
 - **New to Courier** or sending your first notification
   → Start with [Quickstart](./resources/guides/quickstart.md).
 
-- **Migrating or building with Courier React SDK** (Inbox, Toast, hooks)
-  → Read [React SDK Migration](./resources/guides/react-sdk-migration.md). If the inbox renders but shows no messages, this is almost certainly a v7/v8 mixing issue.
-
 - **Debugging delivery issues**
   → Use the [CLI](./resources/guides/cli.md) to inspect messages and delivery history. Email going to spam? [Email](./resources/channels/email.md). SMS not arriving? [SMS](./resources/channels/sms.md). General failures? [Reliability](./resources/guides/reliability.md).
 
@@ -188,3 +211,9 @@ For common tasks, you only need to read these specific files:
 
 - **Reusable code patterns** (consent check, quiet hours, idempotency, fallback)
   → See [Patterns](./resources/guides/patterns.md) for copy-paste implementations in TypeScript, Python, CLI, and curl.
+
+- **Migrating from Knock** to Courier
+  → See [Migrate from Knock](./resources/guides/migrate-from-knock.md) for concept mapping, API mapping, and side-by-side code examples.
+
+- **Migrating from Novu** to Courier
+  → See [Migrate from Novu](./resources/guides/migrate-from-novu.md) for concept mapping, API mapping, and side-by-side code examples.

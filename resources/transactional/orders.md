@@ -22,7 +22,7 @@
 ### Channel Selection
 | Stage | Channels |
 |-------|----------|
-| Order placed | Email |
+| Order placed | Email + In-App |
 | Shipped | Email + Push |
 | Out for delivery | Push + SMS |
 | Delivered | Email + Push |
@@ -41,7 +41,7 @@
 
 **Order Confirmation:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_CONFIRMATION",
@@ -59,7 +59,7 @@ await courier.send({
 
 **Shipping Update:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_SHIPPED",

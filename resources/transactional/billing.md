@@ -40,7 +40,7 @@
 
 **Payment Confirmation:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "PAYMENT_RECEIVED",
@@ -58,7 +58,7 @@ await courier.send({
 
 **Dunning (Payment Failed):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "PAYMENT_FAILED",

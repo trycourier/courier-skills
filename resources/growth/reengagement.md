@@ -39,7 +39,7 @@
 
 **Light Nudge (7 days):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "LIGHT_NUDGE",
@@ -53,7 +53,7 @@ await courier.send({
 
 **Cart Abandonment (Transactional - 1hr):**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "CART_REMINDER",
@@ -68,12 +68,17 @@ await courier.send({
 **Welcome Back (when user returns):**
 ```typescript
 // Cancel re-engagement sequence
-await courier.automations.cancel({
-  cancelation_token: `reengagement-${userId}`
+await client.automations.invoke.invokeAdHoc({
+  recipient: userId,
+  automation: {
+    steps: [
+      { action: "cancel", cancelation_token: `reengagement-${userId}` }
+    ]
+  }
 });
 
 // Send welcome back
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: userId },
     content: { title: "Welcome back!", body: "Here's what's new since you left." },
@@ -212,10 +217,10 @@ Start a win-back sequence that auto-cancels when the user returns:
 
 ```typescript
 // Start win-back sequence
-await courier.automations.invoke("winback-sequence", {
-  user_id: userId,
-  cancelation_token: `reengagement-${userId}`,
+await client.automations.invoke.invokeByTemplate("winback-sequence", {
+  recipient: userId,
   data: {
+    cancelation_token: `reengagement-${userId}`,
     userName: user.name,
     lastActivity: user.lastActiveAt.toISOString(),
     whatsNew: await getRecentFeatures(),
@@ -225,15 +230,20 @@ await courier.automations.invoke("winback-sequence", {
 // When user returns — cancel the sequence and welcome back
 async function onUserReturn(userId: string): Promise<void> {
   // Cancel any active re-engagement sequence
-  await courier.automations.cancel({
-    cancelation_token: `reengagement-${userId}`,
+  await client.automations.invoke.invokeAdHoc({
+    recipient: userId,
+    automation: {
+      steps: [
+        { action: "cancel", cancelation_token: `reengagement-${userId}` }
+      ]
+    }
   });
 
   // Increment return count for analytics
   await incrementReengagementSuccess(userId);
 
   // Send welcome back via in-app
-  await courier.send({
+  await client.send.message({
     message: {
       to: { user_id: userId },
       content: {

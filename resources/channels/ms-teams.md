@@ -3,8 +3,9 @@
 ## Quick Reference
 
 ### Rules
-- Incoming Webhook: simplest setup, channel-only, no interaction
+- Incoming Webhook (via Workflows): simplest setup, channel-only, no interaction
 - Bot Framework: required for DMs and interactive messages
+- Office 365 Connector webhooks are deprecated — use Workflows webhooks instead
 - Adaptive Card version: use 1.4 or lower for compatibility
 - Card JSON must be valid - test in Adaptive Card Designer first
 - Required Azure AD permissions: `User.Read.All`, `Chat.Create`, `ChatMessage.Send`
@@ -21,6 +22,38 @@
 - Too many buttons (cluttered, confusing)
 - Not handling webhook expiration
 
+### Templates
+
+**Send via Webhook:**
+```typescript
+await client.send.message({
+  message: {
+    to: { ms_teams: { webhook_url: process.env.TEAMS_WEBHOOK_URL } },
+    content: { title: "Build Complete", body: "Build #456 succeeded." }
+  }
+});
+```
+
+**With Adaptive Card:**
+```typescript
+channels: {
+  ms_teams: {
+    override: {
+      body: {
+        type: "AdaptiveCard", version: "1.4",
+        body: [
+          { type: "TextBlock", text: "Deploy Complete", weight: "bolder", size: "large" },
+          { type: "FactSet", facts: [
+            { title: "Env", value: "production" },
+            { title: "Version", value: "v2.3.1" }
+          ]}
+        ]
+      }
+    }
+  }
+}
+```
+
 ---
 
 Best practices for sending Microsoft Teams notifications with Adaptive Cards.
@@ -31,9 +64,11 @@ Best practices for sending Microsoft Teams notifications with Adaptive Cards.
 
 Best for: Channel notifications, alerts, no user interaction needed.
 
+> **Note:** Microsoft is retiring Office 365 connectors (including Incoming Webhooks created via Connectors) in favor of Power Automate Workflows webhooks. New connectors are disabled, and existing ones will stop working by end of 2025. Use the **Workflows** app in Teams to create a webhook trigger instead, or use the Bot Framework for new integrations.
+
 **Setup:**
-1. In Teams, go to channel → Connectors → Incoming Webhook
-2. Configure and copy webhook URL
+1. In Teams, go to channel → Manage channel → Workflows → "Post to a channel when a webhook request is received"
+2. Configure and copy the workflow webhook URL
 3. POST messages to webhook URL
 
 ### 2. Bot Framework (Full Featured)
@@ -202,11 +237,11 @@ Adaptive Cards are Microsoft's cross-platform card format.
 ### Via Incoming Webhook
 
 ```typescript
-import { CourierClient } from "@trycourier/courier";
+import Courier from "@trycourier/courier";
 
-const courier = new CourierClient();
+const client = new Courier();
 
-await courier.send({
+await client.send.message({
   message: {
     to: {
       ms_teams: {
@@ -224,7 +259,7 @@ await courier.send({
 ### With Adaptive Card Override
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       ms_teams: {
@@ -272,7 +307,7 @@ await courier.send({
 ### Via Bot (User DM)
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: {
       ms_teams: {
@@ -445,7 +480,7 @@ const conversationReference = {
 };
 
 // Later, send proactively
-await courier.send({
+await client.send.message({
   message: {
     to: {
       ms_teams: {

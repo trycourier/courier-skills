@@ -29,7 +29,7 @@
 
 **OTP Code:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     content: {
@@ -41,7 +41,7 @@ await courier.send({
 
 **Order Shipped:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     content: {
@@ -53,7 +53,7 @@ await courier.send({
 
 **With Fallback to Email:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "OTP_CODE",
@@ -144,7 +144,7 @@ Acme: Your order #12345 shipped! Track: acme.co/t/12345. Reply STOP to unsubscri
 |-----------|---------|
 | Brand identifier | Required for recognition and compliance |
 | Core message | What you're telling them |
-| CTA/Link | What they should do (use URL shortener) |
+| CTA/Link | What they should do (use branded short domain, not bit.ly) |
 | Opt-out | Required for marketing, good practice for all |
 
 ### Examples
@@ -173,12 +173,12 @@ Hey! Your awesome order is on the way!!! 🎉🎉🎉 Can't wait for you to get 
 ### Basic SMS Send
 
 ```typescript
-import { CourierClient } from "@trycourier/courier";
+import Courier from "@trycourier/courier";
 
-const courier = new CourierClient();
+const client = new Courier();
 
 // Direct send with phone number
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     content: {
@@ -192,7 +192,7 @@ await courier.send({
 
 ```typescript
 // Send via user profile (phone must be in profile)
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_SHIPPED",
@@ -219,7 +219,7 @@ async function sendOTP(phoneNumber: string) {
   await storeOTP(phoneNumber, code, expiresAt);
   
   // Send via Courier
-  await courier.send({
+  await client.send.message({
     message: {
       to: { phone_number: phoneNumber },
       content: {
@@ -227,7 +227,7 @@ async function sendOTP(phoneNumber: string) {
       }
     }
   }, {
-    idempotencyKey: `otp-${phoneNumber}-${Date.now()}`
+    idempotencyKey: `otp-${phoneNumber}-${requestId}`
   });
 }
 ```
@@ -235,7 +235,7 @@ async function sendOTP(phoneNumber: string) {
 ### SMS with Fallback to Email
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "VERIFICATION_CODE",
@@ -275,7 +275,7 @@ const formatted = validateAndFormat('555-123-4567', 'US');
 ### Store in User Profile
 
 ```typescript
-await courier.users.update("user-123", {
+await client.profiles.create("user-123", {
   profile: {
     phone_number: "+15551234567" // E.164 format
   }
@@ -409,27 +409,7 @@ app.post('/webhooks/courier', async (req, res) => {
 
 ### Quiet Hours
 
-Don't send SMS between 10 PM - 8 AM local time (unless urgent/transactional).
-
-```typescript
-function isQuietHours(timezone: string): boolean {
-  const now = new Date();
-  const localHour = parseInt(
-    now.toLocaleString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false })
-  );
-  return localHour >= 22 || localHour < 8;
-}
-
-async function sendSMSRespectingQuietHours(userId: string, message: string, urgent = false) {
-  const user = await getUser(userId);
-  
-  if (!urgent && isQuietHours(user.timezone)) {
-    await queueForMorning(userId, message);
-  } else {
-    await sendImmediately(userId, message);
-  }
-}
-```
+Don't send SMS between 10 PM - 8 AM local time (unless urgent/transactional). See [Patterns > Quiet Hours](../guides/patterns.md#quiet-hours) for the implementation.
 
 ## Related
 

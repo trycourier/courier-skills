@@ -137,7 +137,7 @@ if (await getGlobalSendRate() > GLOBAL_MAX_PER_SECOND) {
 Configure send limits in Courier to automatically throttle:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ACTIVITY_UPDATE",
@@ -156,8 +156,8 @@ Use Courier Automations to add delays and limits:
 
 ```typescript
 // Invoke automation with throttle context
-await courier.automations.invoke("activity-notification", {
-  user_id: "user-123",
+await client.automations.invoke.invokeByTemplate("activity-notification", {
+  recipient: "user-123",
   data: { ... }
 });
 ```
@@ -172,7 +172,7 @@ Configure in dashboard:
 Set different limits per channel in your routing:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "WEEKLY_SUMMARY",
@@ -241,12 +241,11 @@ Respect user time by not sending during sleep hours:
 
 ```typescript
 function isQuietHours(userTimezone: string): boolean {
-  const userTime = new Date().toLocaleString('en-US', { 
-    timeZone: userTimezone 
-  });
-  const hour = new Date(userTime).getHours();
-  
-  // Quiet from 10pm to 8am
+  const hour = parseInt(
+    new Date().toLocaleString('en-US', {
+      timeZone: userTimezone, hour: 'numeric', hour12: false
+    })
+  );
   return hour >= 22 || hour < 8;
 }
 
@@ -294,7 +293,7 @@ Respect provider-specific limits:
 ```typescript
 async function sendWithRetry(notification: Notification) {
   try {
-    await courier.send({ message: notification });
+    await client.send.message({ message: notification });
   } catch (error) {
     if (error.status === 429) {
       // Rate limited - queue for retry

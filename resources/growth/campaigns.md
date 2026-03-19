@@ -44,14 +44,14 @@
 
 **Check Opt-In Before Send:**
 ```typescript
-const prefs = await courier.users.preferences.get(userId);
+const prefs = await client.users.preferences.retrieve(userId);
 const marketingPref = prefs.items.find(p => p.topic_id === "marketing");
 
 if (marketingPref?.status !== "OPTED_IN") {
   return; // Skip - not opted in
 }
 
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: userId },
     template: "SUMMER_SALE",
@@ -62,7 +62,7 @@ await courier.send({
 
 **Promotional Email:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "UPGRADE_PROMO",
@@ -81,17 +81,20 @@ await courier.send({
 ```typescript
 app.get('/unsubscribe', async (req, res) => {
   const { token, userId, category } = req.query;
-  
-  // Verify token
-  if (!verifyUnsubscribeToken(token)) {
+
+  if (!token || !userId || !category) {
+    return res.status(400).send('Missing parameters');
+  }
+
+  if (!verifyUnsubscribeToken(String(token), String(userId), String(category))) {
     return res.status(400).send('Invalid link');
   }
-  
-  // Update preferences
-  await courier.users.preferences.update(userId, category, {
-    status: "OPTED_OUT"
+
+  await client.users.preferences.updateOrCreateTopic(String(category), {
+    user_id: String(userId),
+    topic: { status: "OPTED_OUT" }
   });
-  
+
   res.send('You have been unsubscribed.');
 });
 ```

@@ -28,7 +28,7 @@
 
 **Send Template Message:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     template: "ORDER_SHIPPED",
@@ -44,23 +44,31 @@ await courier.send({
 
 **With Media Header:**
 ```typescript
-channels: {
-  whatsapp: {
-    override: {
-      body: {
-        header: {
-          type: "image",
-          image: { link: "https://acme.com/proof.jpg" }
+await client.send.message({
+  message: {
+    to: { user_id: "user-123" },
+    template: "DELIVERY_PROOF",
+    data: { orderNumber: "12345" },
+    channels: {
+      whatsapp: {
+        override: {
+          body: {
+            header: {
+              type: "image",
+              image: { link: "https://acme.com/proof.jpg" }
+            }
+          }
         }
       }
-    }
+    },
+    routing: { method: "single", channels: ["whatsapp"] }
   }
-}
+});
 ```
 
 **WhatsApp with SMS Fallback:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "OTP_CODE",
@@ -207,12 +215,12 @@ Buttons: [Confirm] [Reschedule]
 ### Send Template Message
 
 ```typescript
-import { CourierClient } from "@trycourier/courier";
+import Courier from "@trycourier/courier";
 
-const courier = new CourierClient();
+const client = new Courier();
 
 // Basic template send
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     template: "ORDER_SHIPPED", // Your Courier template
@@ -251,7 +259,7 @@ data: {
 ### With Media Header
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     template: "ORDER_DELIVERED",
@@ -281,7 +289,7 @@ await courier.send({
 
 ```typescript
 async function sendWhatsAppOTP(phoneNumber: string, code: string) {
-  await courier.send({
+  await client.send.message({
     message: {
       to: { phone_number: phoneNumber },
       template: "OTP_CODE",
@@ -292,7 +300,7 @@ async function sendWhatsAppOTP(phoneNumber: string, code: string) {
       }
     }
   }, {
-    idempotencyKey: `otp-wa-${phoneNumber}-${Date.now()}`
+    idempotencyKey: `otp-wa-${phoneNumber}-${requestId}`
   });
 }
 ```
@@ -301,14 +309,14 @@ async function sendWhatsAppOTP(phoneNumber: string, code: string) {
 
 ```typescript
 // Store WhatsApp number in user profile
-await courier.users.update("user-123", {
+await client.profiles.create("user-123", {
   profile: {
     phone_number: "+15551234567" // E.164 format
   }
 });
 
 // Send using user_id
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "APPOINTMENT_REMINDER",
@@ -333,7 +341,7 @@ await courier.send({
 Up to 3 buttons for quick responses:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     channels: {
@@ -367,7 +375,7 @@ await courier.send({
 For menus with multiple options:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     channels: {
@@ -522,7 +530,7 @@ WhatsApp charges per conversation (24-hour window from first message):
 
 ```typescript
 // Try WhatsApp, fall back to SMS
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "OTP_CODE",

@@ -40,11 +40,11 @@
 
 **Check Preferences Before Growth Send:**
 ```typescript
-const prefs = await courier.users.preferences.get(userId);
+const prefs = await client.users.preferences.retrieve(userId);
 const topic = prefs.items.find(p => p.topic_id === "growth-notifications");
 
 if (topic?.status === "OPTED_IN") {
-  await courier.send({
+  await client.send.message({
     message: {
       to: { user_id: userId },
       template: "FEATURE_ANNOUNCEMENT"
@@ -112,11 +112,11 @@ When in doubt, ask. Better to have explicit consent than risk complaints. Check 
 
 ```typescript
 // Check if user has opted into growth notifications
-const prefs = await courier.users.preferences.get(userId);
+const prefs = await client.users.preferences.retrieve(userId);
 const growthPref = prefs.items.find(p => p.topic_id === "growth-notifications");
 
 if (growthPref?.status === "OPTED_IN") {
-  await courier.send({
+  await client.send.message({
     message: {
       to: { user_id: userId },
       template: "FEATURE_ANNOUNCEMENT",

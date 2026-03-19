@@ -39,7 +39,7 @@
 
 **Booking Confirmation:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "APPOINTMENT_CONFIRMED",
@@ -51,12 +51,14 @@ await courier.send({
       calendarLinks: { google: "...", outlook: "...", ics: "..." }
     }
   }
+}, {
+  idempotencyKey: `appt-confirmed-user-123-appt-456`
 });
 ```
 
 **24-Hour Reminder:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "APPOINTMENT_REMINDER_24H",
@@ -68,6 +70,8 @@ await courier.send({
     },
     routing: { method: "all", channels: ["email", "sms"] }
   }
+}, {
+  idempotencyKey: `appt-reminder-24h-user-123-appt-456`
 });
 ```
 

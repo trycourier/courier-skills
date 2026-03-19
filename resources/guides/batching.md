@@ -32,19 +32,11 @@
 
 ### Templates
 
-**Actor Aggregation:**
-```typescript
-function formatActors(actors: string[]): string {
-  if (actors.length === 1) return actors[0];
-  if (actors.length === 2) return `${actors[0]} and ${actors[1]}`;
-  return `${actors[0]}, ${actors[1]}, and ${actors.length - 2} others`;
-}
-// "Jane, Bob, and 3 others liked your post"
-```
+**Actor Aggregation:** Use `formatActors()` from [Patterns](./patterns.md#actor-aggregation) — formats as "Jane, Bob, and 3 others".
 
 **Batched Send:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     content: {
@@ -106,8 +98,8 @@ Collect notifications over a time window, then send a summary.
 
 ```typescript
 // Queue notification instead of sending immediately
-await courier.automations.invoke("batch-likes", {
-  user_id: targetUserId,
+await client.automations.invoke.invokeByTemplate("batch-likes", {
+  recipient: targetUserId,
   data: {
     actorName: "Jane",
     targetType: "post",
@@ -151,8 +143,8 @@ Courier Automations has a built-in batch step that collects events over a time w
 
 ```typescript
 // Each event triggers the automation
-await courier.automations.invoke("social-activity-batch", {
-  user_id: "user-123",
+await client.automations.invoke.invokeByTemplate("social-activity-batch", {
+  recipient: "user-123",
   data: {
     event_type: "like",
     actor_id: "user-456",
@@ -171,30 +163,24 @@ Configure the automation in the Courier dashboard:
 Access batched data in your notification template:
 
 ```
-{{#if batch.count > 1}}
-  {{batch.first.actor_name}} and {{batch.count - 1}} others liked your post
+{{#if batch.is_multiple}}
+  {{batch.first.actor_name}} and {{batch.others_count}} others liked your post
 {{else}}
   {{batch.first.actor_name}} liked your post
 {{/if}}
 ```
 
+Precompute `is_multiple` (boolean) and `others_count` (batch count minus 1) in your data or automation step, since Handlebars does not support comparison operators or arithmetic.
+
 ## Aggregation Patterns
 
 ### Actor Aggregation
 
-Combine by who did the action:
+Combine by who did the action. Use `formatActors()` from [Patterns](./patterns.md#actor-aggregation):
 
 - 1 actor: "Jane liked your post"
 - 2 actors: "Jane and Bob liked your post"
 - 3+ actors: "Jane, Bob, and 3 others liked your post"
-
-```typescript
-function formatActors(actors: string[]): string {
-  if (actors.length === 1) return actors[0];
-  if (actors.length === 2) return `${actors[0]} and ${actors[1]}`;
-  return `${actors[0]}, ${actors[1]}, and ${actors.length - 2} others`;
-}
-```
 
 ### Target Aggregation
 
@@ -222,7 +208,7 @@ async function sendDailyDigest(userId: string) {
   
   if (activity.length === 0) return; // Don't send empty digests
   
-  await courier.send({
+  await client.send.message({
     message: {
       to: { user_id: userId },
       template: "DAILY_DIGEST",
@@ -242,12 +228,12 @@ async function sendDailyDigest(userId: string) {
 Let users choose their batching preference:
 
 ```typescript
-// Check user's digest preference
-const prefs = await courier.users.preferences.get(userId);
-const digestPref = prefs.items.find(p => p.topic_id === "activity-digest");
+// Store digest frequency on profile custom data
+const profile = await client.profiles.retrieve(userId);
+const digestFrequency = profile.profile?.custom?.digest_frequency ?? "daily";
 
 // Options: "realtime", "daily", "weekly", "off"
-if (digestPref?.custom_routing?.frequency === "realtime") {
+if (digestFrequency === "realtime") {
   // Send immediately
 } else {
   // Queue for digest
@@ -286,8 +272,13 @@ If user engages before batch sends, consider canceling:
 
 ```typescript
 // User opened the app and saw the activity
-await courier.automations.cancel({
-  cancelation_token: `digest-${userId}-${date}`
+await client.automations.invoke.invokeAdHoc({
+  recipient: userId,
+  automation: {
+    steps: [
+      { action: "cancel", cancelation_token: `digest-${userId}-${date}` }
+    ]
+  }
 });
 ```
 

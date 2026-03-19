@@ -21,6 +21,16 @@
 | Activity mention | all | [push, inbox] |
 | Weekly digest | single | [email] |
 
+### Routing Edge Cases
+| Situation | Behavior |
+|-----------|----------|
+| `user_id` has no email, email is first in `channels` | Skips email, tries next channel |
+| `user_id` has no contact info at all | Message status: UNDELIVERABLE |
+| User opted out of a channel via preferences | Channel skipped automatically |
+| `routing` omitted entirely | Courier uses channels configured in the template |
+| Provider returns 5xx | Courier retries, then tries next provider in priority order |
+| All providers for a channel fail | With `method: "single"`, falls through to next channel |
+
 ### Common Mistakes
 - Using `all` when `single` is appropriate (spams user on all channels)
 - Not setting channel priority order correctly
@@ -43,7 +53,7 @@ Try channels in priority order until one succeeds. Best for most notifications w
 
 **TypeScript:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "PASSWORD_RESET",
@@ -57,7 +67,7 @@ await courier.send({
 
 **Python:**
 ```python
-client.send(
+client.send.message(
     message={
         "to": {"user_id": "user-123"},
         "template": "PASSWORD_RESET",
@@ -77,7 +87,7 @@ Send to all specified channels simultaneously. Best for critical notifications.
 
 **TypeScript:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "SECURITY_ALERT",
@@ -91,7 +101,7 @@ await courier.send({
 
 **Python:**
 ```python
-client.send(
+client.send.message(
     message={
         "to": {"user_id": "user-123"},
         "template": "SECURITY_ALERT",
@@ -138,7 +148,7 @@ client.send(
 
 ```typescript
 // Critical - use all channels
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "SECURITY_ALERT",
@@ -160,7 +170,7 @@ await courier.send({
 
 ```typescript
 // Email for details, push for awareness
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_SHIPPED",
@@ -182,7 +192,7 @@ await courier.send({
 
 ```typescript
 // Push for immediate, inbox for persistence
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "NEW_COMMENT",
@@ -216,8 +226,8 @@ T+24hr:   SMS (if critical and still unread)
 
 ```typescript
 // Invoke automation that handles escalation
-await courier.automations.invoke("escalating-notification", {
-  user_id: "user-123",
+await client.automations.invoke.invokeByTemplate("escalating-notification", {
+  recipient: "user-123",
   data: {
     template: "APPROVAL_REQUEST",
     approvalId: "apr-789",
@@ -239,7 +249,7 @@ Automatically try next channel when delivery fails:
 
 ```typescript
 // Single routing method handles this automatically
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "IMPORTANT_UPDATE",
@@ -304,7 +314,7 @@ channels: {
 ### Complete Multi-Channel Example
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_SHIPPED",
@@ -350,7 +360,7 @@ Let users control which channels they receive:
 
 ```typescript
 // Check preferences before routing
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "WEEKLY_DIGEST",
@@ -373,16 +383,14 @@ Courier automatically checks user preferences and filters channels.
 ```typescript
 // User's preference might be:
 {
-  topics: {
-    "weekly-digest": {
+  items: [
+    {
+      topic_id: "weekly-digest",
       status: "OPTED_IN",
-      channels: {
-        email: true,
-        push: false,
-        sms: false
-      }
+      has_custom_routing: true,
+      custom_routing: ["email"]
     }
-  }
+  ]
 }
 ```
 
@@ -393,7 +401,7 @@ Courier automatically checks user preferences and filters channels.
 Prevent duplicate notifications with idempotency keys:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_SHIPPED",
@@ -413,8 +421,8 @@ Mark notification as read across channels when user engages with one:
 app.post('/webhooks/email-opened', async (req, res) => {
   const { messageId, userId } = req.body;
   
-  // Mark the corresponding inbox notification as read
-  await courier.messages.read(messageId);
+  // Cancel the inbox notification to avoid duplicate engagement
+  await client.messages.cancel(messageId);
   
   res.sendStatus(200);
 });
@@ -426,34 +434,64 @@ Cancel pending notifications if user takes action:
 
 ```typescript
 // User completed action, cancel escalation
-await courier.automations.cancel({
-  cancelation_token: `approval-${approvalId}`
+await client.automations.invoke.invokeAdHoc({
+  recipient: userId,
+  automation: {
+    steps: [
+      { action: "cancel", cancelation_token: `approval-${approvalId}` }
+    ]
+  }
 });
 ```
 
 ## Provider Failover
 
-### Multiple Providers per Channel
+### Setup (Dashboard)
 
-Configure backup providers in Courier dashboard:
+1. Go to **Channels** in the [Courier dashboard](https://app.courier.com/channels)
+2. Add multiple providers for the same channel type (e.g., two email providers)
+3. Drag to set priority order — Courier tries top-to-bottom
+4. Each provider needs its own credentials (API key, etc.)
 
 ```
 Email Providers (Priority Order):
-1. SendGrid (Primary)
-2. Mailgun (Backup)
-3. AWS SES (Last resort)
+1. SendGrid (Primary)     ← tried first
+2. Mailgun (Backup)       ← tried if SendGrid fails
+3. AWS SES (Last resort)  ← tried if both fail
 
 SMS Providers:
 1. Twilio (Primary)
 2. MessageBird (Backup)
 ```
 
-Courier automatically tries the next provider if one fails.
+### When Failover Triggers
+
+Courier fails over to the next provider when:
+- Provider returns a 5xx error (after built-in retries)
+- Provider times out
+- Provider-specific permanent error (e.g., invalid credentials)
+
+Courier does NOT fail over for:
+- Recipient-level failures (invalid email, bounced)
+- Rate limiting (retries with backoff on same provider)
+- Template rendering errors
+
+### Checking Which Provider Was Used
+
+Inspect the message delivery history to see which provider handled a send:
+
+```bash
+courier messages history --message-id "1-abc123" --format json
+```
+
+The history shows each provider attempt with timestamps and status.
 
 ### Provider-Specific Overrides
 
+Pass provider-level configuration without changing dashboard settings:
+
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "OTP_CODE",
@@ -461,6 +499,11 @@ await courier.send({
       twilio: {
         override: {
           messaging_service_sid: "MG..."
+        }
+      },
+      sendgrid: {
+        override: {
+          ip_pool_name: "transactional"
         }
       }
     }

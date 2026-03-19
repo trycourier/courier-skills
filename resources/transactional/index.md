@@ -39,7 +39,7 @@
 
 **Transactional Send with Idempotency:**
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_CONFIRMATION",
@@ -107,7 +107,7 @@ Transactional notifications should be sent in real-time or near real-time:
 **Use idempotency keys** to prevent duplicates while allowing safe retries:
 
 ```typescript
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "ORDER_CONFIRMATION",
@@ -158,7 +158,7 @@ Keep transactional messages purely informational.
 ### By Type
 
 - **OTP codes:** SMS primary, email fallback
-- **Order shipped:** Email + Push (all channels)
+- **Order shipped:** Email + Push
 - **Security alerts:** Email + Push + SMS (all channels for maximum reach)
 
 ## Subject Line Patterns

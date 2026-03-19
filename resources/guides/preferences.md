@@ -36,13 +36,16 @@
 
 **Get User Preferences:**
 ```typescript
-const prefs = await courier.users.preferences.get("user-123");
+const prefs = await client.users.preferences.retrieve("user-123");
 ```
 
 **Update Preferences:**
 ```typescript
-await courier.users.preferences.update("user-123", "weekly-digest", {
-  status: "OPTED_OUT"
+await client.users.preferences.updateOrCreateTopic("weekly-digest", {
+  user_id: "user-123",
+  topic: {
+    status: "OPTED_OUT"
+  }
 });
 ```
 
@@ -50,7 +53,7 @@ await courier.users.preferences.update("user-123", "weekly-digest", {
 ```typescript
 // Courier auto-checks when topics are configured
 // Link templates to topics in Courier dashboard
-await courier.send({
+await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "WEEKLY_DIGEST" // Template linked to "weekly-digest" topic
@@ -100,30 +103,53 @@ How often?
 
 ## Courier Preferences API
 
-Courier provides APIs to get and update user preferences:
+### Create Topics (Dashboard)
+
+Topics are the categories users can opt into/out of. Set them up in the Courier dashboard:
+
+1. Go to **Settings > Preferences** in the [Courier dashboard](https://app.courier.com/settings/preferences)
+2. Click **Create Topic** — give it an ID (e.g., `weekly-digest`), name, and description
+3. Set the **default status**: `OPTED_IN` (product notifications) or `REQUIRED` (transactional — user can't opt out)
+4. Set allowed channels for this topic
+
+### Link Templates to Topics
+
+Linking a template to a topic means Courier auto-checks the user's preference before sending. If the user has opted out, the send is silently skipped — no error returned.
+
+1. Open a template in the [Designer](https://app.courier.com/designer)
+2. In template settings, select the **Preference Topic** this template belongs to
+3. When `client.send.message()` uses this template, Courier checks the user's preference for that topic
+
+### How Preferences Interact with Routing
+
+When both routing and preferences are configured:
+
+1. Courier builds the channel list from `routing.channels`
+2. It removes any channels the user has disabled for the linked topic
+3. With `method: "single"`, it tries remaining channels in order
+4. If no channels remain (user opted out of all), the message is silently skipped
+
+Example: routing specifies `["email", "push", "sms"]` but user opted out of SMS for this topic → Courier only tries email and push.
 
 ### Get User Preferences
 
 ```typescript
-const preferences = await courier.users.preferences.get("user-123");
+const preferences = await client.users.preferences.retrieve("user-123");
 // Returns: { items: [{ topic_id, status, ... }] }
 ```
 
 ### Update Preferences for a Topic
 
 ```typescript
-await courier.users.preferences.update("user-123", "order-updates", {
-  status: "OPTED_IN", // or "OPTED_OUT"
-  channel_preferences: [
-    { channel: "email", enabled: true },
-    { channel: "sms", enabled: false }
-  ]
+await client.users.preferences.updateOrCreateTopic("order-updates", {
+  user_id: "user-123",
+  topic: {
+    status: "OPTED_IN", // or "OPTED_OUT"
+    has_custom_routing: true,
+    custom_routing: ["email"]
+  }
 });
 ```
-
-### Define Topics in Dashboard
-
-Create preference topics (categories) in the Courier dashboard under **Preferences**. Link templates to topics so Courier automatically respects preferences when sending.
 
 ## Preference Center UI
 
