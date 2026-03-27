@@ -44,7 +44,7 @@
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_CONFIRMATION",
+    template: "nt_01kmrbq6ypf25tsge12qek41r0",
     data: {
       orderNumber: "12345",
       items: [{ name: "Widget", qty: 2, price: 29.99 }],
@@ -57,12 +57,12 @@ await client.send.message({
 });
 ```
 
-**Shipping Update:**
+**Shipping Update (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: {
       orderNumber: "12345",
       trackingNumber: "1Z999AA10123456784",
@@ -74,6 +74,24 @@ await client.send.message({
 }, {
   idempotencyKey: `shipping-12345-shipped`
 });
+```
+
+**Shipping Update (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "ORDER_SHIPPED",
+        "data": {
+            "orderNumber": "12345",
+            "trackingNumber": "1Z999AA10123456784",
+            "carrier": "UPS",
+            "trackingUrl": "https://acme.co/track/12345",
+        },
+        "routing": {"method": "all", "channels": ["email", "push"]},
+    },
+    idempotency_key="shipping-12345-shipped",
+)
 ```
 
 ---

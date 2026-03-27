@@ -12,7 +12,8 @@
 - Always include deep link data for navigation
 - Batch similar notifications (don't send 10 separate "liked your post")
 - No permission required — works for all users
-- **Default to v8 SDK** for all new projects. Check the user's version before providing code.
+- **ALWAYS use v8 SDK** for new projects — v7 is legacy and should not be used for new integrations
+- If the user is on v7, guide them to upgrade to v8; do not write new v7 code
 
 ### Version Detection
 
@@ -27,7 +28,7 @@ Before writing any Inbox code, determine the SDK version:
 | `<CourierProvider>`, `<Inbox />`, `useInbox()`, `clientKey` prop | **v7** |
 | New project / no existing code | **Use v8** |
 
-If the user is on v7, **do not use the v8 patterns in this file**. Instead, work with their existing v7 code and recommend upgrading. To help them migrate, fetch the migration guide: `https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide.md`
+**v7 is legacy. Do NOT write new v7 code.** If the user is on v7, the correct path is to upgrade to v8 — do not build new features on v7. Help them migrate using the guide: `https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide`. Only maintain existing v7 code if the user explicitly cannot upgrade yet (e.g., they depend on Tags or Pins, which v8 does not yet support).
 
 ### Common Mistakes
 - Not using JWT authentication (JWT is required in v8)
@@ -406,17 +407,30 @@ export default function Page() {
 
 ---
 
-## v8 Web Components Integration
+## v8 Web Components / Vanilla JS Integration
 
-For non-React projects (Vue, Angular, Svelte, vanilla JS), use the Web Components SDK:
+Web Components work with **any framework or no framework at all** — Vue, Angular, Svelte, vanilla JS, server-rendered HTML, WordPress, etc. They use the same v8 SDK and real-time infrastructure as the React components.
 
 ### Installation
+
+**With a bundler (npm):**
 
 ```bash
 npm install @trycourier/courier-ui-inbox @trycourier/courier-ui-toast
 ```
 
+**Without a bundler (CDN script tag):**
+
+```html
+<script type="module" src="https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/courier-ui-inbox/courier-ui-inbox.esm.js"></script>
+<script type="module" src="https://unpkg.com/@trycourier/courier-ui-toast@latest/dist/courier-ui-toast/courier-ui-toast.esm.js"></script>
+```
+
+The CDN approach requires no build step — add the script tags and use the custom elements immediately.
+
 ### Basic Setup
+
+**With npm / bundler:**
 
 ```html
 <body>
@@ -433,7 +447,60 @@ npm install @trycourier/courier-ui-inbox @trycourier/courier-ui-toast
 </body>
 ```
 
-### Feeds, Theming, and Custom Elements
+**With CDN (no build step):**
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="module" src="https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/courier-ui-inbox/courier-ui-inbox.esm.js"></script>
+</head>
+<body>
+  <courier-inbox id="inbox"></courier-inbox>
+
+  <script type="module">
+    const { Courier } = await import('https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/courier-ui-inbox/courier-ui-inbox.esm.js');
+
+    const jwt = await fetch('/api/courier-token')
+      .then(r => r.json())
+      .then(d => d.token);
+
+    Courier.shared.signIn({ userId: 'user-123', jwt });
+  </script>
+</body>
+</html>
+```
+
+### Popup Menu
+
+```html
+<courier-inbox-popup-menu></courier-inbox-popup-menu>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-inbox';
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Toast Notifications
+
+```html
+<courier-toast auto-dismiss="true" auto-dismiss-timeout-ms="5000"></courier-toast>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-toast';
+
+  const toast = document.querySelector('courier-toast');
+
+  toast.onToastItemClick(({ message }) => {
+    window.location.href = message.data?.deepLink;
+  });
+
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Feeds, Tabs, and Theming
 
 ```html
 <courier-inbox id="inbox"></courier-inbox>
@@ -460,13 +527,93 @@ npm install @trycourier/courier-ui-inbox @trycourier/courier-ui-toast
     }
   });
 
-  inbox.onMessageClick(({ message, index }) => {
-    window.location.href = message.data?.deepLink;
+  inbox.setDarkTheme({
+    inbox: {
+      list: { item: { unreadIndicatorColor: "#bb86fc" } }
+    }
   });
 
   Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
 </script>
 ```
+
+### Event Handling
+
+All the same callbacks available in React are available on the Web Component elements:
+
+```html
+<courier-inbox id="inbox"></courier-inbox>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-inbox';
+
+  const inbox = document.getElementById('inbox');
+
+  inbox.onMessageClick(({ message, index }) => {
+    window.location.href = message.data?.deepLink;
+  });
+
+  inbox.onMessageActionClick(({ message, action, index }) => {
+    window.open(action.href);
+  });
+
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Unread Badge (Vanilla JS)
+
+Build a custom notification bell with unread count without any framework:
+
+```html
+<button id="notif-bell">
+  🔔 <span id="badge" style="display:none;"></span>
+</button>
+<courier-inbox id="inbox" style="display:none;"></courier-inbox>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-inbox';
+
+  const inbox = document.getElementById('inbox');
+  const badge = document.getElementById('badge');
+  const bell = document.getElementById('notif-bell');
+
+  // Toggle inbox visibility
+  bell.addEventListener('click', () => {
+    inbox.style.display = inbox.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Poll for unread count updates
+  function updateBadge() {
+    const count = inbox.unreadMessageCount ?? 0;
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = count > 0 ? 'inline' : 'none';
+  }
+
+  // Check periodically (WebSocket handles real-time, this catches edge cases)
+  setInterval(updateBadge, 2000);
+
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Web Components API Reference
+
+| Element | Description |
+|---------|-------------|
+| `<courier-inbox>` | Full inbox list with feeds, tabs, and theming |
+| `<courier-inbox-popup-menu>` | Bell icon with dropdown popup |
+| `<courier-toast>` | Toast notification overlay |
+
+| Method / Property | Available On | Description |
+|-------------------|-------------|-------------|
+| `setFeeds(feeds)` | `courier-inbox` | Configure feeds and tabs |
+| `setLightTheme(theme)` | `courier-inbox`, `courier-toast` | Set light mode theme |
+| `setDarkTheme(theme)` | `courier-inbox`, `courier-toast` | Set dark mode theme |
+| `onMessageClick(cb)` | `courier-inbox` | Handle message click |
+| `onMessageActionClick(cb)` | `courier-inbox` | Handle action button click |
+| `onToastItemClick(cb)` | `courier-toast` | Handle toast click |
+| `unreadMessageCount` | `courier-inbox` | Current unread count (read-only) |
 
 ---
 
@@ -517,7 +664,7 @@ const client = new Courier();
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "NEW_COMMENT",
+    template: "nt_01kmrbvb7x1q5v8d2c6n4w9hj",
     data: {
       commenterName: "Jane",
       commentPreview: "Great post!",
@@ -572,7 +719,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: {
       orderNumber: "12345",
       trackingUrl: "https://acme.co/track/12345"

@@ -15,7 +15,7 @@ const client = new Courier();
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_CONFIRMATION",
+    template: "nt_01kmrbq6ypf25tsge12qek41r0",
     data: { orderId: "12345" }
   }
 }, {
@@ -204,7 +204,7 @@ Standard pattern for sending with fallback channels. See [Multi-Channel](./multi
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "IMPORTANT_UPDATE",
+    template: "nt_01kmrc0n6x9q3v7d1c5n8w2hj",
     routing: {
       method: "single",
       channels: ["push", "email", "sms"]
@@ -348,7 +348,8 @@ Format actor names for batched notifications ("Jane and 5 others").
 function formatActors(names: string[]): string {
   if (names.length === 1) return names[0];
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names[0]}, ${names[1]}, and ${names.length - 2} others`;
+  const remaining = names.length - 2;
+  return `${names[0]}, ${names[1]}, and ${remaining} ${remaining === 1 ? "other" : "others"}`;
 }
 ```
 
@@ -359,7 +360,9 @@ def format_actors(names: list[str]) -> str:
         return names[0]
     if len(names) == 2:
         return f"{names[0]} and {names[1]}"
-    return f"{names[0]}, {names[1]}, and {len(names) - 2} others"
+    remaining = len(names) - 2
+    noun = "other" if remaining == 1 else "others"
+    return f"{names[0]}, {names[1]}, and {remaining} {noun}"
 ```
 
 ## Automation Cancellation
@@ -458,7 +461,7 @@ await client.lists.subscribe("beta-testers", "user-456");
 await client.send.message({
   message: {
     to: { list_id: "beta-testers" },
-    template: "FEATURE_ANNOUNCEMENT",
+    template: "nt_01kmrbs3q6w9x2c5v8n1d4tjh",
     data: { feature: "Design Studio" },
   },
 });
@@ -486,7 +489,7 @@ Send to multiple lists with a pattern:
 await client.send.message({
   message: {
     to: { list_pattern: "eng.*" },
-    template: "ENGINEERING_UPDATE",
+    template: "nt_01kmrc1c8x2q6v1d4c7n5j9ht",
   },
 });
 ```
@@ -498,7 +501,7 @@ For large audiences (product launches, monthly digests) where per-user data vari
 **TypeScript:**
 ```typescript
 const job = await client.bulk.createJob({
-  message: { template: "MONTHLY_DIGEST" },
+  message: { template: "nt_01kmrc0v4q7x1v5d8c2n6w9hj" },
 });
 
 await client.bulk.addUsers(job.jobId, {
@@ -542,7 +545,7 @@ await client.users.tenants.add("user-123", "acme-corp");
 await client.send.message({
   message: {
     to: { user_id: "user-123", tenant_id: "acme-corp" },
-    template: "WELCOME_EMAIL",
+    template: "nt_01kmrbw4q7x1v5d8c2n6w9hj",
     data: { name: "Jane" },
   },
 });

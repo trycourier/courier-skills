@@ -24,7 +24,7 @@
 
 ### Templates
 
-**Send via Webhook:**
+**Send via Webhook (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -32,6 +32,18 @@ await client.send.message({
     content: { title: "Build Complete", body: "Build #456 succeeded." }
   }
 });
+```
+
+**Send via Webhook (Python):**
+```python
+import os
+
+client.send.message(
+    message={
+        "to": {"ms_teams": {"webhook_url": os.environ["TEAMS_WEBHOOK_URL"]}},
+        "content": {"title": "Build Complete", "body": "Build #456 succeeded."},
+    }
+)
 ```
 
 **With Adaptive Card:**
@@ -266,7 +278,7 @@ await client.send.message({
         webhook_url: process.env.TEAMS_WEBHOOK_URL
       }
     },
-    template: "DEPLOY_NOTIFICATION",
+    template: "nt_01kmrby3q6x9v2d5c8n1w4ht",
     channels: {
       ms_teams: {
         override: {
@@ -316,7 +328,7 @@ await client.send.message({
         user_id: "29:1abc..." // Teams user ID
       }
     },
-    template: "TASK_ASSIGNED",
+    template: "nt_01kmrbyt6x9q3v7d1c5n8w2hj",
     data: {
       taskName: "Review PR #123",
       assignedBy: "Bob"
@@ -465,6 +477,132 @@ const approvalCard = {
 };
 ```
 
+## Handling Action.Submit Responses
+
+When a user clicks an `Action.Submit` button in an Adaptive Card, Teams sends the data to your bot's messaging endpoint. This requires a Bot Framework registration.
+
+### How It Works
+
+1. User clicks "Approve" or "Deny" on an Adaptive Card
+2. Teams sends a POST to your bot's messaging endpoint with `type: "invoke"` and `name: "adaptiveCard/action"`
+3. Your bot processes the action and returns an updated card
+
+### Receiving Submit Payloads
+
+**TypeScript (Express with Bot Framework):**
+```typescript
+import express from "express";
+
+const app = express();
+app.use(express.json());
+
+app.post("/api/messages", async (req, res) => {
+  const activity = req.body;
+
+  if (activity.type === "invoke" && activity.name === "adaptiveCard/action") {
+    const actionData = activity.value.action.data;
+    const userId = activity.from.id;
+
+    let responseCard;
+
+    switch (actionData.action) {
+      case "approve":
+        await processApproval(actionData.requestId, userId);
+        responseCard = buildConfirmationCard(
+          `Approved by ${activity.from.name}`,
+          actionData.requestId
+        );
+        break;
+      case "deny":
+        await processDenial(actionData.requestId, userId);
+        responseCard = buildConfirmationCard(
+          `Denied by ${activity.from.name}`,
+          actionData.requestId
+        );
+        break;
+    }
+
+    // Return updated card to replace the original
+    res.json({
+      statusCode: 200,
+      type: "application/vnd.microsoft.card.adaptive",
+      value: responseCard,
+    });
+    return;
+  }
+
+  res.status(200).send();
+});
+
+function buildConfirmationCard(status: string, requestId: string) {
+  return {
+    type: "AdaptiveCard",
+    version: "1.4",
+    body: [
+      {
+        type: "TextBlock",
+        text: `✅ ${status}`,
+        weight: "bolder",
+        size: "large",
+      },
+      {
+        type: "TextBlock",
+        text: `Request ${requestId} has been processed.`,
+        wrap: true,
+      },
+    ],
+  };
+}
+```
+
+**Python (Flask):**
+```python
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route("/api/messages", methods=["POST"])
+def messages():
+    activity = request.json
+
+    if activity.get("type") == "invoke" and activity.get("name") == "adaptiveCard/action":
+        action_data = activity["value"]["action"]["data"]
+        user_name = activity["from"]["name"]
+
+        if action_data["action"] == "approve":
+            process_approval(action_data["requestId"], activity["from"]["id"])
+            status = f"Approved by {user_name}"
+        elif action_data["action"] == "deny":
+            process_denial(action_data["requestId"], activity["from"]["id"])
+            status = f"Denied by {user_name}"
+
+        return jsonify({
+            "statusCode": 200,
+            "type": "application/vnd.microsoft.card.adaptive",
+            "value": {
+                "type": "AdaptiveCard",
+                "version": "1.4",
+                "body": [
+                    {"type": "TextBlock", "text": status, "weight": "bolder", "size": "large"},
+                    {"type": "TextBlock", "text": f"Request {action_data['requestId']} processed.", "wrap": True},
+                ],
+            },
+        })
+
+    return "", 200
+```
+
+### Bot Registration for Action.Submit
+
+`Action.Submit` requires a Bot Framework bot — webhooks cannot receive interactive responses. Ensure:
+
+1. Bot is registered in Azure Bot Service
+2. Messaging endpoint is set to your server URL (e.g., `https://api.acme.com/api/messages`)
+3. App ID and password are configured in your server
+4. The bot is installed in the user's Teams client or the target team
+
+---
+
 ## Proactive Messaging
 
 ### Send to New Users
@@ -489,7 +627,7 @@ await client.send.message({
         conversation_id: conversationReference.conversation.id
       }
     },
-    template: "WEEKLY_SUMMARY"
+    template: "nt_01kmrbtw1v4q8x2c6d9n5j7h"
   }
 });
 ```

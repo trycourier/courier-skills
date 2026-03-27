@@ -37,12 +37,12 @@
 
 ### Templates
 
-**Feature Announcement Email:**
+**Feature Announcement Email (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "FEATURE_ANNOUNCEMENT",
+    template: "nt_01kmrbs3q6w9x2c5v8n1d4tjh",
     data: {
       featureName: "Dark Mode",
       headline: "Easy on the eyes",
@@ -51,6 +51,22 @@ await client.send.message({
     }
   }
 });
+```
+
+**Feature Announcement Email (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "FEATURE_ANNOUNCEMENT",
+        "data": {
+            "featureName": "Dark Mode",
+            "headline": "Easy on the eyes",
+            "benefits": ["Reduce eye strain", "Save battery", "Look cool"],
+            "ctaUrl": "https://app.acme.com/settings/appearance",
+        },
+    }
+)
 ```
 
 **First-Use Celebration:**
@@ -80,13 +96,7 @@ Drive discovery and usage of product features.
 
 ## Feature Announcement Framework
 
-### Three-Phase Approach
-
-| Phase | Goal | Channels |
-|-------|------|----------|
-| Awareness | "New feature!" | In-app banner, Email, Push |
-| Education | "Here's how" | In-app guide, Email w/video, Tooltip series |
-| Reinforcement | "You're using it!" | In-app message, Push |
+Follow the three-phase approach outlined in [Quick Reference > Three-Phase Approach](#three-phase-approach) above.
 
 ## Phase 1: Awareness
 
@@ -182,7 +192,7 @@ if (await shouldAnnounce(userId, "dark-mode")) {
   await client.send.message({
     message: {
       to: { user_id: userId },
-      template: "FEATURE_ANNOUNCEMENT",
+      template: "nt_01kmrbs3q6w9x2c5v8n1d4tjh",
       data: {
         featureName: "Dark Mode",
         benefits: ["Reduce eye strain", "Save battery"],

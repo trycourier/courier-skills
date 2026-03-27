@@ -38,7 +38,7 @@
 
 ### Templates
 
-**Batched Activity:**
+**Batched Activity (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -50,6 +50,20 @@ await client.send.message({
     routing: { method: "all", channels: ["push", "inbox"] }
   }
 });
+```
+
+**Batched Activity (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "content": {
+            "title": "Your post is getting attention!",
+            "body": "Jane, Bob, and 8 others liked your post",
+        },
+        "routing": {"method": "all", "channels": ["push", "inbox"]},
+    }
+)
 ```
 
 **Streak Celebration:**

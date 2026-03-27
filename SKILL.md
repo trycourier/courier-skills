@@ -16,6 +16,19 @@ Guidance for building deliverable, compliant, and engaging notifications across 
 5. **Apply the rules** — Each resource file starts with a "Quick Reference" section containing hard rules. Treat these as constraints, not suggestions.
 6. **Check universal rules** — Before generating any notification code, verify it doesn't violate the Universal Rules below.
 
+## Handling Vague Requests
+
+If the user's request doesn't clearly map to a specific channel, notification type, or guide, **ask clarifying questions before reading any resource files**. Don't guess — a wrong routing wastes time and produces irrelevant code.
+
+**Ask these questions as needed:**
+
+1. **What channel?** — "Which channel are you sending through: email, SMS, push, in-app, Slack, Teams, or WhatsApp?"
+2. **What type?** — "Is this a transactional notification (triggered by a user action, like a password reset or order confirmation) or a marketing/growth notification (sent proactively, like a feature announcement)?"
+3. **New or existing?** — "Are you starting from scratch, or do you have existing Courier code? If existing, what SDK packages do you have installed?"
+4. **What language?** — "Are you using TypeScript/Node.js, Python, or another language?"
+
+You don't need to ask all four — just the ones needed to route to the right 1-2 files. If the request is clearly about a specific topic (e.g., "help me with SMS"), skip the questions and go directly to the relevant resource.
+
 ## Universal Rules
 
 - NEVER batch or delay OTP, password reset, or security alert notifications
@@ -24,6 +37,7 @@ Guidance for building deliverable, compliant, and engaging notifications across 
 - ALWAYS include "I didn't request this" links in security-related emails
 - ALWAYS use E.164 format for phone numbers
 - Only send to channels the user has asked for or that make sense for the use case — don't blast every channel by default
+- For template sends, use Courier-generated `nt_...` IDs as canonical; treat IDs as opaque workspace-specific values and resolve aliases to `nt_...` before sending
 
 ### Courier Inbox Version Detection
 
@@ -33,11 +47,12 @@ Before providing Inbox guidance, **determine which SDK version the user is on**:
 2. **Check for v8 indicators** — Look for any of: `@trycourier/courier-react`, `@trycourier/courier-react-17`, `@trycourier/courier-ui-inbox`, `useCourier()`, `<CourierInbox />`, `<CourierToast />`, `courier.shared.signIn()`, `registerFeeds`, `listenForUpdates`.
 3. **If unclear, ask** — "Which version of the Courier Inbox SDK are you using? If you have `@trycourier/react-inbox` in your package.json, that's v7. If you have `@trycourier/courier-react`, that's v8."
 
-**Default to v8** for new projects. If the user is on v7:
-- **Don't use the v8 patterns from inbox.md** — the APIs are completely different and will break their code.
-- **Work with their existing v7 code** but recommend upgrading to v8 (smaller bundle, no third-party dependencies, built-in dark mode, modern UI).
-- **If they want to upgrade**, fetch the migration guide for step-by-step instructions: `https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide.md`
-- v8 does not yet support Tags or Pins. If the user depends on those, they should stay on v7 for now.
+**ALWAYS use v8 for new projects — v7 is legacy.** If the user is on v7:
+- **Do NOT write new v7 code.** The correct path is to upgrade to v8.
+- **Guide them to migrate** using the step-by-step guide: `https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide`
+- v8 is a smaller bundle, has no third-party dependencies, built-in dark mode, and a modern UI.
+- The v7 and v8 APIs are completely different — v7 code will not work with v8 and vice versa.
+- **Only exception:** v8 does not yet support Tags or Pins. If the user depends on those, they may need to stay on v7 temporarily, but should plan to migrate once v8 adds support.
 
 ## Official Courier Documentation
 
@@ -142,7 +157,10 @@ When you need current API signatures, SDK methods, or features not covered in th
 | Control frequency, prevent fatigue | [Throttling](./resources/guides/throttling.md) |
 | Plan notifications for your app type | [Catalog](./resources/guides/catalog.md) |
 | Use the CLI for ad-hoc operations, debugging, agent workflows | [CLI](./resources/guides/cli.md) |
+| Use the MCP Server for structured API access from AI agents | [MCP Server](./resources/guides/mcp.md) |
+| Manage templates via API or understand Elemental content format | [Templates](./resources/guides/templates.md) |
 | Reusable code patterns (consent, quiet hours, masking, retry) | [Patterns](./resources/guides/patterns.md) |
+| Migrate from any notification system to Courier | [General Migration](./resources/guides/migrate-general.md) |
 | Migrate from Knock to Courier | [Migrate from Knock](./resources/guides/migrate-from-knock.md) |
 | Migrate from Novu to Courier | [Migrate from Novu](./resources/guides/migrate-from-novu.md) |
 
@@ -169,8 +187,13 @@ For common tasks, you only need to read these specific files:
 | New to Courier / first notification | [quickstart.md](./resources/guides/quickstart.md) |
 | CLI debugging / ad-hoc operations | [cli.md](./resources/guides/cli.md) |
 | CLI + delivery debugging | [cli.md](./resources/guides/cli.md), [reliability.md](./resources/guides/reliability.md) |
+| MCP Server setup | [mcp.md](./resources/guides/mcp.md) |
+| Migrating from any system | [migrate-general.md](./resources/guides/migrate-general.md), [quickstart.md](./resources/guides/quickstart.md) |
 | Migrating from Knock | [migrate-from-knock.md](./resources/guides/migrate-from-knock.md), [quickstart.md](./resources/guides/quickstart.md) |
 | Migrating from Novu | [migrate-from-novu.md](./resources/guides/migrate-from-novu.md), [quickstart.md](./resources/guides/quickstart.md) |
+| Template CRUD / programmatic templates | [templates.md](./resources/guides/templates.md) |
+| Elemental content format | [templates.md](./resources/guides/templates.md) |
+| Inline vs templated sending | [templates.md](./resources/guides/templates.md), [quickstart.md](./resources/guides/quickstart.md) |
 | Lists, bulk sends, multi-tenant | [patterns.md](./resources/guides/patterns.md) |
 | Provider failover setup | [multi-channel.md](./resources/guides/multi-channel.md) |
 | Webhook setup & signature verification | [reliability.md](./resources/guides/reliability.md) |
@@ -207,13 +230,13 @@ For common tasks, you only need to read these specific files:
   → Use the [CLI](./resources/guides/cli.md) to inspect messages and delivery history. Email going to spam? [Email](./resources/channels/email.md). SMS not arriving? [SMS](./resources/channels/sms.md). General failures? [Reliability](./resources/guides/reliability.md).
 
 - **Ad-hoc operations, CI/CD, or AI agent workflows**
-  → See [CLI](./resources/guides/cli.md) for installation, commands, and zero-config agent patterns.
+  → Use **MCP** if your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode) — see [MCP Server](./resources/guides/mcp.md). Use **CLI** for shell-only environments, CI/CD, or when MCP isn't available — see [CLI](./resources/guides/cli.md). Both use the same API key and cover the same API surface.
+
+- **Managing templates programmatically** or understanding **Elemental** (Courier's JSON templating language)
+  → See [Templates](./resources/guides/templates.md) for the full CRUD lifecycle, all element types, control flow, and localization.
 
 - **Reusable code patterns** (consent check, quiet hours, idempotency, fallback)
   → See [Patterns](./resources/guides/patterns.md) for copy-paste implementations in TypeScript, Python, CLI, and curl.
 
-- **Migrating from Knock** to Courier
-  → See [Migrate from Knock](./resources/guides/migrate-from-knock.md) for concept mapping, API mapping, and side-by-side code examples.
-
-- **Migrating from Novu** to Courier
-  → See [Migrate from Novu](./resources/guides/migrate-from-novu.md) for concept mapping, API mapping, and side-by-side code examples.
+- **Migrating from another notification system** to Courier
+  → From **Knock**: [Migrate from Knock](./resources/guides/migrate-from-knock.md). From **Novu**: [Migrate from Novu](./resources/guides/migrate-from-novu.md). From **any other system** (custom-built, SendGrid direct, Twilio direct, etc.): [General Migration](./resources/guides/migrate-general.md).

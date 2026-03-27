@@ -70,7 +70,7 @@ client.send.message(
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "NEW_DEVICE_LOGIN",
+    template: "nt_01kmrbv3q6x9v2d5c8n1w4ht",
     data: { device: "Chrome on Windows", location: "New York" },
     routing: { method: "all", channels: ["email", "push", "sms"] }
   }
@@ -234,12 +234,7 @@ Send to all available channels simultaneously: Email + Push + SMS + In-app. Maxi
 
 ## Rate Limiting
 
-| Action | Rate Limit | Lockout |
-|--------|------------|---------|
-| Password reset | 3/hour | 1 hour |
-| OTP request | 5/hour | 1 hour |
-| Magic link | 5/hour | 1 hour |
-| Verification resend | 3/hour | 30 minutes |
+Enforce the rate limits defined in [Quick Reference > Rate Limits](#rate-limits) above. Always lock out the user after exceeding the limit.
 
 ## Troubleshooting
 

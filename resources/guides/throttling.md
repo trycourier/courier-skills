@@ -140,7 +140,7 @@ Configure send limits in Courier to automatically throttle:
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ACTIVITY_UPDATE",
+    template: "nt_01kmrbuc9q3x7v1d5c8n2w6hj",
     data: { ... },
     // Courier respects configured limits
     metadata: {
@@ -175,7 +175,7 @@ Set different limits per channel in your routing:
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "WEEKLY_SUMMARY",
+    template: "nt_01kmrbtw1v4q8x2c6d9n5j7h",
     routing: {
       method: "single",
       channels: ["email"] // Email has its own throttle config

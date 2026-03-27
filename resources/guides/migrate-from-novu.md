@@ -265,7 +265,7 @@ await novu.trigger({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "welcome-email",
+    template: "nt_01kmrbw4q7x1v5d8c2n6w9hj",
     data: {
       name: "Jane Doe",
       action_url: "https://app.example.com",
@@ -295,7 +295,7 @@ novu.trigger(trigger_event_request_dto=novu_py.TriggerEventRequestDto(
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "welcome-email",
+        "template": "nt_01kmrbw4q7x1v5d8c2n6w9hj",
         "data": {
             "name": "Jane Doe",
             "action_url": "https://app.example.com",
@@ -312,7 +312,7 @@ Novu embeds channel steps inside workflows. In Courier, specify routing on the s
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: { orderNumber: "12345", trackingUrl: "https://acme.co/track/12345" },
     routing: {
       method: "single",
@@ -430,7 +430,7 @@ await novu.trigger({
 await client.send.message({
   message: {
     to: { list_id: "beta-users" },
-    template: "product-update",
+    template: "nt_01kmrbzc8x2q6v1d4c7n5j9ht",
     data: { feature: "Dark mode is here" },
   },
 });
@@ -442,7 +442,7 @@ Manage list membership via the API:
 await client.lists.subscribe("beta-users", "user-123");
 ```
 
-For attribute-based targeting (e.g., all users on the enterprise plan), use [Audiences](https://www.courier.com/docs/platform/audiences) instead of lists.
+For attribute-based targeting (e.g., all users on the enterprise plan), use [Audiences](https://docs.courier.com/docs/platform/users/audiences) instead of lists.
 
 ## 10. Migrate Orchestration Logic
 
@@ -493,7 +493,7 @@ await client.tenants.createOrReplace("acme-corp", {
 await client.send.message({
   message: {
     to: { user_id: "user-123", tenant_id: "acme-corp" },
-    template: "welcome-email",
+    template: "nt_01kmrbw4q7x1v5d8c2n6w9hj",
     data: { name: "Jane Doe" },
   },
 });

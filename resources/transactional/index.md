@@ -42,7 +42,7 @@
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_CONFIRMATION",
+    template: "nt_01kmrbq6ypf25tsge12qek41r0",
     data: { orderId: "12345", items: [...] }
   }
 }, {
@@ -94,29 +94,9 @@ Per the FTC's CAN-SPAM guidance, a message is transactional if it:
 
 ### 1. Immediate Delivery
 
-Transactional notifications should be sent in real-time or near real-time:
+Transactional notifications should be sent in real-time or near real-time. See the [Timing Requirements](#timing-requirements) table in Quick Reference for delivery targets by type.
 
-| Type | Expected Delivery |
-|------|-------------------|
-| OTP/2FA codes | < 10 seconds |
-| Password reset | < 30 seconds |
-| Order confirmation | < 1 minute |
-| Shipping notification | < 5 minutes |
-| Security alert | < 1 minute |
-
-**Use idempotency keys** to prevent duplicates while allowing safe retries:
-
-```typescript
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "ORDER_CONFIRMATION",
-    data: { orderId: "12345", items: [...] }
-  }
-}, {
-  idempotencyKey: `order-confirmation-12345`
-});
-```
+Use idempotency keys to prevent duplicates while allowing safe retries (see the [Quick Reference template](#template) above for the pattern).
 
 ### 2. Clarity Over Creativity
 

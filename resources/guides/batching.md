@@ -211,7 +211,7 @@ async function sendDailyDigest(userId: string) {
   await client.send.message({
     message: {
       to: { user_id: userId },
-      template: "DAILY_DIGEST",
+      template: "nt_01kmrbtm6q9x3c7v1d5w2n8hj",
       data: {
         likes: activity.filter(a => a.type === 'like').length,
         comments: activity.filter(a => a.type === 'comment').length,
@@ -297,3 +297,4 @@ await client.automations.invoke.invokeAdHoc({
 - [Throttling](./throttling.md) - Rate limiting notifications
 - [Preferences](./preferences.md) - User frequency preferences
 - [Inbox](../channels/inbox.md) - In-app notification batching
+- [Automations](https://www.courier.com/docs/platform/automations) - Configure server-side batch/digest steps with delays, conditions, and aggregation windows

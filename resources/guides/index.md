@@ -21,7 +21,11 @@
 | Control frequency, prevent fatigue | [Throttling](./throttling.md) |
 | Plan notifications for your app type | [Catalog](./catalog.md) |
 | Use the CLI for debugging and agent workflows | [CLI](./cli.md) |
+| Use the MCP Server for structured API access | [MCP Server](./mcp.md) |
+| Create, manage, or publish templates via API | [Templates](./templates.md) |
+| Understand Elemental content format | [Templates](./templates.md) |
 | Find reusable code patterns | [Patterns](./patterns.md) |
+| Migrate from any notification system | [General Migration](./migrate-general.md) |
 | Migrate from Knock to Courier | [Migrate from Knock](./migrate-from-knock.md) |
 | Migrate from Novu to Courier | [Migrate from Novu](./migrate-from-novu.md) |
 
@@ -44,7 +48,10 @@ Cross-cutting guides cover concerns that span multiple channels and notification
 | [Throttling](./throttling.md) | Per-user rate limits, channel-specific frequency caps, priority-based throttling |
 | [Catalog](./catalog.md) | Notification planning by app type (SaaS, e-commerce, marketplace, mobile) |
 | [CLI](./cli.md) | Courier CLI for ad-hoc operations, debugging, CI/CD, and AI agent workflows |
+| [MCP Server](./mcp.md) | Structured API access for AI agents: setup, 60 available tools, error handling |
+| [Templates](./templates.md) | Template CRUD via API, Elemental content format, draft/publish workflow, versioning, inline vs templated sending |
 | [Patterns](./patterns.md) | Copy-paste implementations: idempotency, consent check, quiet hours, retry, webhooks, data masking |
+| [General Migration](./migrate-general.md) | Provider-agnostic migration from any custom or third-party notification system |
 | [Migrate from Knock](./migrate-from-knock.md) | Concept mapping, API mapping, side-by-side code migration from Knock to Courier |
 | [Migrate from Novu](./migrate-from-novu.md) | Concept mapping, API mapping, side-by-side code migration from Novu to Courier |
 
@@ -58,7 +65,11 @@ Cross-cutting guides cover concerns that span multiple channels and notification
 | Compliance audit | [Compliance](./compliance.md), [Preferences](./preferences.md) |
 | Reducing notification fatigue | [Throttling](./throttling.md), [Batching](./batching.md), [Preferences](./preferences.md) |
 | Debugging delivery issues | [CLI](./cli.md), [Reliability](./reliability.md) |
+| Setting up agent API access | [MCP Server](./mcp.md), [CLI](./cli.md) |
+| Programmatic template management | [Templates](./templates.md), [Patterns](./patterns.md) |
+| Templates + multi-channel routing | [Templates](./templates.md), [Multi-Channel](./multi-channel.md) |
 | Planning notification system | [Catalog](./catalog.md), [Multi-Channel](./multi-channel.md) |
+| Migrating from any system | [General Migration](./migrate-general.md), [Quickstart](./quickstart.md) |
 | Migrating from Knock | [Migrate from Knock](./migrate-from-knock.md), [Quickstart](./quickstart.md) |
 | Migrating from Novu | [Migrate from Novu](./migrate-from-novu.md), [Quickstart](./quickstart.md) |
 

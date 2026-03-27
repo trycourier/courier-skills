@@ -78,7 +78,10 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 - Batching and digests
 - Throttling and rate limiting
 - Notification catalog by app type
+- Template management (CRUD, Elemental format, versioning)
 - CLI (ad-hoc operations, debugging, agent workflows)
+- MCP Server (structured API access for AI agents, setup for all editors)
+- General migration (from any custom or third-party system)
 - Migrate from Knock (concept mapping, code migration)
 - Migrate from Novu (concept mapping, code migration)
 
@@ -116,6 +119,7 @@ courier-skills/
         ├── index.md
         ├── quickstart.md
         ├── cli.md
+        ├── mcp.md
         ├── multi-channel.md
         ├── preferences.md
         ├── compliance.md
@@ -123,7 +127,9 @@ courier-skills/
         ├── batching.md
         ├── throttling.md
         ├── catalog.md
+        ├── templates.md
         ├── patterns.md
+        ├── migrate-general.md
         ├── migrate-from-knock.md
         └── migrate-from-novu.md
 ```

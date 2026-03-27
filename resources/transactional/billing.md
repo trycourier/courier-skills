@@ -43,7 +43,7 @@
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "PAYMENT_RECEIVED",
+    template: "nt_01kmrbr9m2t6qf8w3x5c7v1dh",
     data: {
       amount: "$99.00",
       date: "January 29, 2026",
@@ -61,7 +61,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "PAYMENT_FAILED",
+    template: "nt_01kmrbret4v8n2q6x1c5d7wfj",
     data: {
       amount: "$99.00",
       reason: "Card declined",
@@ -140,15 +140,7 @@ Include:
 
 ### Strategy Overview
 
-Payment fails → escalate over time:
-
-| Day | Action | Channels |
-|-----|--------|----------|
-| 0 | Initial failure notice | Email |
-| 3 | Retry notification | Email |
-| 7 | Urgent action required | Email + Push |
-| 14 | Final notice | Email + Push + SMS |
-| 15+ | Subscription canceled | Email |
+Payment fails → escalate over time using the schedule defined in [Quick Reference > Dunning Escalation Schedule](#dunning-escalation-schedule) above.
 
 ### Initial Payment Failed (Day 0)
 
@@ -281,10 +273,7 @@ Include:
 
 ### Idempotency
 
-Always use idempotency keys:
-- `payment-{paymentId}`
-- `invoice-{invoiceId}`
-- `dunning-{invoiceId}-day-{day}`
+Always use idempotency keys — see [Quick Reference > Idempotency Keys](#idempotency-keys) above for the key patterns.
 
 ## Related
 

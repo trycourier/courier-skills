@@ -36,12 +36,12 @@ Include in ALL of these:
 
 ### Templates
 
-**Transactional Welcome:**
+**Transactional Welcome (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "WELCOME",
+    template: "nt_01kmrbvs6x9q3v7d1c5n8w2hj",
     data: {
       email: "jane@example.com",
       loginUrl: "https://acme.com/login"
@@ -52,12 +52,27 @@ await client.send.message({
 });
 ```
 
+**Transactional Welcome (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "WELCOME",
+        "data": {
+            "email": "jane@example.com",
+            "loginUrl": "https://acme.com/login",
+        },
+    },
+    idempotency_key="welcome-user-123",
+)
+```
+
 **Email Changed (send to old email):**
 ```typescript
 await client.send.message({
   message: {
     to: { email: "old-email@example.com" },
-    template: "EMAIL_CHANGED_OLD",
+    template: "nt_01kmrbwb8x2q6v1d4c7n5j9ht",
     data: {
       newEmailMasked: "j***@newdomain.com",
       timestamp: "January 29, 2026 at 2:30 PM",
@@ -74,7 +89,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "2FA_DISABLED",
+    template: "nt_01kmrbwj3q6x9v2d5c8n1w4ht",
     data: {
       timestamp: "January 29, 2026 at 2:30 PM",
       secureAccountUrl: "https://acme.com/security"

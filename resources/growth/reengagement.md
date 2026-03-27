@@ -37,12 +37,12 @@
 
 ### Templates
 
-**Light Nudge (7 days):**
+**Light Nudge (7 days, TypeScript):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "LIGHT_NUDGE",
+    template: "nt_01kmrbun4x7q1v5d8c2n6w9hj",
     data: {
       lastActivity: "your dashboard",
       whatsNew: ["Dark mode", "API improvements"]
@@ -51,12 +51,26 @@ await client.send.message({
 });
 ```
 
+**Light Nudge (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "LIGHT_NUDGE",
+        "data": {
+            "lastActivity": "your dashboard",
+            "whatsNew": ["Dark mode", "API improvements"],
+        },
+    }
+)
+```
+
 **Cart Abandonment (Transactional - 1hr):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "CART_REMINDER",
+    template: "nt_01kmrbuw8q2x6v1d4c7n5j9ht",
     data: {
       items: [{ name: "Widget", price: 29.99 }],
       cartUrl: "https://acme.com/cart"

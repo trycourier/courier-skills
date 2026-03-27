@@ -202,7 +202,7 @@ await knock.workflows.trigger("welcome-email", {
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "welcome-email",
+    template: "nt_01kmrbw4q7x1v5d8c2n6w9hj",
     data: {
       name: "Jane Doe",
       action_url: "https://app.example.com",
@@ -229,7 +229,7 @@ knock.workflows.trigger("welcome-email",
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "welcome-email",
+        "template": "nt_01kmrbw4q7x1v5d8c2n6w9hj",
         "data": {
             "name": "Jane Doe",
             "action_url": "https://app.example.com",
@@ -246,7 +246,7 @@ Knock embeds channel steps inside workflows. In Courier, specify routing on the 
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: { orderNumber: "12345", trackingUrl: "https://acme.co/track/12345" },
     routing: {
       method: "single",
@@ -392,7 +392,7 @@ await client.tenants.createOrReplace("acme-corp", {
 await client.send.message({
   message: {
     to: { user_id: "user-123", tenant_id: "acme-corp" },
-    template: "welcome-email",
+    template: "nt_01kmrbw4q7x1v5d8c2n6w9hj",
     data: { name: "Jane Doe" },
   },
 });

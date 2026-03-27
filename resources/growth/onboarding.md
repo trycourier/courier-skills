@@ -37,12 +37,12 @@
 
 ### Templates
 
-**Getting Started (Day 0 +1hr):**
+**Getting Started (Day 0 +1hr, TypeScript):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "GETTING_STARTED",
+    template: "nt_01kmrbsk4x7v1q5c8d2n6w9hf",
     data: {
       userName: "Jane",
       steps: [
@@ -54,12 +54,29 @@ await client.send.message({
 });
 ```
 
+**Getting Started (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "GETTING_STARTED",
+        "data": {
+            "userName": "Jane",
+            "steps": [
+                {"title": "Connect your data", "time": "2 min"},
+                {"title": "Create first dashboard", "time": "5 min"},
+            ],
+        },
+    }
+)
+```
+
 **Activation Success:**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ACTIVATION_SUCCESS",
+    template: "nt_01kmrbsav5n8q2x6c1d4w7jth",
     data: {
       achievement: "First dashboard created!",
       nextStep: "Invite your team"
@@ -231,7 +248,7 @@ await client.automations.invoke.invokeAdHoc({
 await client.send.message({
   message: {
     to: { user_id: userId },
-    template: "ACTIVATION_SUCCESS",
+    template: "nt_01kmrbsav5n8q2x6c1d4w7jth",
     data: {
       achievement: "First dashboard created!",
       nextStep: "Invite your team"
@@ -290,7 +307,7 @@ async function sendStepReminder(progress: OnboardingProgress): Promise<void> {
   await client.send.message({
     message: {
       to: { user_id: progress.userId },
-      template: "ONBOARDING_STEP_REMINDER",
+      template: "nt_01kmrbsv9q2x6c5w1d8n4t7jh",
       data: {
         stepTitle: nextStep.title,
         completedCount: progress.steps.filter((s) => s.completed).length,

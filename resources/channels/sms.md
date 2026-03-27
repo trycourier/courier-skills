@@ -13,6 +13,7 @@
 - TCPA violations: $500-$1,500 per message
 - Transactional SMS (no explicit consent needed): OTP, order updates, appointments
 - Marketing SMS (explicit consent required): promotions, sales, re-engagement
+- SMS requires a configured provider — add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not)
 
 ### Common Mistakes
 - Using emojis without accounting for 70-char Unicode limit
@@ -27,7 +28,7 @@
 
 ### Templates
 
-**OTP Code:**
+**OTP Code (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -39,7 +40,19 @@ await client.send.message({
 });
 ```
 
-**Order Shipped:**
+**OTP Code (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"phone_number": "+15551234567"},
+        "content": {
+            "body": "Your Acme code is 847293. Expires in 10 min. Never share this code."
+        },
+    }
+)
+```
+
+**Order Shipped (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -56,7 +69,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "OTP_CODE",
+    template: "nt_01kmrbr0s4y7qv2n8c5d1xj9k",
     routing: {
       method: "single",
       channels: ["sms", "email"]
@@ -195,7 +208,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: {
       orderNumber: "12345",
       trackingUrl: "https://acme.co/t/12345"
@@ -238,7 +251,7 @@ async function sendOTP(phoneNumber: string) {
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "VERIFICATION_CODE",
+    template: "nt_01kmrbxu8q2x6v1d4c7n5j9ht",
     data: { code: "847293" },
     routing: {
       method: "single",

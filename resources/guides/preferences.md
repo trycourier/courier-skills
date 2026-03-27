@@ -56,7 +56,7 @@ await client.users.preferences.updateOrCreateTopic("weekly-digest", {
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "WEEKLY_DIGEST" // Template linked to "weekly-digest" topic
+    template: "nt_01kmrbu5x8q2v6d1c4n7w9hj" // Template linked to "weekly-digest" topic
   }
 });
 ```
@@ -287,3 +287,5 @@ Offer both options:
 - [Compliance](./compliance.md) - Legal requirements for preferences
 - [Multi-Channel](./multi-channel.md) - Channel routing
 - [Campaigns](../growth/campaigns.md) - Marketing opt-in requirements
+- [Hosted Preference Page](https://www.courier.com/docs/platform/preferences/hosted-page) - Deploy a hosted preference page in minutes
+- [Embedding Preferences](https://www.courier.com/docs/platform/preferences/embedding-preferences) - Embeddable React components for building a preference center into your app

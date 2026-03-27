@@ -32,7 +32,7 @@
 await client.send.message({
   message: {
     to: { email: "jane@example.com" },
-    template: "TEMPLATE_NAME",
+    template: "nt_01kmrc1k3q6x9v2d5c8n1w4ht",
     data: { userName: "Jane" }
   }
 });
@@ -54,7 +54,7 @@ client.send.message(
 await client.send.message({
   message: {
     to: { email: "jane@example.com" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     channels: {
       email: {
         override: {
@@ -242,24 +242,7 @@ The preview text shown after the subject line:
 
 ## Courier Integration
 
-### Basic Email Send
-
-```typescript
-import Courier from "@trycourier/courier";
-
-const client = new Courier();
-
-await client.send.message({
-  message: {
-    to: { email: "jane@example.com" },
-    template: "WELCOME_EMAIL",
-    data: {
-      userName: "Jane",
-      loginUrl: "https://app.acme.com/login"
-    }
-  }
-});
-```
+For the basic email send pattern, see the [Quick Reference templates](#templates) above. The examples below show additional options.
 
 ### With Inline Content
 
@@ -281,7 +264,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { email: "jane@example.com" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: { orderNumber: "12345" },
     channels: {
       email: {
@@ -322,7 +305,7 @@ Courier can track link clicks for analytics:
 await client.send.message({
   message: {
     to: { email: "jane@example.com" },
-    template: "WEEKLY_DIGEST",
+    template: "nt_01kmrbu5x8q2v6d1c4n7w9hj",
     // Link tracking enabled in template settings
   }
 });
@@ -454,7 +437,7 @@ To land in Primary (not Promotions):
 await client.send.message({
   message: {
     to: { email: "your-test@example.com" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: { /* test data */ }
   }
 });

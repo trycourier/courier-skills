@@ -24,7 +24,7 @@
 
 ### Templates
 
-**Send DM by Email:**
+**Send DM by Email (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -39,7 +39,24 @@ await client.send.message({
 });
 ```
 
-**Send to Channel:**
+**Send DM by Email (Python):**
+```python
+import os
+
+client.send.message(
+    message={
+        "to": {
+            "slack": {
+                "access_token": os.environ["SLACK_BOT_TOKEN"],
+                "email": "jane@acme.com",
+            }
+        },
+        "content": {"title": "Build Complete", "body": "Your build finished."},
+    }
+)
+```
+
+**Send to Channel (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -49,7 +66,7 @@ await client.send.message({
         channel: "C0123ABCDEF"
       }
     },
-    template: "DEPLOY_NOTIFICATION"
+    template: "nt_01kmrby3q6x9v2d5c8n1w4ht"
   }
 });
 ```
@@ -116,7 +133,7 @@ await client.send.message({
         email: "jane@acme.com" // or user_id
       }
     },
-    template: "DEPLOYMENT_COMPLETE"
+    template: "nt_01kmrbyb7x1q5v8d2c6n4w9hj"
   }
 });
 ```
@@ -134,7 +151,7 @@ await client.send.message({
         channel: "C0123ABCDEF" // Channel ID
       }
     },
-    template: "SYSTEM_ALERT"
+    template: "nt_01kmrbyk2q5x9v1d4c7n8w6hj"
   }
 });
 ```
@@ -226,6 +243,201 @@ Block Kit is Slack's UI framework for rich messages.
 }
 ```
 
+## Handling Interactive Actions
+
+When you include `action_id` buttons in Block Kit, Slack sends a POST to your app when users click them. This requires setting up an Interactivity URL.
+
+### Setup
+
+1. In your Slack app settings, go to **Interactivity & Shortcuts**
+2. Toggle **Interactivity** on
+3. Set **Request URL** to your endpoint (e.g., `https://api.acme.com/slack/actions`)
+
+### Receiving Action Payloads
+
+Slack sends a JSON payload with `type: "block_actions"` when a user clicks a button. The payload includes which action was clicked and who clicked it.
+
+**TypeScript (Express):**
+```typescript
+import express from "express";
+
+const app = express();
+app.use(
+  "/slack/actions",
+  express.urlencoded({
+    extended: true,
+    verify: (req, _res, buf) => {
+      // Slack signature verification requires the exact raw body bytes.
+      (req as { rawBody?: string }).rawBody = buf.toString("utf8");
+    },
+  })
+);
+
+app.post("/slack/actions", async (req, res) => {
+  if (!verifySlackRequest(req as { headers: Record<string, string | string[] | undefined>; rawBody?: string })) {
+    return res.status(401).send("Invalid Slack signature");
+  }
+
+  // Respond within 3 seconds to avoid timeout
+  res.status(200).send();
+
+  const payload = JSON.parse(req.body.payload);
+
+  if (payload.type !== "block_actions") return;
+
+  for (const action of payload.actions) {
+    const userId = payload.user.id;
+    const actionId = action.action_id;
+    const responseUrl = payload.response_url;
+
+    switch (actionId) {
+      case "approve_request":
+        await handleApproval(action.value, userId, responseUrl);
+        break;
+      case "deny_request":
+        await handleDenial(action.value, userId, responseUrl);
+        break;
+      case "rollback_deploy":
+        await handleRollback(action.value, userId, responseUrl);
+        break;
+    }
+  }
+});
+```
+
+**Python (Flask):**
+```python
+import json
+import hmac
+import time
+import hashlib
+import os
+from flask import Flask, request
+
+app = Flask(__name__)
+
+def verify_slack_request() -> bool:
+    timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
+    signature = request.headers.get("X-Slack-Signature", "")
+    raw_body = request.get_data(as_text=True)
+
+    if not timestamp or not signature or not raw_body:
+        return False
+
+    # Reject replayed requests older than 5 minutes.
+    try:
+        request_ts = int(timestamp)
+    except ValueError:
+        return False
+
+    if abs(time.time() - request_ts) > 300:
+        return False
+
+    sig_base = f"v0:{timestamp}:{raw_body}"
+    secret = os.environ["SLACK_SIGNING_SECRET"].encode("utf-8")
+    computed = "v0=" + hmac.new(
+        secret,
+        sig_base.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(computed, signature)
+
+@app.route("/slack/actions", methods=["POST"])
+def slack_actions():
+    if not verify_slack_request():
+        return "Invalid Slack signature", 401
+
+    payload = json.loads(request.form["payload"])
+
+    if payload["type"] != "block_actions":
+        return "", 200
+
+    for action in payload["actions"]:
+        user_id = payload["user"]["id"]
+        action_id = action["action_id"]
+
+        if action_id == "approve_request":
+            handle_approval(action.get("value"), user_id)
+        elif action_id == "deny_request":
+            handle_denial(action.get("value"), user_id)
+
+    return "", 200
+```
+
+### Updating the Message After Action
+
+After processing an action, update the original message to reflect the new state:
+
+```typescript
+import { WebClient } from "@slack/web-api";
+
+const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
+
+async function handleApproval(
+  requestId: string,
+  approverSlackId: string,
+  responseUrl: string
+) {
+  await processApproval(requestId);
+
+  // Update the original message via response_url from the payload
+  await fetch(responseUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      replace_original: true,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `✅ Approved by <@${approverSlackId}>`,
+          },
+        },
+      ],
+    }),
+  });
+}
+```
+
+### Verifying Slack Requests
+
+Validate that requests actually come from Slack using the signing secret:
+
+```typescript
+import crypto from "crypto";
+
+function verifySlackRequest(req: {
+  headers: Record<string, string | string[] | undefined>;
+  rawBody?: string;
+}): boolean {
+  const tsHeader = req.headers["x-slack-request-timestamp"];
+  const sigHeader = req.headers["x-slack-signature"];
+  const timestamp = Array.isArray(tsHeader) ? tsHeader[0] : tsHeader;
+  const signature = Array.isArray(sigHeader) ? sigHeader[0] : sigHeader;
+  const rawBody = req.rawBody ?? "";
+
+  if (!timestamp || !signature || !rawBody) return false;
+
+  // Reject requests older than 5 minutes
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+
+  const sigBaseString = `v0:${timestamp}:${rawBody}`;
+  const hmac = crypto
+    .createHmac("sha256", process.env.SLACK_SIGNING_SECRET!)
+    .update(sigBaseString)
+    .digest("hex");
+
+  const expectedSignature = `v0=${hmac}`;
+  if (expectedSignature.length !== signature.length) return false;
+
+  return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature));
+}
+```
+
+---
+
 ## Courier Integration
 
 ### Basic Slack Message
@@ -262,7 +474,7 @@ await client.send.message({
         channel: "C0123ABCDEF"
       }
     },
-    template: "DEPLOY_NOTIFICATION",
+    template: "nt_01kmrby3q6x9v2d5c8n1w4ht",
     data: {
       environment: "production",
       version: "v2.3.1",
@@ -311,7 +523,7 @@ await client.send.message({
     to: { 
       user_id: "user-123" // Must have slack token in profile
     },
-    template: "TASK_ASSIGNED",
+    template: "nt_01kmrbyt6x9q3v7d1c5n8w2hj",
     routing: {
       method: "single",
       channels: ["slack"]

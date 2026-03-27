@@ -56,7 +56,7 @@ Try channels in priority order until one succeeds. Best for most notifications w
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "PASSWORD_RESET",
+    template: "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
     routing: {
       method: "single",
       channels: ["email", "sms"]
@@ -90,7 +90,7 @@ Send to all specified channels simultaneously. Best for critical notifications.
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "SECURITY_ALERT",
+    template: "nt_01kmrc06x1q5v8d2c6n4w9hj",
     routing: {
       method: "all",
       channels: ["email", "push", "sms"]
@@ -151,7 +151,7 @@ client.send.message(
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "SECURITY_ALERT",
+    template: "nt_01kmrc06x1q5v8d2c6n4w9hj",
     data: {
       alertType: "new_login",
       device: "Chrome on Windows",
@@ -173,7 +173,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: {
       orderNumber: "12345",
       trackingUrl: "https://acme.co/track/12345",
@@ -195,7 +195,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "NEW_COMMENT",
+    template: "nt_01kmrbvb7x1q5v8d2c6n4w9hj",
     data: {
       commenterName: "Jane",
       commentPreview: "Great point about the API design!",
@@ -229,7 +229,7 @@ T+24hr:   SMS (if critical and still unread)
 await client.automations.invoke.invokeByTemplate("escalating-notification", {
   recipient: "user-123",
   data: {
-    template: "APPROVAL_REQUEST",
+    template: "nt_01kmrc0f2q5x9v1d4c7n8w6hj",
     approvalId: "apr-789",
     requestedBy: "Jane"
   }
@@ -252,7 +252,7 @@ Automatically try next channel when delivery fails:
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "IMPORTANT_UPDATE",
+    template: "nt_01kmrc0n6x9q3v7d1c5n8w2hj",
     routing: {
       method: "single",
       channels: ["push", "email", "sms"] // Fallback chain
@@ -317,7 +317,7 @@ channels: {
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: {
       orderNumber: "12345",
       carrier: "FedEx",
@@ -363,7 +363,7 @@ Let users control which channels they receive:
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "WEEKLY_DIGEST",
+    template: "nt_01kmrbu5x8q2v6d1c4n7w9hj",
     routing: {
       method: "single",
       channels: ["email", "inbox"] // Courier filters by user preference
@@ -404,7 +404,7 @@ Prevent duplicate notifications with idempotency keys:
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: { orderId: "12345" }
   }
 }, {
@@ -494,7 +494,7 @@ Pass provider-level configuration without changing dashboard settings:
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "OTP_CODE",
+    template: "nt_01kmrbr0s4y7qv2n8c5d1xj9k",
     providers: {
       twilio: {
         override: {

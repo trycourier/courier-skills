@@ -47,7 +47,7 @@ if (topic?.status === "OPTED_IN") {
   await client.send.message({
     message: {
       to: { user_id: userId },
-      template: "FEATURE_ANNOUNCEMENT"
+      template: "nt_01kmrbs3q6w9x2c5v8n1d4tjh"
     }
   });
 }
@@ -108,23 +108,7 @@ Growth notifications focus on **product value** rather than promotions:
 
 ### Best Practice
 
-When in doubt, ask. Better to have explicit consent than risk complaints. Check user preferences before sending growth notifications.
-
-```typescript
-// Check if user has opted into growth notifications
-const prefs = await client.users.preferences.retrieve(userId);
-const growthPref = prefs.items.find(p => p.topic_id === "growth-notifications");
-
-if (growthPref?.status === "OPTED_IN") {
-  await client.send.message({
-    message: {
-      to: { user_id: userId },
-      template: "FEATURE_ANNOUNCEMENT",
-      data: { featureName: "Dark Mode" }
-    }
-  });
-}
-```
+When in doubt, ask. Better to have explicit consent than risk complaints. Check user preferences before sending growth notifications — see the [Quick Reference template](#template) above for the pattern.
 
 ## Channel Selection by Lifecycle Stage
 

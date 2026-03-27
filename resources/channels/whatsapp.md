@@ -26,12 +26,12 @@
 
 ### Templates
 
-**Send Template Message:**
+**Send Template Message (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: {
       customerName: "Jane",      // {{1}}
       orderNumber: "12345",      // {{2}}
@@ -42,12 +42,28 @@ await client.send.message({
 });
 ```
 
+**Send Template Message (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"phone_number": "+15551234567"},
+        "template": "ORDER_SHIPPED",
+        "data": {
+            "customerName": "Jane",
+            "orderNumber": "12345",
+            "deliveryDate": "Jan 30",
+        },
+        "routing": {"method": "single", "channels": ["whatsapp"]},
+    }
+)
+```
+
 **With Media Header:**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "DELIVERY_PROOF",
+    template: "nt_01kmrbxd9q3x7v1d5c8n2w6hj",
     data: { orderNumber: "12345" },
     channels: {
       whatsapp: {
@@ -71,7 +87,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "OTP_CODE",
+    template: "nt_01kmrbr0s4y7qv2n8c5d1xj9k",
     routing: {
       method: "single",
       channels: ["whatsapp", "sms"]
@@ -223,7 +239,7 @@ const client = new Courier();
 await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
-    template: "ORDER_SHIPPED", // Your Courier template
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht", // Your Courier template
     data: {
       customerName: "Jane",
       orderNumber: "12345",
@@ -262,7 +278,7 @@ data: {
 await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
-    template: "ORDER_DELIVERED",
+    template: "nt_01kmrbxm4x7q1v5d8c2n6w9hj",
     data: {
       customerName: "Jane",
       orderNumber: "12345"
@@ -292,7 +308,7 @@ async function sendWhatsAppOTP(phoneNumber: string, code: string) {
   await client.send.message({
     message: {
       to: { phone_number: phoneNumber },
-      template: "OTP_CODE",
+      template: "nt_01kmrbr0s4y7qv2n8c5d1xj9k",
       data: { code },
       routing: {
         method: "single",
@@ -319,7 +335,7 @@ await client.profiles.create("user-123", {
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "APPOINTMENT_REMINDER",
+    template: "nt_01kmrbx5q8x2v6d1c4n7w9hj",
     data: {
       patientName: "Jane",
       location: "123 Medical Center",
@@ -533,7 +549,7 @@ WhatsApp charges per conversation (24-hour window from first message):
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "OTP_CODE",
+    template: "nt_01kmrbr0s4y7qv2n8c5d1xj9k",
     data: { code: "847293" },
     routing: {
       method: "single",

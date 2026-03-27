@@ -37,12 +37,12 @@
 
 ### Templates
 
-**Booking Confirmation:**
+**Booking Confirmation (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "APPOINTMENT_CONFIRMED",
+    template: "nt_01kmrbwr7x1q5v8d2c6n4w9hj",
     data: {
       date: "January 30, 2026",
       time: "2:00 PM PST",
@@ -56,12 +56,30 @@ await client.send.message({
 });
 ```
 
+**Booking Confirmation (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "APPOINTMENT_CONFIRMED",
+        "data": {
+            "date": "January 30, 2026",
+            "time": "2:00 PM PST",
+            "provider": "Dr. Smith",
+            "location": "123 Medical Center",
+            "calendarLinks": {"google": "...", "outlook": "...", "ics": "..."},
+        },
+    },
+    idempotency_key="appt-confirmed-user-123-appt-456",
+)
+```
+
 **24-Hour Reminder:**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "APPOINTMENT_REMINDER_24H",
+    template: "nt_01kmrbx5q8x2v6d1c4n7w9hj",
     data: {
       date: "Tomorrow",
       time: "2:00 PM PST",
@@ -283,9 +301,9 @@ Keep SMS reminders under 160 characters to avoid splitting.
 
 ### Reduce No-Shows
 
-Studies show:
-- SMS reminders reduce no-shows by 30-40%
-- Multiple touchpoints (7d + 24h + 2h) most effective
+Best practices:
+- SMS reminders are highly effective at reducing no-shows
+- Multiple touchpoints (7d + 24h + 2h) are most effective
 - Include easy reschedule option
 
 ## Related

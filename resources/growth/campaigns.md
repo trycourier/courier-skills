@@ -42,7 +42,7 @@
 
 ### Templates
 
-**Check Opt-In Before Send:**
+**Check Opt-In Before Send (TypeScript):**
 ```typescript
 const prefs = await client.users.preferences.retrieve(userId);
 const marketingPref = prefs.items.find(p => p.topic_id === "marketing");
@@ -54,10 +54,27 @@ if (marketingPref?.status !== "OPTED_IN") {
 await client.send.message({
   message: {
     to: { user_id: userId },
-    template: "SUMMER_SALE",
+    template: "nt_01kmrbt4n7q1x5c8v2d6w9hf",
     data: { discount: "30%", code: "SUMMER30", expiresAt: "Aug 31" }
   }
 });
+```
+
+**Check Opt-In Before Send (Python):**
+```python
+prefs = client.users.preferences.retrieve(user_id)
+marketing_pref = next((t for t in prefs.items if t.topic_id == "marketing"), None)
+
+if not marketing_pref or marketing_pref.status != "OPTED_IN":
+    return
+
+client.send.message(
+    message={
+        "to": {"user_id": user_id},
+        "template": "SUMMER_SALE",
+        "data": {"discount": "30%", "code": "SUMMER30", "expiresAt": "Aug 31"},
+    }
+)
 ```
 
 **Promotional Email:**
@@ -65,7 +82,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "UPGRADE_PROMO",
+    template: "nt_01kmrbtc8x2q6v1d5n9w4j7h",
     data: {
       discount: "50%",
       code: "UPGRADE50",

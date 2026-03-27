@@ -34,7 +34,7 @@ Referrer shares → Referee signs up → Referee qualifies → Both notified
 
 ### Templates
 
-**Referral Signed Up (to referrer):**
+**Referral Signed Up (to referrer, TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -48,12 +48,26 @@ await client.send.message({
 });
 ```
 
+**Referral Signed Up (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "referrer-123"},
+        "content": {
+            "title": "Bob signed up!",
+            "body": "They need to make a purchase for you both to earn $10.",
+        },
+        "routing": {"method": "all", "channels": ["push", "inbox"]},
+    }
+)
+```
+
 **Referral Qualified (to referrer):**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "referrer-123" },
-    template: "REFERRAL_REWARD_EARNED",
+    template: "nt_01kmrbz4q7x1v5d8c2n6w9hj",
     data: {
       refereeName: "Bob",
       rewardAmount: "$10",
@@ -144,7 +158,7 @@ async function onRefereeAction(
     await client.send.message({
       message: {
         to: { user_id: referral.referrerId },
-        template: "REFERRAL_REWARD_EARNED",
+        template: "nt_01kmrbz4q7x1v5d8c2n6w9hj",
         data: {
           refereeName: referral.refereeEmail,
           rewardAmount: "$10",
@@ -157,7 +171,7 @@ async function onRefereeAction(
     await client.send.message({
       message: {
         to: { user_id: referral.refereeId },
-        template: "REFERRAL_REWARD_EARNED",
+        template: "nt_01kmrbz4q7x1v5d8c2n6w9hj",
         data: {
           referrerName: referral.referrerName,
           rewardAmount: "$10",

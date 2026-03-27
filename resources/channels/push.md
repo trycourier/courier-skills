@@ -27,7 +27,7 @@
 
 ### Templates
 
-**Register Push Token:**
+**Register Push Token (TypeScript):**
 ```typescript
 await client.users.tokens.addSingle("device-token-abc", {
   user_id: "user-123",
@@ -39,7 +39,16 @@ await client.users.tokens.addSingle("device-token-abc", {
 });
 ```
 
-**Basic Push:**
+**Register Push Token (Python):**
+```python
+client.users.tokens.add_single("device-token-abc",
+    user_id="user-123",
+    provider_key="apn",  # or "firebase-fcm"
+    device={"app_id": "com.acme.app", "platform": "ios"},  # or "android"
+)
+```
+
+**Basic Push (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -56,12 +65,26 @@ await client.send.message({
 });
 ```
 
+**Basic Push (Python):**
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "content": {
+            "title": "Your order shipped",
+            "body": "Arriving Thursday. Tap to track.",
+        },
+        "routing": {"method": "single", "channels": ["push"]},
+    }
+)
+```
+
 **With Deep Link:**
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     channels: {
       push: {
         override: {
@@ -323,7 +346,7 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_SHIPPED",
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
     data: {
       orderId: "12345",
       deliveryDate: "Thursday"
@@ -461,7 +484,7 @@ Users may have multiple devices. Store all tokens:
 await client.send.message({
   message: {
     to: { user_id: "user-123" }, // All devices receive
-    template: "NEW_MESSAGE"
+    template: "nt_01kmrbvk2q5x9v1d4c7n8w6hj"
   }
 });
 ```

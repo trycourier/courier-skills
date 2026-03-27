@@ -173,7 +173,8 @@ curl https://api.courier.com/messages/REQUEST_ID \
 
 ## 5. Send with a Template
 
-Templates are designed in the [Courier Designer](https://app.courier.com/designer). Reference them by ID or slug:
+Templates are designed in the [Courier Designer](https://app.courier.com/designer). Reference them by template ID (`nt_...`).
+Use your own workspace template IDs in production; IDs shown below are examples.
 
 ### TypeScript
 
@@ -181,7 +182,7 @@ Templates are designed in the [Courier Designer](https://app.courier.com/designe
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    template: "ORDER_CONFIRMATION",
+    template: "nt_01kmrbq6ypf25tsge12qek41r0",
     data: { orderId: "12345", total: "$99.00" }
   }
 });
@@ -193,7 +194,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "ORDER_CONFIRMATION",
+        "template": "nt_01kmrbq6ypf25tsge12qek41r0",
         "data": {"orderId": "12345", "total": "$99.00"},
     }
 )
@@ -204,7 +205,7 @@ client.send.message(
 ```bash
 courier send message \
   --message.to.user_id "user-123" \
-  --message.template "ORDER_CONFIRMATION" \
+  --message.template "nt_01kmrbq6ypf25tsge12qek41r0" \
   --message.data '{"orderId": "12345", "total": "$99.00"}'
 ```
 
@@ -214,7 +215,7 @@ courier send message \
 |-------|-------|-----|
 | 401 Unauthorized | Missing or invalid API key | Check `COURIER_API_KEY` env var; verify key in [Settings](https://app.courier.com/settings/api-keys) |
 | 400 Bad Request | Malformed message payload | Verify `to`, `content`/`template` structure; check required fields |
-| 404 Not Found | Template ID doesn't exist | Use the template slug or ID from the Designer; check environment (test vs production) |
+| 404 Not Found | Template ID doesn't exist | Use the correct `nt_...` template ID from the Designer/API; check environment (test vs production) |
 | Message sent but not delivered | No provider configured for channel | Email works in test mode without setup; for production email or other channels (SMS, push), add a provider in [Integrations](https://app.courier.com/integrations) |
 | Sent to `user_id` but nothing happened | User profile missing contact info | Create profile with `email`/`phone_number` first, or send directly with `to: { email: "..." }` |
 
