@@ -7,7 +7,7 @@
 - Don't announce to users already using the feature
 - Target by relevance (API feature → developers only)
 - Three phases: Awareness → Education → Reinforcement
-- Major features: 1-2 emails max
+- Major features: 1-2 emails max **per feature**, across the whole launch cycle (awareness + education); stay under the 2-3/week cross-campaign cap in [growth/index.md](./index.md)
 - Minor features: In-app only
 - Consider monthly "What's New" digest instead of per-feature
 
@@ -58,7 +58,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "FEATURE_ANNOUNCEMENT",
+        "template": "nt_01kmrbs3q6w9x2c5v8n1d4tjh",
         "data": {
             "featureName": "Dark Mode",
             "headline": "Easy on the eyes",

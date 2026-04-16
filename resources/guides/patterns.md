@@ -2,6 +2,51 @@
 
 Copy-paste implementations for cross-cutting concerns that apply across notification types. Each pattern includes TypeScript, Python, CLI, and/or curl examples.
 
+> **Reading order:** This file is the copy-paste companion. For the **concepts** behind idempotency, webhook handling, retries, and failover — including when to use which pattern and what the failure modes are — read [Reliability](./reliability.md) first, then come back here for code.
+
+## Quick Reference
+
+### Rules
+- **Idempotency keys are sent as an `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `{ headers: { "Idempotency-Key": "..." } }` as the second argument to `client.send.message`. In Python pass `extra_headers={"Idempotency-Key": "..."}`. On the REST API use the `Idempotency-Key` header directly. (The Node SDK's `idempotencyKey` request option is a no-op as of `@trycourier/courier@7.10.2` — always set the header explicitly. Python does not accept `idempotency_key=` at all.) The CLI does not yet have an `--idempotency-key` flag; for idempotent ad-hoc sends, use the SDK or curl. Keys are valid for 24 hours.
+- **Check consent before growth/marketing sends**, not before transactional sends. Transactional notifications (password reset, OTP, receipts, security alerts) bypass marketing consent.
+- **Quiet hours apply to non-urgent channels only.** Never delay OTP, password reset, security alerts, or critical account alerts, regardless of time.
+- **Throttle checks should be per-user × per-category.** Global throttles are usually wrong — a user's OTP budget is not the same as their marketing budget.
+- **Fallback routing (`method: "single"`) tries channels in order until one succeeds.** Use `method: "all"` only for genuinely multi-channel events (order shipped = email + push).
+- **Webhook handlers must respond 200 fast** (< 3s) and do work async. Always verify the `courier-signature` header — see [reliability.md](./reliability.md#verify-webhook-signatures).
+- **Retry only transient errors** (5xx, network, 429). Don't retry 4xx client errors, and don't retry indefinitely — cap attempts and use exponential backoff with jitter.
+- **Aggregate repeated actors** to avoid "Alice liked your post" × 15. Use batching with a 5–30 minute window for social-style notifications.
+- **Cancel scheduled messages** with `client.messages.cancel(messageId)` when the triggering condition becomes stale (e.g., cart abandonment after purchase).
+- **Mask sensitive data** (emails, phones, card last-4) in notification bodies and templates before rendering. Never pass raw PII into notification content that could be logged, rendered in Inbox, or included in email preview text.
+- **Bulk sends need `event`** (required on `client.bulk.createJob`); list/audience sends use `to: { list_id }` or `to: { audience_id }`.
+- **Tenant-scoped sends** (B2B multi-tenant) pass `tenant_id` in `message` to pick up per-tenant brand and preference overrides.
+
+### Pattern → when to use it
+
+| Pattern | Use when | Skip when |
+|---------|----------|-----------|
+| [Idempotency Keys](#idempotency-keys) | Transactional sends where duplicates are harmful (OTP, payment confirmations, security alerts) | Marketing blasts, where a retry should produce a fresh send |
+| [Consent Check](#consent-check) | Growth, marketing, weekly-digest sends | Transactional sends — consent is implied by the transaction |
+| [Quiet Hours](#quiet-hours) | Non-urgent push, SMS, marketing | OTP, password reset, security alerts, outage notifications |
+| [Throttle Check](#throttle-check) | You need per-user per-category frequency caps beyond Courier preferences | Global platform-level rate limiting (Courier handles provider limits) |
+| [Multi-Channel Fallback](#multi-channel-fallback) | OTP, critical transactional, anything with a hard SLA | Events where you genuinely want every channel ("order shipped" → `method: "all"`) |
+| [Webhook Handler](#webhook-handler) | You need to react to delivery events (bounces, clicks, undeliverable) | You only need to check status on demand (use `client.messages.retrieve`) |
+| [Retry with Exponential Backoff](#retry-with-exponential-backoff) | Your ingest path calls `send.message` and must survive 5xx/network errors | Courier-to-provider retries — those are Courier's job |
+| [Actor Aggregation](#actor-aggregation) | Social/activity notifications ("Alice liked", "Bob commented") | Transactional — never aggregate critical messages |
+| [Automation Cancellation](#automation-cancellation) | Scheduled reminders whose triggering condition can go stale (cart, abandoned signup) | One-shot sends |
+| [Data Masking](#data-masking) | Security alerts, change confirmations, any notification with PII in the body | Sends where the PII IS the value (order confirmation needs the address) |
+| [Lists and Bulk Sends](#lists-and-bulk-sends) | Audience-scale delivery (newsletters, product-launch digests) | Single-recipient sends |
+| [Tenants (Multi-Tenant / B2B)](#tenants-multi-tenant-b2b) | B2B apps where each customer org needs its own branding or preferences | Consumer apps with one brand |
+
+### Common Mistakes
+- Putting `Idempotency-Key` **inside** the `message` object instead of sending it as a request header
+- Using the same idempotency key for "send OTP" across multiple attempts (a resend should have a distinct key — typically `otp-{userId}-{otpRequestId}`, keyed off the unique id of the OTP request from your own system)
+- Checking consent for transactional sends (you'll lock legitimate users out of OTP/password reset)
+- Applying quiet hours to security alerts
+- Retrying 4xx errors (you'll hit the same validation failure forever)
+- Aggregating OTP or security events
+- Forgetting `event` on `client.bulk.createJob` (returns 400)
+- Verifying webhooks by re-hashing the parsed JSON — always hash the raw request body concatenated with the timestamp, see [reliability.md](./reliability.md#verify-webhook-signatures)
+
 ## Idempotency Keys
 
 Always use idempotency keys for transactional sends. Courier stores keys for 24 hours. See [Reliability](./reliability.md) for full idempotency guidance and key pattern table.
@@ -19,7 +64,7 @@ await client.send.message({
     data: { orderId: "12345" }
   }
 }, {
-  idempotencyKey: `order-confirmation-12345`
+  headers: { "Idempotency-Key": `order-confirmation-12345` }
 });
 ```
 
@@ -32,20 +77,14 @@ client = Courier()
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "ORDER_CONFIRMATION",
+        "template": "nt_01kmrbq6ypf25tsge12qek41r0",
         "data": {"orderId": "12345"},
     },
-    idempotency_key="order-confirmation-12345",
+    extra_headers={"Idempotency-Key": "order-confirmation-12345"},
 )
 ```
 
-**CLI:**
-```bash
-courier send message \
-  --message.to.user_id "user-123" \
-  --message.template "ORDER_CONFIRMATION" \
-  --message.data '{"orderId": "12345"}'
-```
+**CLI:** The Courier CLI does not yet support idempotency keys directly on `courier send message`. For idempotent ad-hoc sends, use the SDK (above) or call the REST API directly with curl (below).
 
 **curl:**
 ```bash
@@ -56,13 +95,13 @@ curl -X POST https://api.courier.com/send \
   -d '{
     "message": {
       "to": { "user_id": "user-123" },
-      "template": "ORDER_CONFIRMATION",
+      "template": "nt_01kmrbq6ypf25tsge12qek41r0",
       "data": { "orderId": "12345" }
     }
   }'
 ```
 
-Key pattern: `{notification-type}-{unique-id}`. OTP and password reset keys include a timestamp because they should be sendable multiple times. See [Reliability > Key Patterns](./reliability.md#key-patterns) for the full table.
+Key pattern: `{notification-type}-{unique-id}`. For OTP and password reset, the unique id should be the per-request id from your own system (e.g. `otp-{userId}-{otpRequestId}`) — that way a retry of the same request is deduped, but a legitimately new user-initiated request gets a fresh key. See [Reliability > Idempotency Key Patterns](./reliability.md#idempotency-key-patterns) for the full table.
 
 ## Consent Check
 
@@ -99,12 +138,12 @@ if has_consent(user_id, "growth-notifications"):
     client.send.message(message={...})
 ```
 
-### Consent Record Structure
+### Opt-In Record Structure
 
-Store consent records for audit compliance (GDPR, TCPA, CASL):
+Store opt-in records so you can prove when and how a user consented:
 
 ```typescript
-interface ConsentRecord {
+interface OptInRecord {
   userId: string;
   email?: string;
   phone?: string;
@@ -113,7 +152,7 @@ interface ConsentRecord {
   ipAddress?: string;
   consentText: string;       // Exact text user agreed to
   categories: string[];      // e.g. ["marketing", "product-updates"]
-  expiresAt?: Date;          // For implied consent (CASL)
+  expiresAt?: Date;          // Optional, for time-bound opt-ins
 }
 ```
 
@@ -141,7 +180,7 @@ async function sendWithQuietHours(
   message: object
 ): Promise<void> {
   if (priority === "critical") {
-    await client.send.message(message);
+    await client.send.message({ message });
     return;
   }
 
@@ -150,7 +189,7 @@ async function sendWithQuietHours(
     return;
   }
 
-  await client.send.message(message);
+  await client.send.message({ message });
 }
 ```
 
@@ -218,7 +257,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "IMPORTANT_UPDATE",
+        "template": "nt_01kmrc0n6x9q3v7d1c5n8w2hj",
         "routing": {
             "method": "single",
             "channels": ["push", "email", "sms"],
@@ -230,10 +269,9 @@ client.send.message(
 **CLI:**
 ```bash
 courier send message \
-  --message.to.user_id "user-123" \
-  --message.template "IMPORTANT_UPDATE" \
-  --message.routing.method "single" \
-  --message.routing.channels '["push", "email", "sms"]'
+  --message.to '{"user_id":"user-123"}' \
+  --message.template "nt_01kmrc0n6x9q3v7d1c5n8w2hj" \
+  --message.routing '{"method":"single","channels":["push","email","sms"]}'
 ```
 
 **curl:**
@@ -244,7 +282,7 @@ curl -X POST https://api.courier.com/send \
   -d '{
     "message": {
       "to": { "user_id": "user-123" },
-      "template": "IMPORTANT_UPDATE",
+      "template": "nt_01kmrc0n6x9q3v7d1c5n8w2hj",
       "routing": {
         "method": "single",
         "channels": ["push", "email", "sms"]
@@ -264,11 +302,12 @@ Always respond 200 immediately and process asynchronously. Handle duplicates. In
 app.post("/webhooks/courier", async (req, res) => {
   res.sendStatus(200);
 
-  const { event, messageId } = req.body;
+  const { type, data } = req.body;
+  const messageId = data?.id;
 
-  const alreadyProcessed = await cache.get(`webhook-${messageId}-${event}`);
+  const alreadyProcessed = await cache.get(`webhook-${messageId}-${type}`);
   if (alreadyProcessed) return;
-  await cache.set(`webhook-${messageId}-${event}`, true, { ttl: 86400 });
+  await cache.set(`webhook-${messageId}-${type}`, true, { ttl: 86400 });
 
   await queue.add("process-webhook", req.body);
 });
@@ -279,10 +318,10 @@ app.post("/webhooks/courier", async (req, res) => {
 @app.route("/webhooks/courier", methods=["POST"])
 def courier_webhook():
     payload = request.get_json()
-    event = payload.get("event")
-    message_id = payload.get("messageId")
+    event_type = payload.get("type")
+    message_id = payload.get("data", {}).get("id")
 
-    cache_key = f"webhook-{message_id}-{event}"
+    cache_key = f"webhook-{message_id}-{event_type}"
     if cache.get(cache_key):
         return "", 200
     cache.set(cache_key, True, ex=86400)
@@ -303,10 +342,10 @@ async function sendWithRetry(
 ): Promise<void> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      await client.send.message(message);
+      await client.send.message({ message });
       return;
     } catch (error: any) {
-      if (error.statusCode >= 400 && error.statusCode < 500) {
+      if (error.status >= 400 && error.status < 500) {
         throw error;
       }
       if (attempt === maxAttempts - 1) {
@@ -455,8 +494,14 @@ Send to groups of users via lists, or use the Bulk API for large audiences.
 ```typescript
 await client.lists.update("beta-testers", { name: "Beta Testers" });
 
-await client.lists.subscribe("beta-testers", "user-123");
-await client.lists.subscribe("beta-testers", "user-456");
+// Add a single user to a list (additive; does not overwrite existing subscribers).
+await client.lists.subscriptions.subscribeUser("user-123", { list_id: "beta-testers" });
+await client.lists.subscriptions.subscribeUser("user-456", { list_id: "beta-testers" });
+
+// Or replace the full subscriber set in one call:
+// await client.lists.subscriptions.subscribe("beta-testers", {
+//   recipients: [{ recipientId: "user-123" }, { recipientId: "user-456" }],
+// });
 
 await client.send.message({
   message: {
@@ -471,13 +516,20 @@ await client.send.message({
 ```python
 client.lists.update("beta-testers", name="Beta Testers")
 
-client.lists.subscribe("beta-testers", "user-123")
-client.lists.subscribe("beta-testers", "user-456")
+# Add a single user to a list (additive; does not overwrite existing subscribers).
+client.lists.subscriptions.subscribe_user("user-123", list_id="beta-testers")
+client.lists.subscriptions.subscribe_user("user-456", list_id="beta-testers")
+
+# Or replace the full subscriber set in one call:
+# client.lists.subscriptions.subscribe(
+#     "beta-testers",
+#     recipients=[{"recipientId": "user-123"}, {"recipientId": "user-456"}],
+# )
 
 client.send.message(
     message={
         "to": {"list_id": "beta-testers"},
-        "template": "FEATURE_ANNOUNCEMENT",
+        "template": "nt_01kmrbs3q6w9x2c5v8n1d4tjh",
         "data": {"feature": "Design Studio"},
     }
 )
@@ -496,13 +548,24 @@ await client.send.message({
 
 ### Bulk API
 
-For large audiences (product launches, monthly digests) where per-user data varies:
+For large audiences (product launches, monthly digests) where per-user data varies.
+
+The bulk `message` definition **requires `event`** (an event ID or notification ID). You may optionally also pass `template` or `content` (V2 format) to override the content associated with that event.
 
 **TypeScript:**
 ```typescript
+// V1: event required. `event` can be a mapped event ID or a notification ID (nt_...).
 const job = await client.bulk.createJob({
-  message: { template: "nt_01kmrc0v4q7x1v5d8c2n6w9hj" },
+  message: { event: "nt_01kmrc0v4q7x1v5d8c2n6w9hj" },
 });
+
+// V2: event required, with an explicit template override.
+// const job = await client.bulk.createJob({
+//   message: {
+//     event: "monthly-digest",
+//     template: "nt_01kmrc0v4q7x1v5d8c2n6w9hj",
+//   },
+// });
 
 await client.bulk.addUsers(job.jobId, {
   users: [
@@ -511,36 +574,52 @@ await client.bulk.addUsers(job.jobId, {
   ],
 });
 
+// runJob returns an empty body ("" / None) on success — don't assert on the
+// return value. Poll job progress via client.bulk.retrieveJob(job.jobId),
+// which returns { job: { enqueued, received, failures, status, definition } }.
 await client.bulk.runJob(job.jobId);
+const { job: jobStatus } = await client.bulk.retrieveJob(job.jobId);
 ```
 
 **Python:**
 ```python
-job = client.bulk.create_job(message={"template": "MONTHLY_DIGEST"})
+# V1: event required. `event` can be a mapped event ID or a notification ID.
+job = client.bulk.create_job(message={"event": "nt_01kmrc0v4q7x1v5d8c2n6w9hj"})
+
+# V2: event required, with an explicit template override.
+# job = client.bulk.create_job(message={
+#     "event": "monthly-digest",
+#     "template": "nt_01kmrc0v4q7x1v5d8c2n6w9hj",
+# })
 
 client.bulk.add_users(job.job_id, users=[
     {"to": {"user_id": "user-1"}, "data": {"highlights": 12}},
     {"to": {"user_id": "user-2"}, "data": {"highlights": 7}},
 ])
 
+# run_job returns an empty response on success — don't assert on the return
+# value. Poll job progress via client.bulk.retrieve_job(job.job_id), which
+# returns .job.{ enqueued, received, failures, status, definition }.
 client.bulk.run_job(job.job_id)
+job_status = client.bulk.retrieve_job(job.job_id).job
 ```
 
 ## Tenants (Multi-Tenant / B2B)
 
 Tenants let you scope branding, preferences, and data per customer organization.
 
+`client.tenants.update(tenantID, body)` is a create-or-replace (`PUT`). Tenants reference a brand by `brand_id`; the brand itself (logo, colors) is managed via the Brands API, not inlined on the tenant.
+
 **TypeScript:**
 ```typescript
-await client.tenants.createOrReplace("acme-corp", {
+await client.tenants.update("acme-corp", {
   name: "Acme Corp",
-  brand: {
-    logo: "https://acme.com/logo.png",
-    colors: { primary: "#1a73e8" },
-  },
+  brand_id: "BRAND_ACME", // optional; omit if you don't use a custom brand
+  properties: { plan: "enterprise" },
 });
 
-await client.users.tenants.add("user-123", "acme-corp");
+// Associate a user with a tenant (tenant ID is the first arg; user_id goes in the body).
+await client.users.tenants.addSingle("acme-corp", { user_id: "user-123" });
 
 await client.send.message({
   message: {
@@ -553,23 +632,26 @@ await client.send.message({
 
 **Python:**
 ```python
-client.tenants.create_or_replace("acme-corp",
+client.tenants.update(
+    "acme-corp",
     name="Acme Corp",
-    brand={"logo": "https://acme.com/logo.png", "colors": {"primary": "#1a73e8"}},
+    brand_id="BRAND_ACME",  # optional; omit if you don't use a custom brand
+    properties={"plan": "enterprise"},
 )
 
-client.users.tenants.add("user-123", "acme-corp")
+# Associate a user with a tenant (tenant ID is the first arg; user_id goes in the body).
+client.users.tenants.add_single("acme-corp", user_id="user-123")
 
 client.send.message(
     message={
         "to": {"user_id": "user-123", "tenant_id": "acme-corp"},
-        "template": "WELCOME_EMAIL",
+        "template": "nt_01kmrbw4q7x1v5d8c2n6w9hj",
         "data": {"name": "Jane"},
     }
 )
 ```
 
-When `tenant_id` is included, Courier applies that tenant's brand (logo, colors) to the rendered template automatically.
+When `tenant_id` is included, Courier applies that tenant's `brand_id` (if set) to the rendered template automatically.
 
 ## Related
 
@@ -577,7 +659,6 @@ When `tenant_id` is included, Courier applies that tenant's brand (logo, colors)
 - [Quickstart](./quickstart.md) - Send your first notification
 - [Multi-Channel](./multi-channel.md) - Routing strategies
 - [Reliability](./reliability.md) - Idempotency and retry details
-- [Compliance](./compliance.md) - Legal requirements
 - [Throttling](./throttling.md) - Rate limiting details
 - [Batching](./batching.md) - Aggregation strategies
 - [Preferences](./preferences.md) - User preference management

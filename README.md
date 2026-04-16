@@ -1,6 +1,6 @@
 # Courier Notification Skills
 
-A comprehensive agent skill for building production-ready notification systems across multiple channels. Covers everything from email deliverability to push permission priming, with a focus on user experience, compliance, and reliability.
+A comprehensive agent skill for building production-ready notification systems across multiple channels. Covers everything from email deliverability to push permission priming, with a focus on user experience and reliability.
 
 > **For AI Agents & Developers**: This skill provides structured guidance for implementing notifications with the [Courier API](https://www.courier.com). Use it to send emails, SMS, push notifications, Slack messages, and more through a unified interface.
 
@@ -8,7 +8,6 @@ A comprehensive agent skill for building production-ready notification systems a
 
 - **Multi-channel notifications** — Send messages via email, SMS, push, Slack, Microsoft Teams, WhatsApp, and in-app inbox from a single API
 - **Production-ready patterns** — Battle-tested code examples for authentication flows, order updates, billing alerts, and more
-- **Compliance built-in** — GDPR, TCPA, CAN-SPAM, and CCPA guidance for every channel
 - **Developer-first** — TypeScript, Python, CLI, and curl examples for key patterns
 
 ## Who This Is For
@@ -47,7 +46,7 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 
 **Channels**
 - Email (deliverability, SPF/DKIM/DMARC, design)
-- SMS (TCPA, 10DLC, character limits)
+- SMS (10DLC registration, character limits)
 - Push notifications (iOS/Android, permission priming)
 - In-app inbox (real-time, badges, read states)
 - Slack (Block Kit, bot setup)
@@ -73,12 +72,13 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 - Quickstart (send your first notification)
 - Multi-channel orchestration and routing
 - User preference management
-- Compliance (GDPR, TCPA, CAN-SPAM)
-- Reliability (idempotency, retry logic)
+- Reliability (idempotency, retry logic, webhook signature verification)
 - Batching and digests
 - Throttling and rate limiting
 - Notification catalog by app type
-- Template management (CRUD, Elemental format, versioning)
+- Template management (CRUD, versioning, publish lifecycle)
+- Elemental content format (element types, control flow, localization)
+- Reusable code patterns (idempotency, consent, quiet hours, masking, retry)
 - CLI (ad-hoc operations, debugging, agent workflows)
 - MCP Server (structured API access for AI agents, setup for all editors)
 - General migration (from any custom or third-party system)
@@ -97,6 +97,7 @@ courier-skills/
     │   ├── sms.md
     │   ├── push.md
     │   ├── inbox.md
+    │   ├── inbox-v7-legacy.md
     │   ├── slack.md
     │   ├── ms-teams.md
     │   └── whatsapp.md
@@ -116,18 +117,17 @@ courier-skills/
     │   ├── referral.md
     │   └── campaigns.md
     └── guides/                 # Cross-cutting concerns
-        ├── index.md
         ├── quickstart.md
         ├── cli.md
         ├── mcp.md
         ├── multi-channel.md
         ├── preferences.md
-        ├── compliance.md
         ├── reliability.md
         ├── batching.md
         ├── throttling.md
         ├── catalog.md
         ├── templates.md
+        ├── elemental.md
         ├── patterns.md
         ├── migrate-general.md
         ├── migrate-from-knock.md
@@ -147,16 +147,16 @@ This skill covers best practices for working with:
 | Email | SendGrid, Amazon SES, Postmark, Mailgun, Resend, SparkPost |
 | SMS | Twilio, MessageBird, Vonage, Plivo, Telnyx |
 | Push | Firebase Cloud Messaging (FCM), Apple Push Notification Service (APNs), Expo |
-| Chat | Slack, Microsoft Teams, Discord |
+| Chat | Slack, Microsoft Teams |
 | Messaging | WhatsApp Business API, Facebook Messenger |
 
 ## Frequently Asked Questions
 
 **How do I send a notification with Courier?**  
-Use the `courier.send()` method with a recipient, template, and data object. See the channel-specific guides for examples.
+Call `client.send.message({ message: { to, template, data } })` with the Node SDK (`@trycourier/courier`) or `client.send.message(message={...})` with the Python SDK (`trycourier`). Both SDKs read the API key from the `COURIER_API_KEY` environment variable by default. See the channel-specific guides for full examples.
 
 **What's the difference between transactional and marketing notifications?**  
-Transactional notifications are triggered by user actions (password reset, order confirmation). Marketing notifications are sent proactively for engagement. Different compliance rules apply.
+Transactional notifications are triggered by user actions (password reset, order confirmation). Marketing notifications are sent proactively for engagement.
 
 **How do I handle notification preferences?**  
 See `resources/guides/preferences.md` for implementing user preference centers, channel opt-outs, and frequency controls.
@@ -173,7 +173,7 @@ Found an issue or want to add a notification pattern? PRs welcome.
 
 ## License
 
-MIT
+[MIT](./LICENSE) © Courier, Inc.
 
 ---
 

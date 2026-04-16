@@ -16,16 +16,18 @@
 | OTP/2FA | single | [sms, email] |
 | Password reset | single | [email] |
 | Order confirmation | single | [email] |
-| Order shipped | all | [email, push, inbox] |
-| Security alert | all | [email, push, sms, inbox] |
+| Order shipped | all | [email, push] |
+| Security alert | all | Tiered by severity — see [authentication.md#security-alert-channels](../transactional/authentication.md#security-alert-channels). Lowest tier: `[email, push]`; highest tier: `[email, push, sms, inbox]` |
 | Activity mention | all | [push, inbox] |
 | Weekly digest | single | [email] |
+
+Rationale for "order shipped": email is the durable record; push is the awareness nudge. `method: "all"` automatically skips channels where the user has no contact info (no push token = push silently dropped, email still sent). Inbox is intentionally omitted — a shipping notification doesn't need in-app persistence.
 
 ### Routing Edge Cases
 | Situation | Behavior |
 |-----------|----------|
 | `user_id` has no email, email is first in `channels` | Skips email, tries next channel |
-| `user_id` has no contact info at all | Message status: UNDELIVERABLE |
+| `user_id` has no contact info at all | Typically `UNDELIVERABLE`, but if the workspace has the Courier Inbox provider (or any catch-all channel) enabled, the send may still complete as `SENT` via that channel. Check `providers[]` on the retrieved message to see what actually ran. |
 | User opted out of a channel via preferences | Channel skipped automatically |
 | `routing` omitted entirely | Courier uses channels configured in the template |
 | Provider returns 5xx | Courier retries, then tries next provider in priority order |
@@ -51,7 +53,9 @@ Courier provides two core routing methods:
 
 Try channels in priority order until one succeeds. Best for most notifications where you want exactly one delivery.
 
-**TypeScript:**
+Pick the priority order based on the use case — OTP/2FA should be `["sms", "email"]` (speed matters more than durability), password reset should be `["email"]` (the secure link is the point), general fallback can be `["email", "sms"]` (email is the default record, SMS is the backstop).
+
+**TypeScript (generic fallback, email first):**
 ```typescript
 await client.send.message({
   message: {
@@ -70,16 +74,18 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "PASSWORD_RESET",
+        "template": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
         "routing": {"method": "single", "channels": ["email", "sms"]},
     }
 )
 ```
 
 **Behavior:**
-1. Attempt email delivery
-2. If email fails (no email address, provider error), try SMS
+1. Attempt the first channel
+2. If it fails (no contact info, provider error), try the next
 3. Stop after first successful delivery
+
+> For OTP specifically, swap the channel order to `["sms", "email"]` — the Quick Reference and By-Urgency tables above are the source of truth for per-use-case ordering.
 
 ### All Channels (`method: "all"`)
 
@@ -104,7 +110,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "SECURITY_ALERT",
+        "template": "nt_01kmrc06x1q5v8d2c6n4w9hj",
         "routing": {"method": "all", "channels": ["email", "push", "sms"]},
     }
 )
@@ -122,8 +128,8 @@ client.send.message(
 | Urgency | Strategy | Channels | Example |
 |---------|----------|----------|---------|
 | Critical | All channels | Email + Push + SMS + In-app | Account compromised |
-| High | Primary + aggressive fallback | Push → SMS → Email | OTP code |
-| Medium | Best single channel | Email or Push | Order shipped |
+| High | Primary + aggressive fallback | SMS → Email (canonical OTP order: the Quick Reference is the source of truth) | OTP code |
+| Medium | Record + awareness nudge | Email + Push (`method: "all"`) | Order shipped |
 | Low | Least intrusive | In-app only | Weekly digest available |
 
 ### By Notification Type
@@ -133,9 +139,9 @@ client.send.message(
 | **OTP/2FA** | SMS | Email | Speed, visibility, works offline |
 | **Password reset** | Email | - | Secure link delivery |
 | **Order confirmed** | Email | In-app | Receipt for records |
-| **Order shipped** | Email + Push | - | Detail + awareness |
+| **Order shipped** | Email + Push (`method: "all"`, channels `[email, push]`) | - | Email is the record, push the awareness nudge |
 | **Out for delivery** | Push + SMS | - | Real-time, actionable |
-| **Security alert** | All | - | Maximum reach |
+| **Security alert** | Tiered (see [authentication.md](../transactional/authentication.md#security-alert-channels)) | - | Fan-out scales with event severity |
 | **Direct message** | Push | In-app | Immediate, conversational |
 | **Comment/mention** | Push | In-app | Immediate, contextual |
 | **Likes (batched)** | In-app | - | Low priority, batch |
@@ -144,16 +150,17 @@ client.send.message(
 
 ## Channel Selection Examples
 
-### Security Alert (Maximum Reach)
+### Security Alert (Highest Tier — Suspicious Activity)
+
+Security alerts fan out by severity (see [Security Alert Channels](../transactional/authentication.md#security-alert-channels)). The example below is for a **high-severity** event like suspicious activity, 2FA disabled, or a password change — which earns the full channel set. For a lower-severity event like a new device login, drop SMS and Inbox and use `channels: ["email", "push"]`.
 
 ```typescript
-// Critical - use all channels
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "nt_01kmrc06x1q5v8d2c6n4w9hj",
     data: {
-      alertType: "new_login",
+      alertType: "suspicious_activity",
       device: "Chrome on Windows",
       location: "New York, USA",
       time: new Date().toISOString()
@@ -169,7 +176,9 @@ await client.send.message({
 ### Order Shipped
 
 ```typescript
-// Email for details, push for awareness
+// Email is the durable record; push is the awareness nudge.
+// method: "all" silently skips channels the user has no contact info for
+// (e.g., no push token → push is dropped, email is still sent).
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
@@ -182,7 +191,7 @@ await client.send.message({
     },
     routing: {
       method: "all",
-      channels: ["email", "push", "inbox"]
+      channels: ["email", "push"]
     }
   }
 });
@@ -272,14 +281,13 @@ Same notification, optimized for each channel:
 
 ### Email (Detailed)
 
-```typescript
-channels: {
-  email: {
-    override: {
-      subject: "Your order #12345 has shipped",
-      body: {
-        // Rich HTML with images, tracking details, etc.
-      }
+```jsonc
+// message.channels fragment — rich HTML with images, tracking details, etc.
+{
+  "email": {
+    "override": {
+      "subject": "Your order #12345 has shipped",
+      "body": "<h1>Order shipped</h1><p>Tracking: <a href=\"https://acme.co/t/12345\">acme.co/t/12345</a></p>"
     }
   }
 }
@@ -287,13 +295,14 @@ channels: {
 
 ### Push (Concise)
 
-```typescript
-channels: {
-  push: {
-    override: {
-      title: "Order shipped!",
-      body: "Arriving Thursday. Tap to track.",
-      data: { deepLink: "acme://orders/12345" }
+```jsonc
+// message.channels fragment
+{
+  "push": {
+    "override": {
+      "title": "Order shipped!",
+      "body": "Arriving Thursday. Tap to track.",
+      "data": { "deepLink": "acme://orders/12345" }
     }
   }
 }
@@ -301,11 +310,12 @@ channels: {
 
 ### SMS (Ultra-Short)
 
-```typescript
-channels: {
-  sms: {
-    override: {
-      body: "Acme: Order #12345 shipped! Arrives Thu. Track: acme.co/t/12345"
+```jsonc
+// message.channels fragment
+{
+  "sms": {
+    "override": {
+      "body": "Acme: Order #12345 shipped! Arrives Thu. Track: acme.co/t/12345"
     }
   }
 }
@@ -408,7 +418,7 @@ await client.send.message({
     data: { orderId: "12345" }
   }
 }, {
-  idempotencyKey: `order-shipped-12345`
+  headers: { "Idempotency-Key": `order-shipped-12345` }
 });
 ```
 
@@ -434,6 +444,9 @@ Cancel pending notifications if user takes action:
 
 ```typescript
 // User completed action, cancel escalation
+const userId = "user-123";
+const approvalId = "approval-456";
+
 await client.automations.invoke.invokeAdHoc({
   recipient: userId,
   automation: {

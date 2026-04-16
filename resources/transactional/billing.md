@@ -52,7 +52,7 @@ await client.send.message({
     }
   }
 }, {
-  idempotencyKey: `payment-pay_123abc`
+  headers: { "Idempotency-Key": `payment-pay_123abc` }
 });
 ```
 
@@ -71,7 +71,7 @@ await client.send.message({
     routing: { method: "all", channels: ["email", "push"] }
   }
 }, {
-  idempotencyKey: `dunning-inv_123-day-7`
+  headers: { "Idempotency-Key": `dunning-inv_123-day-7` }
 });
 ```
 
@@ -280,4 +280,3 @@ Always use idempotency keys — see [Quick Reference > Idempotency Keys](#idempo
 - [Email](../channels/email.md) - Email design for receipts
 - [SMS](../channels/sms.md) - SMS for urgent billing alerts
 - [Reliability](../guides/reliability.md) - Idempotency for billing
-- [Compliance](../guides/compliance.md) - Receipt requirements

@@ -7,12 +7,11 @@
 - MUST include sender ID at start: "Acme: Your message..."
 - Phone numbers MUST be E.164 format: +15551234567
 - US A2P messaging REQUIRES 10DLC registration (allow 2-4 weeks)
-- Marketing SMS requires express written consent (TCPA)
+- Marketing SMS requires explicit opt-in
 - MUST support STOP keyword for opt-out
 - Honor opt-outs immediately - no exceptions
-- TCPA violations: $500-$1,500 per message
-- Transactional SMS (no explicit consent needed): OTP, order updates, appointments
-- Marketing SMS (explicit consent required): promotions, sales, re-engagement
+- Transactional SMS (no explicit opt-in needed): OTP, order updates, appointments
+- Marketing SMS (explicit opt-in required): promotions, sales, re-engagement
 - SMS requires a configured provider — add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not)
 
 ### Common Mistakes
@@ -80,22 +79,9 @@ await client.send.message({
 
 ---
 
-Best practices for sending SMS messages that comply with regulations and engage users.
+Best practices for sending SMS that delivers and engages users.
 
-## Compliance Requirements
-
-### TCPA (United States)
-
-The Telephone Consumer Protection Act requires:
-
-| Requirement | Details |
-|-------------|---------|
-| Express written consent | Required for marketing SMS |
-| Clear disclosure | Message frequency and data rates |
-| Easy opt-out | STOP keyword must work |
-| Honor opt-outs | Immediately, no exceptions |
-
-**Violations:** $500-$1,500 per message. See [Compliance](../guides/compliance.md) for full penalty details.
+## Setup Requirements
 
 ### 10DLC Registration (US)
 
@@ -117,26 +103,26 @@ The Telephone Consumer Protection Act requires:
 - Delivery Notifications
 - Marketing (requires additional vetting)
 
-### International Considerations
+### Opt-In and Opt-Out
 
-| Region | Key Requirements |
-|--------|-----------------|
-| EU (GDPR) | Explicit opt-in, easy withdrawal |
-| Canada (CASL) | Express consent, identification |
-| UK | PECR + GDPR applies |
-| Australia | Spam Act 2003, consent required |
-| India | DND registry, templates required |
+- Marketing SMS should be opt-in only — record when and how the user opted in
+- Every marketing message should include `Reply STOP to unsubscribe`
+- STOP / STOPALL / UNSUBSCRIBE / CANCEL / END / QUIT must all suppress future sends immediately
+- HELP / INFO should return sender identification and support contact
+- Transactional SMS (OTP, order updates, appointment reminders) does not require opt-in if the user provided the number for that purpose
 
 ## Message Design
 
 ### Character Limits
 
-| Encoding | Limit | Characters |
-|----------|-------|------------|
-| GSM-7 | 160 chars | A-Z, 0-9, basic punctuation, common symbols |
-| Unicode | 70 chars | Emojis, non-Latin characters, special symbols |
+| Encoding | Single-segment limit | Per-segment when concatenated | Characters |
+|----------|----------------------|-------------------------------|------------|
+| GSM-7 | 160 chars | **153 chars** per segment | A-Z, 0-9, basic punctuation, common symbols |
+| UCS-2 (Unicode) | 70 chars | **67 chars** per segment | Emojis, non-Latin characters, special symbols |
 
-**Concatenation:** Messages over limit split into segments (160/70 chars each), billed as multiple messages.
+**Concatenation:** Messages over the single-segment limit are split and reassembled by the handset using a 6- or 7-byte User Data Header (UDH). The UDH consumes 7 GSM-7 characters or 3 UCS-2 code units per segment, which is why concatenated payload drops from 160→153 (GSM-7) and 70→67 (UCS-2). Carriers bill per segment, so a 161-character GSM-7 message costs 2 segments (153 + 8), and a 71-character Unicode message costs 2 segments (67 + 4).
+
+> **Watch out for accidental Unicode:** a single emoji, curly quote, or non-breaking space forces the entire message into UCS-2, dropping your budget from 160/153 to 70/67. Normalize strings server-side if you care about cost.
 
 ```
 Message: "Your verification code is 847293. Valid for 10 min." 
@@ -155,7 +141,7 @@ Acme: Your order #12345 shipped! Track: acme.co/t/12345. Reply STOP to unsubscri
 
 | Component | Purpose |
 |-----------|---------|
-| Brand identifier | Required for recognition and compliance |
+| Brand identifier | Required for recognition |
 | Core message | What you're telling them |
 | CTA/Link | What they should do (use branded short domain, not bit.ly) |
 | Opt-out | Required for marketing, good practice for all |
@@ -224,25 +210,34 @@ await client.send.message({
 ### OTP Pattern
 
 ```typescript
-async function sendOTP(phoneNumber: string) {
-  const code = generateSecureCode(6); // 6-digit numeric
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-  
-  // Store OTP for verification
+// generateSecureCode and storeOTP are your own helpers — tie them into
+// your database / Redis / whatever you use to track OTP attempts.
+declare function generateSecureCode(digits: number): string;
+declare function storeOTP(phone: string, code: string, expiresAt: number): Promise<void>;
+
+async function sendOTP(phoneNumber: string, requestId: string) {
+  const code = generateSecureCode(6);
+  const expiresAt = Date.now() + 10 * 60 * 1000;
+
   await storeOTP(phoneNumber, code, expiresAt);
-  
-  // Send via Courier
+
   await client.send.message({
     message: {
       to: { phone_number: phoneNumber },
       content: {
-        body: `Your Acme code is ${code}. Expires in 10 min. Never share this code.`
-      }
-    }
+        body: `Your Acme code is ${code}. Expires in 10 min. Never share this code.`,
+      },
+    },
   }, {
-    idempotencyKey: `otp-${phoneNumber}-${requestId}`
+    // requestId is your application-side identifier for this OTP attempt —
+    // typically a row ID from your OTP table so retries of the same attempt
+    // collapse, while "resend code" produces a new requestId and a new send.
+    headers: { "Idempotency-Key": `otp-${phoneNumber}-${requestId}` },
   });
 }
+
+// Example caller:
+await sendOTP("+15551234567", crypto.randomUUID());
 ```
 
 ### SMS with Fallback to Email
@@ -308,8 +303,6 @@ await client.profiles.create("user-123", {
   <a href="/privacy">Privacy Policy</a> | <a href="/sms-terms">SMS Terms</a>
 </label>
 ```
-
-See [Compliance](../guides/compliance.md) for full consent requirements, record-keeping, and regional variations.
 
 ### Store Consent Record
 
@@ -403,17 +396,16 @@ Avoid these patterns:
 ```typescript
 // Track delivery via webhooks
 app.post('/webhooks/courier', async (req, res) => {
-  const { event, messageId, channel, error } = req.body;
-  
-  if (channel === 'sms') {
-    if (event === 'delivered') {
-      await recordDelivery(messageId, 'delivered');
-    } else if (event === 'undelivered') {
-      await recordDelivery(messageId, 'failed', error);
-      // Investigate if failure rate > 5%
+  const { type, data } = req.body;
+
+  if (type === 'message:updated' && data.channel === 'sms') {
+    if (data.status === 'DELIVERED') {
+      await recordDelivery(data.id, 'delivered');
+    } else if (data.status === 'UNDELIVERABLE') {
+      await recordDelivery(data.id, 'failed', data.reason);
     }
   }
-  
+
   res.sendStatus(200);
 });
 ```
@@ -426,7 +418,6 @@ Don't send SMS between 10 PM - 8 AM local time (unless urgent/transactional). Se
 
 ## Related
 
-- [Compliance](../guides/compliance.md) - Detailed TCPA and consent requirements
 - [Authentication](../transactional/authentication.md) - OTP and 2FA patterns
 - [Multi-Channel](../guides/multi-channel.md) - SMS in fallback chains
 - [Throttling](../guides/throttling.md) - SMS rate limiting

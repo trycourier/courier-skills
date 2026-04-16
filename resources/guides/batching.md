@@ -297,4 +297,4 @@ await client.automations.invoke.invokeAdHoc({
 - [Throttling](./throttling.md) - Rate limiting notifications
 - [Preferences](./preferences.md) - User frequency preferences
 - [Inbox](../channels/inbox.md) - In-app notification batching
-- [Automations](https://www.courier.com/docs/platform/automations) - Configure server-side batch/digest steps with delays, conditions, and aggregation windows
+- [Automations](https://www.courier.com/docs/automations/overview) - Configure server-side batch/digest steps with delays, conditions, and aggregation windows

@@ -8,7 +8,7 @@
 - DMARC progression: start with `p=none`, then `p=quarantine`, finally `p=reject`
 - Keep bounce rate under 2% (under 1% is good)
 - Keep complaint rate under 0.1%
-- Marketing emails MUST include physical address and unsubscribe link (CAN-SPAM)
+- Marketing emails MUST include a physical address and unsubscribe link
 - Use subdomains to separate transactional (`t.acme.com`) from marketing (`m.acme.com`)
 - Avoid `noreply@` addresses - use monitored inboxes
 - Subject lines: under 50 characters for mobile
@@ -23,7 +23,7 @@
 - Ignoring bounces and complaints (reputation damage)
 - Sudden volume spikes (triggers spam filters)
 - Using URL shorteners like bit.ly (spam trigger)
-- Missing unsubscribe link in marketing emails (CAN-SPAM violation)
+- Missing unsubscribe link in marketing emails
 
 ### Templates
 
@@ -43,7 +43,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"email": "jane@example.com"},
-        "template": "TEMPLATE_NAME",
+        "template": "nt_01kmrc1k3q6x9v2d5c8n1w4ht",
         "data": {"userName": "Jane"},
     }
 )
@@ -117,7 +117,7 @@ v=DMARC1; p=reject; rua=mailto:dmarc@yourdomain.com
 
 | Field | Best Practice | Example |
 |-------|--------------|---------|
-| From Name | Company or product name | Acme |
+| From Name | Brand name for transactional/system mail (recognizable sender builds reputation); a person's name for Primary-inbox marketing (e.g., Gmail Promotions → Primary) | Transactional: `Acme` · Marketing: `Jane at Acme` |
 | From Email | Subdomain for transactional | notifications@t.acme.com |
 | Reply-To | Monitored inbox | support@acme.com |
 
@@ -312,7 +312,7 @@ await client.send.message({
 
 // Receive webhook when links are clicked
 // POST /webhooks/courier
-// { event: "clicked", link: "https://...", messageId: "..." }
+// { type: "message:updated", data: { status: "CLICKED", id: "...", ... } }
 ```
 
 ## Bounce Handling
@@ -324,18 +324,21 @@ await client.send.message({
 | Block | Spam filter rejection | Review content, check authentication |
 
 ```typescript
-// Handle bounce webhooks from Courier
+// Handle delivery webhooks from Courier
+// Bounces surface as UNDELIVERABLE message:updated events with
+// provider-specific reason in data.providers[].error and data.reason.
 app.post('/webhooks/courier', async (req, res) => {
-  const { event, recipient, error } = req.body;
-  
-  if (event === 'bounced') {
-    if (error.type === 'hard') {
-      await markEmailInvalid(recipient);
-    } else if (error.type === 'soft') {
-      await incrementSoftBounceCount(recipient);
+  const { type, data } = req.body;
+
+  if (type === 'message:updated' && data.status === 'UNDELIVERABLE') {
+    const providerError = data.providers?.[0]?.error;
+    if (providerError?.type === 'hard_bounce') {
+      await markEmailInvalid(data.recipient);
+    } else {
+      await incrementSoftBounceCount(data.recipient);
     }
   }
-  
+
   res.sendStatus(200);
 });
 ```
@@ -344,50 +347,49 @@ app.post('/webhooks/courier', async (req, res) => {
 
 ### Password Reset
 
-```typescript
+```jsonc
 // Template: PASSWORD_RESET
-data: {
-  resetUrl: "https://acme.com/reset?token=abc123",
-  expiresIn: "1 hour",
-  userEmail: "jane@example.com"
-}
-
 // Subject: Reset your Acme password
-// Body: Click to reset. Expires in 1 hour. Didn't request this? Ignore or contact support.
+// Body:    Click to reset. Expires in 1 hour. Didn't request this? Ignore or contact support.
+{
+  "resetUrl": "https://acme.com/reset?token=abc123",
+  "expiresIn": "1 hour",
+  "userEmail": "jane@example.com"
+}
 ```
 
 ### Order Confirmation
 
-```typescript
-// Template: ORDER_CONFIRMATION
-data: {
-  orderNumber: "12345",
-  items: [
-    { name: "Widget", quantity: 2, price: 29.99 },
-    { name: "Gadget", quantity: 1, price: 49.99 }
+```jsonc
+// Template: ORDER_CONFIRMATION (data passed to message.data)
+{
+  "orderNumber": "12345",
+  "items": [
+    { "name": "Widget", "quantity": 2, "price": 29.99 },
+    { "name": "Gadget", "quantity": 1, "price": 49.99 }
   ],
-  subtotal: 109.97,
-  shipping: 5.99,
-  total: 115.96,
-  shippingAddress: { ... },
-  estimatedDelivery: "January 30-31"
+  "subtotal": 109.97,
+  "shipping": 5.99,
+  "total": 115.96,
+  "shippingAddress": { "line1": "1 Market St", "city": "San Francisco", "state": "CA", "postal_code": "94105" },
+  "estimatedDelivery": "January 30-31"
 }
 ```
 
 ### Weekly Digest
 
-```typescript
-// Template: WEEKLY_DIGEST
-data: {
-  userName: "Jane",
-  weekRange: "Jan 20-26",
-  stats: {
-    views: 1234,
-    likes: 56,
-    comments: 12
+```jsonc
+// Template: WEEKLY_DIGEST (data passed to message.data)
+{
+  "userName": "Jane",
+  "weekRange": "Jan 20-26",
+  "stats": {
+    "views": 1234,
+    "likes": 56,
+    "comments": 12
   },
-  topContent: [ ... ],
-  recommendations: [ ... ]
+  "topContent": [{ "id": "post-1", "title": "Intro to Courier", "url": "https://acme.com/post-1" }],
+  "recommendations": [{ "id": "post-2", "title": "Deep dive: idempotency", "url": "https://acme.com/post-2" }]
 }
 ```
 
@@ -414,7 +416,7 @@ data: {
 To land in Primary (not Promotions):
 - Avoid heavy images and marketing language
 - Include personalization
-- Send from a person, not a brand name
+- Prefer a person-in-brand sender (e.g., `Jane at Acme`) for marketing mail — raw brand senders (`Acme`) are fine for transactional but tend to get sorted into Promotions for promotional copy
 - Keep content relevant and expected
 
 ## Testing
@@ -445,7 +447,6 @@ await client.send.message({
 
 ## Related
 
-- [Compliance](../guides/compliance.md) - CAN-SPAM, GDPR requirements
 - [Multi-Channel](../guides/multi-channel.md) - Email as part of routing strategy
 - [Reliability](../guides/reliability.md) - Retry logic and error handling
 - [Batching](../guides/batching.md) - Email digests

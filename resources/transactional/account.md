@@ -48,7 +48,7 @@ await client.send.message({
     }
   }
 }, {
-  idempotencyKey: `welcome-user-123`
+  headers: { "Idempotency-Key": `welcome-user-123` }
 });
 ```
 
@@ -57,13 +57,13 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "WELCOME",
+        "template": "nt_01kmrbvs6x9q3v7d1c5n8w2hj",
         "data": {
             "email": "jane@example.com",
             "loginUrl": "https://acme.com/login",
         },
     },
-    idempotency_key="welcome-user-123",
+    extra_headers={"Idempotency-Key": "welcome-user-123"},
 )
 ```
 
@@ -80,7 +80,7 @@ await client.send.message({
     }
   }
 }, {
-  idempotencyKey: `email-changed-user-123-${changeEventId}`
+  headers: { "Idempotency-Key": `email-changed-user-123-${changeEventId}` }
 });
 ```
 
@@ -97,7 +97,7 @@ await client.send.message({
     routing: { method: "all", channels: ["email", "push", "sms"] }
   }
 }, {
-  idempotencyKey: `2fa-disabled-user-123-${changeEventId}`
+  headers: { "Idempotency-Key": `2fa-disabled-user-123-${changeEventId}` }
 });
 ```
 
@@ -325,10 +325,9 @@ Always confirm significant changes:
 Log what notifications were sent for:
 - Security audits
 - Customer support
-- Compliance requirements
+- Internal auditing and data-deletion requests
 
 ## Related
 
 - [Authentication](./authentication.md) - Password reset, security alerts
-- [Compliance](../guides/compliance.md) - Data deletion requirements
 - [Preferences](../guides/preferences.md) - User notification preferences

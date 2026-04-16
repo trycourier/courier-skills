@@ -53,7 +53,7 @@ await client.send.message({
     }
   }
 }, {
-  idempotencyKey: `order-confirmation-12345`
+  headers: { "Idempotency-Key": `order-confirmation-12345` }
 });
 ```
 
@@ -72,7 +72,7 @@ await client.send.message({
     routing: { method: "all", channels: ["email", "push"] }
   }
 }, {
-  idempotencyKey: `shipping-12345-shipped`
+  headers: { "Idempotency-Key": `shipping-12345-shipped` }
 });
 ```
 
@@ -81,7 +81,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "ORDER_SHIPPED",
+        "template": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
         "data": {
             "orderNumber": "12345",
             "trackingNumber": "1Z999AA10123456784",
@@ -90,7 +90,7 @@ client.send.message(
         },
         "routing": {"method": "all", "channels": ["email", "push"]},
     },
-    idempotency_key="shipping-12345-shipped",
+    extra_headers={"Idempotency-Key": "shipping-12345-shipped"},
 )
 ```
 
@@ -102,11 +102,13 @@ Best practices for order confirmations, shipping updates, and delivery notificat
 
 | Stage | Notification | Channels |
 |-------|--------------|----------|
-| Order Placed | Order Confirmation | Email |
-| Order Confirmed | Confirmation | Email |
+| Order Placed | Order Confirmation | Email + In-App |
+| Order Confirmed | Confirmation | Email + In-App |
 | Shipped | Shipping Notification | Email + Push |
 | Out for Delivery | Delivery Update | Push + SMS |
 | Delivered | Delivery Confirmation | Email + Push |
+
+> In-app is included on the order-placed and order-confirmed stages to match the Quick Reference and to give users a persistent confirmation alongside the email receipt. If your app doesn't have an in-app notification center, just send email for those two stages.
 
 ## Order Confirmation
 

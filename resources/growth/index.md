@@ -23,7 +23,8 @@
 | Category | Max Frequency |
 |----------|---------------|
 | Onboarding | 1/day |
-| Feature adoption | 2-3/week |
+| Feature adoption — total across campaigns | 2-3/week |
+| Feature adoption — per individual feature | 1-2 emails max over the whole launch cycle (see [adoption.md](./adoption.md)) |
 | Activity | As occurs (batch if many) |
 | Re-engagement | 1/week |
 | Promotional | 1-2/week |
@@ -181,4 +182,3 @@ Split test notification variants using deterministic assignment (e.g., based on 
 
 - [Preferences](../guides/preferences.md) - Managing user notification preferences
 - [Multi-Channel](../guides/multi-channel.md) - Channel routing strategies
-- [Compliance](../guides/compliance.md) - Consent requirements

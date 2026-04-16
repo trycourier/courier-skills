@@ -1,11 +1,14 @@
 # Courier MCP Server
 
+> **Last verified: 2026-04.** Tool count, installation UI paths, and JSON config shape can drift as Courier ships MCP updates or editors change their settings surface. If this file is older than **3 months**, spot-check the tool count and the Cursor/Claude Code installation snippets against https://www.courier.com/docs/tools/mcp (or fetch `https://www.courier.com/docs/llms.txt` and follow the MCP entry) before quoting specifics.
+
 ## Quick Reference
 
 ### Rules
 - MCP provides structured tool access; agents discover tools automatically and call them with typed parameters
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- 60 tools covering the full Courier API: send, messages, profiles, lists, audiences, notifications, brands, automations, bulk, tenants, preferences, tokens, translations, inbound, audit
+- 58 tools (verified 2026-04) covering most of the Courier API (send, messages, profiles, lists, audiences, notifications, brands, automations, bulk, tenants, preferences, tokens, translations, inbound, audit). Count may drift; call the MCP server's tool-list endpoint for the current list
+- **Coverage gap vs. REST/CLI:** MCP currently exposes **read-only** access to notification templates (list/get content/get draft). Template **writes** (create, replace, publish, archive, versions, checks) are not in MCP yet — use the [CLI](./cli.md) or the REST API for those
 - Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
 
@@ -18,7 +21,7 @@
 | Structured JSON responses | Human-readable or piped output |
 | No shell required | `--transform` for GJSON filtering |
 
-Both authenticate with the same `COURIER_API_KEY` and cover the same API surface.
+Both authenticate with the same `COURIER_API_KEY`. They overlap substantially but are not identical — MCP covers read operations on notification templates only, while the CLI (and REST) cover the full template lifecycle (create, publish, archive, versions, checks). Use CLI for template authoring and CI/CD; use MCP for agent-driven send, profile, list, tenant, preference, and audience workflows.
 
 ---
 
@@ -137,7 +140,7 @@ const response = await client.responses.create({
 
 ## Available Tools
 
-60 tools covering the full Courier API. All backed by the official `@trycourier/courier` Node SDK with typed error handling.
+58 tools (verified 2026-04) covering most of the Courier API. All backed by the official `@trycourier/courier` Node SDK with typed error handling. Notification template **writes** (create/replace/publish/archive/versions/checks) are not yet in MCP — use the [CLI](./cli.md) or REST.
 
 ### Send
 

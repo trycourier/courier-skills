@@ -59,7 +59,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "GETTING_STARTED",
+        "template": "nt_01kmrbsk4x7v1q5c8d2n6w9hf",
         "data": {
             "userName": "Jane",
             "steps": [
@@ -217,16 +217,25 @@ If user selected a goal during signup (increase productivity, team collaboration
 Use Courier Automations to build onboarding sequences with delays, conditions, and cancellation:
 
 ```typescript
-// Start onboarding when user signs up
-await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
-  recipient: "user-123",
-  data: {
-    cancelation_token: `onboarding-${userId}`,
-    userName: "Jane",
-    signupDate: new Date().toISOString(),
-    timezone: user.timezone || "America/New_York"
-  }
-});
+type OnboardingUser = {
+  id: string;
+  name: string;
+  timezone?: string;
+};
+
+async function startOnboarding(user: OnboardingUser) {
+  await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
+    recipient: user.id,
+    data: {
+      cancelation_token: `onboarding-${user.id}`,
+      userName: user.name,
+      signupDate: new Date().toISOString(),
+      timezone: user.timezone ?? "America/New_York",
+    },
+  });
+}
+
+await startOnboarding({ id: "user-123", name: "Jane", timezone: "America/Los_Angeles" });
 ```
 
 ### Exit Conditions
@@ -234,28 +243,30 @@ await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
 When the user activates, cancel the onboarding sequence and send a success message:
 
 ```typescript
-// User completed their aha moment — stop onboarding
-await client.automations.invoke.invokeAdHoc({
-  recipient: userId,
-  automation: {
-    steps: [
-      { action: "cancel", cancelation_token: `onboarding-${userId}` }
-    ]
-  }
-});
-
-// Send activation success
-await client.send.message({
-  message: {
-    to: { user_id: userId },
-    template: "nt_01kmrbsav5n8q2x6c1d4w7jth",
-    data: {
-      achievement: "First dashboard created!",
-      nextStep: "Invite your team"
+async function completeOnboarding(userId: string) {
+  await client.automations.invoke.invokeAdHoc({
+    recipient: userId,
+    automation: {
+      steps: [
+        { action: "cancel", cancelation_token: `onboarding-${userId}` },
+      ],
     },
-    routing: { method: "all", channels: ["email", "push", "inbox"] }
-  }
-});
+  });
+
+  await client.send.message({
+    message: {
+      to: { user_id: userId },
+      template: "nt_01kmrbsav5n8q2x6c1d4w7jth",
+      data: {
+        achievement: "First dashboard created!",
+        nextStep: "Invite your team",
+      },
+      routing: { method: "all", channels: ["email", "push", "inbox"] },
+    },
+  });
+}
+
+await completeOnboarding("user-123");
 ```
 
 ### Timezone-Aware Scheduling
@@ -263,26 +274,36 @@ await client.send.message({
 Onboarding emails should arrive during business hours in the user's local timezone:
 
 ```typescript
+// Requires: date-fns-tz (https://www.npmjs.com/package/date-fns-tz)
+// Parsing Date.toLocaleString back into a Date is fragile across locales —
+// use an IANA-aware library for reliable results.
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+
 function getNextDeliveryTime(
   timezone: string,
-  targetHour: number = 9
+  targetHour = 9,
 ): Date {
   const now = new Date();
-  const userTime = new Date(
-    now.toLocaleString("en-US", { timeZone: timezone })
-  );
-  const userHour = userTime.getHours();
+  const localDate = formatInTimeZone(now, timezone, "yyyy-MM-dd");
+  const localHour = Number(formatInTimeZone(now, timezone, "H"));
 
-  // If past target hour today, schedule for tomorrow
-  if (userHour >= targetHour) {
-    userTime.setDate(userTime.getDate() + 1);
-  }
-  userTime.setHours(targetHour, 0, 0, 0);
-  return userTime;
+  const baseDate =
+    localHour >= targetHour
+      ? new Date(new Date(localDate).getTime() + 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10)
+      : localDate;
+
+  const hh = String(targetHour).padStart(2, "0");
+  return fromZonedTime(`${baseDate}T${hh}:00:00`, timezone);
 }
 
-// Schedule Day 1 reminder for 9am user local time
-const deliverAt = getNextDeliveryTime(user.timezone, 9);
+await startOnboarding({
+  id: "user-123",
+  name: "Jane",
+  timezone: "America/Los_Angeles",
+});
+const deliverAt = getNextDeliveryTime("America/Los_Angeles", 9);
 ```
 
 ### Incomplete Step Detection

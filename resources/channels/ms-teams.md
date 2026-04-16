@@ -46,19 +46,23 @@ client.send.message(
 )
 ```
 
-**With Adaptive Card:**
-```typescript
-channels: {
-  ms_teams: {
-    override: {
-      body: {
-        type: "AdaptiveCard", version: "1.4",
-        body: [
-          { type: "TextBlock", text: "Deploy Complete", weight: "bolder", size: "large" },
-          { type: "FactSet", facts: [
-            { title: "Env", value: "production" },
-            { title: "Version", value: "v2.3.1" }
-          ]}
+**With Adaptive Card** (fragment — pass as `message.channels` on `client.send.message`):
+```jsonc
+{
+  "ms_teams": {
+    "override": {
+      "body": {
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "body": [
+          { "type": "TextBlock", "text": "Deploy Complete", "weight": "bolder", "size": "large" },
+          {
+            "type": "FactSet",
+            "facts": [
+              { "title": "Env", "value": "production" },
+              { "title": "Version", "value": "v2.3.1" }
+            ]
+          }
         ]
       }
     }
@@ -76,7 +80,7 @@ Best practices for sending Microsoft Teams notifications with Adaptive Cards.
 
 Best for: Channel notifications, alerts, no user interaction needed.
 
-> **Note:** Microsoft is retiring Office 365 connectors (including Incoming Webhooks created via Connectors) in favor of Power Automate Workflows webhooks. New connectors are disabled, and existing ones will stop working by end of 2025. Use the **Workflows** app in Teams to create a webhook trigger instead, or use the Bot Framework for new integrations.
+> **Note:** Microsoft has retired Office 365 connectors (the old "Incoming Webhook" integration inside a Teams channel). Creation of new connectors has been disabled since early 2025, and Microsoft has been pushing a final cutoff for existing connector URLs through multiple extensions in 2025–2026 — treat any existing connector URL as **unreliable** and migrate now. The supported replacement is the **Workflows** app in Teams (Power Automate) with the "Post to a channel when a webhook request is received" template, which produces a new webhook URL. For net-new integrations, use Workflows webhooks or the Bot Framework; do not create new connectors. Check Microsoft's current Teams connectors retirement doc for the latest exact dates before architecting anything long-lived.
 
 **Setup:**
 1. In Teams, go to channel → Manage channel → Workflows → "Post to a channel when a webhook request is received"

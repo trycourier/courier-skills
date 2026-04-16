@@ -3,12 +3,12 @@
 ## Quick Reference
 
 ### Rules
-- ALWAYS requires explicit opt-in (not pre-checked boxes)
-- MUST include physical address (CAN-SPAM)
-- MUST include unsubscribe link (functional for 30 days)
-- Honor opt-out within 10 business days
+- Marketing notifications should be opt-in only; record when and how the user opted in
+- MUST include physical address in marketing email
+- MUST include unsubscribe link (functional for 30 days after send)
+- Honor opt-out immediately in-loop; suppress on the next send, don't wait for a batch job
 - Max frequency: 1-2 promotional emails per week
-- SMS campaigns: Express written consent + TCPA compliance
+- SMS campaigns require opt-in always, not opt-out
 - Push campaigns: Only if user opted into promotional push
 
 ### Valid vs Invalid Opt-In
@@ -18,7 +18,7 @@
 | "Subscribe to newsletter" click | Assumed from purchase |
 | Explicit request for updates | Bundled consent |
 
-### Required Email Elements (CAN-SPAM)
+### Required Email Elements
 - Physical mailing address
 - Unsubscribe link
 - Accurate subject line
@@ -71,7 +71,7 @@ if not marketing_pref or marketing_pref.status != "OPTED_IN":
 client.send.message(
     message={
         "to": {"user_id": user_id},
-        "template": "SUMMER_SALE",
+        "template": "nt_01kmrbt4n7q1x5c8v2d6w9hf",
         "data": {"discount": "30%", "code": "SUMMER30", "expiresAt": "Aug 31"},
     }
 )
@@ -122,7 +122,7 @@ Promotional messages for sales, upgrades, and marketing campaigns.
 
 ## Key Distinction
 
-**Campaign notifications require explicit opt-in.** Unlike transactional or product notifications, these are promotional messages subject to CAN-SPAM, GDPR, and other regulations.
+**Campaign notifications are opt-in only.** Unlike transactional or product notifications, these are promotional messages. Only send them to users who explicitly opted in, record how and when they opted in, and honor opt-outs immediately. Opt-in everywhere also protects list health and deliverability.
 
 ## Opt-In Requirements
 
@@ -241,24 +241,18 @@ Research varies, but generally:
 
 ## Required Elements
 
-### CAN-SPAM Compliance
+### Marketing Email Requirements
 
 Every marketing email must include:
 
-1. **Physical address**
-2. **Unsubscribe link** (functional for 30 days)
+1. **Physical mailing address**
+2. **Unsubscribe link** (functional for at least 30 days after send)
 3. **Clear identification as advertisement** (if applicable)
-4. **Accurate subject line**
+4. **Accurate subject line and sender identification**
+5. **Link to your privacy policy**
 
 Example footer:
 "You're receiving this because you opted in to marketing emails from Acme. Unsubscribe | Manage preferences. Acme, Inc., 123 Main Street, San Francisco, CA 94102"
-
-### GDPR Compliance (EU)
-
-- Explicit consent required
-- Easy withdrawal of consent
-- Clear privacy policy link
-- Right to data access
 
 ## Unsubscribe Handling
 
@@ -288,11 +282,11 @@ Better than all-or-nothing unsubscribe. Let users choose:
 ### SMS Campaigns (Extra Caution)
 
 SMS marketing has stricter rules:
-- TCPA requires express written consent
+- Requires explicit opt-in — never opt-out
 - Higher unsubscribe risk
 - Reserve for high-value, time-sensitive offers
 
-Only send SMS campaigns to users who explicitly opted in with date recorded. See [Compliance](../guides/compliance.md) for consent language requirements and record-keeping.
+Only send SMS campaigns to users who explicitly opted in with the date recorded.
 
 ## Metrics
 
@@ -340,7 +334,6 @@ Only send SMS campaigns to users who explicitly opted in with date recorded. See
 
 ## Related
 
-- [Compliance](../guides/compliance.md) - CAN-SPAM, GDPR details
 - [Email](../channels/email.md) - Email deliverability
 - [Preferences](../guides/preferences.md) - Preference management
 - [Re-engagement](./reengagement.md) - Win-back campaigns

@@ -240,20 +240,43 @@ Respect user time by not sending during sleep hours:
 ### Basic Quiet Hours
 
 ```typescript
+type User = { id: string; timezone: string };
+type Notification = { userId: string; template: string; data?: Record<string, unknown> };
+
+// Your own implementations — these are the hooks you'd plug into your
+// existing user store and job queue (BullMQ, Temporal, Sidekiq, etc.).
+declare function getUser(userId: string): Promise<User>;
+declare function queueForTime(notification: Notification, runAt: Date): Promise<void>;
+declare function sendImmediately(notification: Notification): Promise<void>;
+
 function isQuietHours(userTimezone: string): boolean {
   const hour = parseInt(
-    new Date().toLocaleString('en-US', {
-      timeZone: userTimezone, hour: 'numeric', hour12: false
-    })
+    new Date().toLocaleString("en-US", {
+      timeZone: userTimezone,
+      hour: "numeric",
+      hour12: false,
+    }),
+    10,
   );
   return hour >= 22 || hour < 8;
 }
 
+function getNext8am(userTimezone: string): Date {
+  // See onboarding.md "Timezone-Aware Scheduling" for a date-fns-tz-based
+  // implementation that avoids Date.toLocaleString round-tripping.
+  const now = new Date();
+  const hour = parseInt(
+    new Date().toLocaleString("en-US", { timeZone: userTimezone, hour: "numeric", hour12: false }),
+    10,
+  );
+  const hoursUntil8am = hour < 8 ? 8 - hour : 24 - hour + 8;
+  return new Date(now.getTime() + hoursUntil8am * 60 * 60 * 1000);
+}
+
 async function sendOrDefer(notification: Notification) {
   const user = await getUser(notification.userId);
-  
+
   if (isQuietHours(user.timezone)) {
-    // Queue for 8am user's time
     await queueForTime(notification, getNext8am(user.timezone));
   } else {
     await sendImmediately(notification);

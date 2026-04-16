@@ -47,7 +47,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"phone_number": "+15551234567"},
-        "template": "ORDER_SHIPPED",
+        "template": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
         "data": {
             "customerName": "Jane",
             "orderNumber": "12345",
@@ -257,19 +257,21 @@ await client.send.message({
 
 Configure in your Courier template to map data to WhatsApp variable positions:
 
-```typescript
-// Your send call
-data: {
-  customerName: "Jane",    // Maps to {{1}}
-  orderNumber: "12345",    // Maps to {{2}}
-  deliveryDate: "Jan 30"   // Maps to {{3}}
+```jsonc
+// message.data passed on your send call:
+{
+  "customerName": "Jane",    // Maps to {{1}}
+  "orderNumber":  "12345",   // Maps to {{2}}
+  "deliveryDate": "Jan 30"   // Maps to {{3}}
 }
+```
 
-// WhatsApp template body
-"Hi {{1}}, your order #{{2}} has shipped and will arrive by {{3}}."
+```text
+WhatsApp template body:
+  Hi {{1}}, your order #{{2}} has shipped and will arrive by {{3}}.
 
-// Rendered message
-"Hi Jane, your order #12345 has shipped and will arrive by Jan 30."
+Rendered message:
+  Hi Jane, your order #12345 has shipped and will arrive by Jan 30.
 ```
 
 ### With Media Header
@@ -304,7 +306,11 @@ await client.send.message({
 ### OTP Template
 
 ```typescript
-async function sendWhatsAppOTP(phoneNumber: string, code: string) {
+async function sendWhatsAppOTP(
+  phoneNumber: string,
+  code: string,
+  requestId: string,
+) {
   await client.send.message({
     message: {
       to: { phone_number: phoneNumber },
@@ -312,13 +318,18 @@ async function sendWhatsAppOTP(phoneNumber: string, code: string) {
       data: { code },
       routing: {
         method: "single",
-        channels: ["whatsapp", "sms"] // Fallback to SMS
-      }
-    }
+        channels: ["whatsapp", "sms"], // Fallback to SMS
+      },
+    },
   }, {
-    idempotencyKey: `otp-wa-${phoneNumber}-${requestId}`
+    // requestId identifies this OTP attempt (typically a row ID in your
+    // OTP table); a "resend code" produces a new requestId and thus a
+    // new send, while retries of the same attempt collapse.
+    headers: { "Idempotency-Key": `otp-wa-${phoneNumber}-${requestId}` },
   });
 }
+
+await sendWhatsAppOTP("+15551234567", "847293", crypto.randomUUID());
 ```
 
 ### With User Profile
@@ -510,10 +521,12 @@ Hi {{1}}, {{2}} {{3}} {{4}} {{5}} {{6}}...
 
 ## Pricing
 
-WhatsApp charges per conversation (24-hour window from first message):
+WhatsApp charges per conversation (24-hour window from first message).
 
-| Category | Cost Range (varies by country) |
-|----------|-------------------------------|
+> **Last verified: 2026-04.** Meta updates WhatsApp Business pricing and free-tier rules frequently. If this file is older than **3 months**, re-verify against https://developers.facebook.com/docs/whatsapp/pricing before quoting these numbers to a user. Do **not** reason from memory — fetch the live page.
+
+| Category | Cost Range (varies by country, as of 2026-04) |
+|----------|-----------------------------------------------|
 | Utility | $0.005 - $0.015 |
 | Authentication | $0.005 - $0.015 |
 | Marketing | $0.01 - $0.05 |
@@ -571,7 +584,6 @@ await client.send.message({
 ## Related
 
 - [SMS](./sms.md) - Alternative mobile channel
-- [Compliance](../guides/compliance.md) - Consent requirements
 - [Multi-Channel](../guides/multi-channel.md) - WhatsApp in routing strategies
 - [Orders](../transactional/orders.md) - Order notification patterns
 - [Appointments](../transactional/appointments.md) - Appointment reminders

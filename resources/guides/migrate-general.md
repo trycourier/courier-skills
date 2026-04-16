@@ -56,13 +56,15 @@ For each notification your system sends, record:
 | Your System | Courier | Notes |
 |-------------|---------|-------|
 | Email/SMS/push send function | `client.send.message()` | Single API for all channels |
-| User / recipient table | Profiles | `PUT /profiles/:id` — accepts nested JSON |
+| User / recipient table | Profiles | `POST /profiles/:id` (merge) — accepts nested JSON |
 | Template (HTML, text, etc.) | Templates | Built in Courier Designer or via API (Elemental format) |
 | Send queue / orchestration | Automations | Delays, batching, conditions, sequences |
 | User preferences / opt-outs | Preference Topics | Enforced automatically at send time |
 | Provider config (API keys, etc.) | Integrations | Configured in the Courier dashboard |
 | Webhook handlers for status | Courier Webhooks | Delivery, bounce, complaint events |
 | Multi-tenant branding | Tenants | Brand attributes live on the Tenant resource |
+
+> Note: `PUT /profiles/:id` is a **full replacement** — any fields not included are deleted. Use `POST` for partial updates; reach for `PUT` only when you deliberately want to wipe unlisted fields.
 
 ## 3. Set Up Courier
 
@@ -216,7 +218,7 @@ await client.send.message({
     },
   },
 }, {
-  idempotencyKey: `order-confirmation-${orderNumber}`,
+  headers: { "Idempotency-Key": `order-confirmation-${orderNumber}` },
 });
 ```
 
@@ -228,10 +230,11 @@ One API call replaces separate email and SMS sends. Courier handles provider sel
 
 If your old system had custom routing logic (try push, fall back to email), replace it with Courier's routing:
 
-```typescript
-routing: {
-  method: "single",
-  channels: ["push", "email"],
+```jsonc
+// message.routing fragment on client.send.message
+{
+  "method": "single",
+  "channels": ["push", "email"]
 }
 ```
 
@@ -333,7 +336,7 @@ await client.send.message({
     data: { orderNumber, items, total },
   },
 }, {
-  idempotencyKey: `order-confirmation-${orderNumber}`,
+  headers: { "Idempotency-Key": `order-confirmation-${orderNumber}` },
 });
 ```
 

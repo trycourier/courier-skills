@@ -7,7 +7,7 @@
 - Android 13+: Requires explicit permission (like iOS)
 - Android 12 and below: Opt-out model (enabled by default)
 - Title: under 50 characters
-- Body: under 100 characters
+- Body: keep under ~100 characters for the lock-screen/banner preview (hard OS truncation is closer to 150 on both iOS and Android — see [Notification Design](#notification-design))
 - Always include deep link for navigation
 - Respect quiet hours (10pm-8am local time) for non-urgent
 - Batch similar notifications ("3 new messages" not 3 separate)
@@ -114,9 +114,9 @@ Best practices for sending push notifications that users actually want.
 
 ### Permission Model
 
-- **One-time prompt:** Users only see system prompt once per app install
-- **If denied:** Must manually enable in Settings (rare)
-- **Provisional:** Quiet delivery without prompting (iOS 12+)
+- **One-time prompt:** The standard `.alert` authorization prompt is shown once per app install. If denied, the app cannot re-prompt — the user must re-enable in Settings > Notifications > YourApp.
+- **Provisional authorization (iOS 12+):** Request `[.provisional]` *alone* for quiet delivery to Notification Center without a system prompt. The user sees notifications arrive silently and can tap "Keep" (promotes to full authorization) or "Turn Off" from any notification. Provisional and the standard alert prompt are mutually exclusive — mixing `.provisional` with `.alert` asks for the full prompt immediately and defeats the point of provisional.
+- **Recovering from denial:** Deep-link to `UIApplication.openSettingsURLString` in your app's in-app settings so users can flip the toggle themselves; do not assume this is rare — after any denial it's the only path.
 
 ### Notification Types
 
@@ -282,14 +282,15 @@ iOS gives you **one chance**. Don't waste it.
 
 ### Provisional Notifications (iOS)
 
-Request provisional authorization for quiet delivery:
+Request provisional authorization *alone* for quiet delivery — do NOT combine with `.alert`, which would request the standard prompt immediately and nullify the provisional behavior:
 
 ```swift
 UNUserNotificationCenter.current().requestAuthorization(
-    options: [.provisional, .alert, .sound, .badge]
+    options: [.provisional]
 ) { granted, error in
     // Notifications delivered quietly to Notification Center
     // User can "Keep" or "Turn Off" from the notification
+    // "Keep" promotes to full authorization (alert, sound, badge)
 }
 ```
 
@@ -452,16 +453,18 @@ Update Courier Profile
 
 ### Handle Token Refresh
 
-```typescript
+```swift
 // iOS - AppDelegate
 func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-    let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    let token = deviceToken.map { String(format: "%02hhx", $0) }.joined()
     sendTokenToBackend(token, platform: "ios")
 }
+```
 
+```kotlin
 // Android - FirebaseMessagingService
 override fun onNewToken(token: String) {
-    sendTokenToBackend(token, platform: "android")
+    sendTokenToBackend(token, platform = "android")
 }
 ```
 
@@ -494,12 +497,15 @@ await client.send.message({
 ```typescript
 // Handle feedback from APNs/FCM about invalid tokens
 app.post('/webhooks/courier', async (req, res) => {
-  const { event, error, recipient } = req.body;
-  
-  if (event === 'undelivered' && error?.code === 'token_expired') {
-    await client.users.tokens.delete(error.token, { user_id: recipient.user_id });
+  const { type, data } = req.body;
+
+  if (type === 'message:updated' && data.status === 'UNDELIVERABLE') {
+    const providerError = data.providers?.[0]?.error;
+    if (providerError?.code === 'token_expired') {
+      await client.users.tokens.delete(providerError.token, { user_id: data.recipient });
+    }
   }
-  
+
   res.sendStatus(200);
 });
 ```
@@ -508,11 +514,13 @@ app.post('/webhooks/courier', async (req, res) => {
 
 ### Content Guidelines
 
-| Element | iOS Limit | Android Limit | Best Practice |
-|---------|-----------|---------------|---------------|
-| Title | 50 chars | 50 chars | Be specific, actionable |
-| Body | 150 chars | 150 chars | Front-load important info |
-| Image | 1024x1024 max | 1:1 or 2:1 ratio | Add value, not decoration |
+| Element | iOS hard limit | Android hard limit | Best practice |
+|---------|----------------|--------------------|---------------|
+| Title | ~50 chars | ~65 chars | Keep under 50 — front-load the subject |
+| Body | ~150 chars | ~150 chars | Keep under ~100 so the lock-screen/banner preview isn't truncated |
+| Image | 1024×1024 max | 1:1 or 2:1 ratio | Add value, not decoration |
+
+> The Quick Reference "under 100 characters" target matches the **preview-safe** length on both platforms — the `~150` number here is the OS truncation ceiling, not a recommendation. If your body exceeds ~100 chars, assume the tail will be cut off on the lock screen.
 
 ### Examples
 

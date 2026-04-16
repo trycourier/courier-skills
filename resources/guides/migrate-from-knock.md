@@ -28,14 +28,16 @@
 
 | Operation | Knock | Courier |
 |-----------|-------|---------|
-| Send a notification | `POST /workflows/:key/trigger` | `POST /send` |
-| Create/update a user | `PUT /users/:id` | `PUT /profiles/:id` |
-| Get a user | `GET /users/:id` | `GET /profiles/:id` |
-| Set user preferences | `PUT /users/:id/preferences` | `PUT /users/:id/preferences/:topic` |
-| Get message status | `GET /messages/:id` | `GET /messages/:id` |
-| List messages | `GET /messages` | `GET /messages` |
-| Bulk send | `POST /workflows/:key/trigger` (recipients array) | `POST /bulk` |
-| Create/update tenant | `PUT /tenants/:id` | `PUT /tenants/:id` |
+| Send a notification | `POST /v1/workflows/:key/trigger` | `POST /send` |
+| Create/update a user | `PUT /v1/users/:id` | `POST /profiles/:id` (merge) |
+| Get a user | `GET /v1/users/:id` | `GET /profiles/:id` |
+| Set user preferences | `PUT /v1/users/:id/preferences/:set_id` | `PUT /users/:id/preferences/:topic` |
+| Get message status | `GET /v1/messages/:id` | `GET /messages/:id` |
+| List messages | `GET /v1/messages` | `GET /messages` |
+| Bulk send | `POST /v1/workflows/:key/trigger` (recipients array) | `POST /bulk` |
+| Create/update tenant | `PUT /v1/objects/tenants/:id` (Knock models tenants as Objects) | `PUT /tenants/:id` |
+
+> Note: `PUT /profiles/:id` is a **full replacement** — any fields not included are deleted. Use `POST` for partial updates; reach for `PUT` only when you deliberately want to wipe unlisted fields.
 
 ### Common Mistakes
 - Trying to recreate Knock Objects as a first-class Courier resource (use `data` instead)
@@ -92,7 +94,7 @@ import Courier from "@trycourier/courier";
 const client = new Courier();
 ```
 
-> Both `import Courier from "@trycourier/courier"` (default export) and `import { CourierClient } from "@trycourier/courier"` (named export) work. The examples in this guide use the default export; Courier's quickstart uses the named export.
+> Both `import Courier from "@trycourier/courier"` (default export) and `import { Courier } from "@trycourier/courier"` (named export) work — the named export is `Courier`, not `CourierClient`. The examples in this guide use the default export.
 
 ### Python
 
@@ -135,7 +137,9 @@ Create Courier profiles with the same identifiers you use in Knock.
 
 **Before (Knock):**
 ```typescript
-await knock.users.identify("user-123", {
+// Current Knock Node SDK uses users.update (the older users.identify helper
+// was removed; update is an upsert-by-ID).
+await knock.users.update("user-123", {
   email: "jane@example.com",
   phone_number: "+15551234567",
   name: "Jane Doe",
@@ -158,7 +162,8 @@ await client.profiles.create("user-123", {
 
 **Before (Knock):**
 ```python
-knock.users.identify("user-123", data={
+# Current Knock Python SDK uses users.update (upsert by ID).
+knock.users.update("user-123", data={
     "email": "jane@example.com",
     "phone_number": "+15551234567",
     "name": "Jane Doe",
@@ -381,12 +386,11 @@ See [Batching](./batching.md) for window strategies, aggregation patterns, and d
 Tenants work similarly across both platforms. In Courier, branding attributes live directly on the Tenant resource instead of a separate Brands object.
 
 ```typescript
-await client.tenants.createOrReplace("acme-corp", {
+// `update` is create-or-replace (PUT /tenants/{id}). Brands live in the Brands API;
+// tenants reference a brand via `brand_id`.
+await client.tenants.update("acme-corp", {
   name: "Acme Corp",
-  brand: {
-    logo: "https://acme.com/logo.png",
-    colors: { primary: "#1a73e8" },
-  },
+  brand_id: "BRAND_ACME", // optional
 });
 
 await client.send.message({

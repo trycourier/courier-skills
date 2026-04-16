@@ -1,5 +1,7 @@
 # Reliability
 
+> **Reading order:** This file covers **concepts and failure modes** (idempotency semantics, retry strategy, webhook delivery guarantees, provider failover). For **copy-paste code** implementing these patterns in TypeScript, Python, CLI, and curl, see [Patterns](./patterns.md).
+
 ## Quick Reference
 
 ### Rules
@@ -15,11 +17,13 @@
 | Notification | Key Pattern |
 |--------------|-------------|
 | Order confirmation | `order-confirmation-{orderId}` |
-| Password reset | `password-reset-{userId}-{timestamp}` |
+| Password reset | `password-reset-{userId}-{resetRequestId}` |
 | Payment receipt | `payment-receipt-{paymentId}` |
 | Shipping update | `shipping-{shipmentId}-{status}` |
-| OTP code | `otp-{userId}-{timestamp}` |
+| OTP code | `otp-{userId}-{otpRequestId}` |
 | Welcome email | `welcome-{userId}` |
+
+Use a **request id** (the unique id of the OTP/reset attempt from your own system) rather than a timestamp — it's deterministic on retry, so the second attempt of the *same* OTP request gets deduped while a legitimate *new* OTP request gets a fresh key.
 
 ### Common Mistakes
 - Missing idempotency keys (causes duplicate notifications)
@@ -33,6 +37,25 @@
 ### Templates
 
 See [Patterns](./patterns.md) for full copy-paste implementations: [Idempotency Keys](./patterns.md#idempotency-keys), [Webhook Handler](./patterns.md#webhook-handler), [Retry with Backoff](./patterns.md#retry-with-exponential-backoff).
+
+### Message Status Glossary
+
+The value returned as `message.status` from `client.messages.retrieve` (and the `status` field on `messages list` rows and webhook events). Happy-path progression is roughly `ENQUEUED → ROUTED → SENT → DELIVERED`; terminal failures are `UNROUTABLE`, `UNDELIVERABLE`, and `FAILED`.
+
+| Status | Meaning | Typical cause / next step |
+|--------|---------|---------------------------|
+| `ENQUEUED` | Courier has accepted the request and queued it for routing. | Transient — re-check in a few seconds. |
+| `PROCESSED` | Internal processing step (event mapping, template resolution). You may see this briefly on list rows. | Transient. |
+| `ROUTED` | Routing decision made; message is ready to hand to a provider. | Transient. |
+| `SENT` | At least one provider accepted the payload for delivery. For email this means the provider returned 2xx; for Inbox it means the message is visible in the feed. | Transient on the way to `DELIVERED`, or terminal for Inbox/webhook channels. |
+| `DELIVERED` | Provider confirmed the message reached the recipient (e.g. email DSN, SMS carrier report). | Terminal success. |
+| `OPENED` / `CLICKED` | Engagement signals for email (requires open/click tracking). | Terminal success with engagement. |
+| `UNMAPPED` | The `event` on the send didn't map to any notification/template in this workspace. Common for bulk sends with a typo'd `event` value. | Fix the event ID or create an event mapping in Settings. |
+| `UNROUTABLE` | Routing failed — no channel/provider combination could accept the send. Check `reason` and `error` for detail (e.g. `reason: "PROVIDER_ERROR"` with message `"No provider(s) resend in the list of message channel provider(s): postmark."` means the channel's routing list references a provider that isn't installed). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
+| `UNDELIVERABLE` | All providers attempted returned a terminal failure (bounce, invalid number, suppressed). | Verify the recipient's contact info; inspect `providers[].providerResponse` for the specific error. |
+| `FAILED` | Platform-side error (rare). | Retry; if persistent, contact Courier support with the `id`. |
+
+Statuses are returned verbatim on webhooks and on `GET /messages/{id}`. For list/bulk sends, a single `requestId` can fan out to many per-recipient `message_id`s, each with its own status — look them up via `courier messages list --trace-id "<requestId>"` (see [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id)).
 
 ---
 
@@ -53,20 +76,14 @@ Add the `Idempotency-Key` header to your API requests. Courier stores keys for 2
 
 ### Key Patterns
 
-| Notification Type | Idempotency Key Pattern |
-|-------------------|------------------------|
-| Order confirmation | `order-confirmation-{orderId}` |
-| Password reset | `password-reset-{userId}-{timestamp}` |
-| Payment receipt | `payment-receipt-{paymentId}` |
-| Shipping update | `shipping-{shipmentId}-{status}` |
-| OTP code | `otp-{userId}-{timestamp}` |
+See [Idempotency Key Patterns](#idempotency-key-patterns) in the Quick Reference above for the canonical table.
 
 ### Don't Over-Dedupe
 
 Some notifications should be sent multiple times:
 
-- **OTP codes:** User might request multiple. Use timestamp to allow new sends.
-- **Welcome messages:** Only send once. Use static key like `welcome-{userId}`.
+- **OTP / password reset:** User might request multiple. Key off the unique request id (e.g. `otp-{userId}-{otpRequestId}`) so a legitimate new request gets a fresh key while a retry of the same request is deduped.
+- **Welcome messages:** Only send once. Use a static key like `welcome-{userId}`.
 
 ## Retry Logic
 
@@ -124,7 +141,13 @@ Courier retries failed webhook deliveries (non-2xx response) with exponential ba
 
 ### Verify Webhook Signatures
 
-Courier signs every webhook payload with an HMAC-SHA256 signature in the request headers. Always verify in production.
+Courier signs every webhook payload with an HMAC-SHA256 signature in the `courier-signature` header. The header value has the form:
+
+```
+t=<unix_timestamp_ms>,signature=<hex_hmac_sha256>
+```
+
+The signed payload is `${timestamp}.${raw_request_body}`. Always verify in production — and also reject old timestamps (default tolerance 5 minutes) to prevent replay attacks.
 
 **TypeScript (Express):**
 
@@ -134,28 +157,48 @@ Use `express.raw()` on the webhook route so you verify against the exact bytes C
 import crypto from "crypto";
 import express from "express";
 
+function parseCourierSignature(header: string | undefined) {
+  if (!header) return null;
+  const parts = header.split(",").reduce<Record<string, string>>((acc, part) => {
+    const [k, v] = part.split("=");
+    if (k && v) acc[k.trim()] = v.trim();
+    return acc;
+  }, {});
+  if (!parts.t || !parts.signature) return null;
+  return { timestamp: parts.t, signature: parts.signature };
+}
+
 function verifyWebhookSignature(
   rawBody: Buffer,
-  signature: string,
-  secret: string
+  header: string | undefined,
+  secret: string,
+  toleranceMs = 5 * 60 * 1000
 ): boolean {
-  const expected = crypto
+  const parsed = parseCourierSignature(header);
+  if (!parsed) return false;
+
+  const ts = Number(parsed.timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > toleranceMs) {
+    return false;
+  }
+
+  const expectedHex = crypto
     .createHmac("sha256", secret)
-    .update(rawBody)
+    .update(`${parsed.timestamp}.${rawBody.toString("utf8")}`, "utf8")
     .digest("hex");
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
+
+  const a = Buffer.from(parsed.signature, "hex");
+  const b = Buffer.from(expectedHex, "hex");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 app.post(
   "/webhooks/courier",
   express.raw({ type: "application/json" }),
   (req, res) => {
-    const signature = req.headers["x-courier-signature"] as string;
+    const signature = req.headers["courier-signature"] as string | undefined;
     if (
-      !signature ||
       !verifyWebhookSignature(
         req.body,
         signature,
@@ -165,7 +208,7 @@ app.post(
       return res.sendStatus(401);
     }
 
-    const payload = JSON.parse(req.body.toString());
+    const payload = JSON.parse(req.body.toString("utf8"));
     res.sendStatus(200);
     queue.add("process-webhook", payload);
   }
@@ -180,17 +223,51 @@ Use `request.get_data()` to get the raw bytes before Flask parses JSON:
 import hmac
 import hashlib
 import os
+import time
 
-def verify_webhook_signature(raw_body: bytes, signature: str, secret: str) -> bool:
+
+def parse_courier_signature(header: str | None):
+    if not header:
+        return None
+    parts = {}
+    for chunk in header.split(","):
+        if "=" in chunk:
+            k, v = chunk.split("=", 1)
+            parts[k.strip()] = v.strip()
+    if "t" not in parts or "signature" not in parts:
+        return None
+    return parts["t"], parts["signature"]
+
+
+def verify_webhook_signature(
+    raw_body: bytes,
+    header: str | None,
+    secret: str,
+    tolerance_ms: int = 5 * 60 * 1000,
+) -> bool:
+    parsed = parse_courier_signature(header)
+    if not parsed:
+        return False
+    timestamp, signature = parsed
+
+    try:
+        ts = int(timestamp)
+    except ValueError:
+        return False
+    if abs(int(time.time() * 1000) - ts) > tolerance_ms:
+        return False
+
+    signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
     expected = hmac.new(
-        secret.encode(), raw_body, hashlib.sha256
+        secret.encode(), signed_payload.encode(), hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(signature, expected)
+
 
 @app.route("/webhooks/courier", methods=["POST"])
 def courier_webhook():
     raw_body = request.get_data()
-    signature = request.headers.get("X-Courier-Signature", "")
+    signature = request.headers.get("courier-signature")
     if not verify_webhook_signature(
         raw_body, signature, os.environ["COURIER_WEBHOOK_SECRET"]
     ):
@@ -202,14 +279,20 @@ def courier_webhook():
 
 ### Common Webhook Events
 
-| Event | Trigger | Useful for |
-|-------|---------|------------|
-| `message.delivered` | Message reached recipient | Delivery tracking |
-| `message.undeliverable` | All channels/providers failed | Alerting, fallback logic |
-| `message.bounced` | Email hard/soft bounce | List hygiene |
-| `message.complained` | User marked as spam | Remove from lists |
-| `message.opened` | Email opened (pixel tracked) | Engagement metrics |
-| `message.clicked` | Link clicked | Conversion tracking |
+Courier webhook events use **colon notation** in the `type` field and carry event-specific data under `data`. For `message:updated`, the delivery stage is in `data.status` (one of `ENQUEUED`, `SENT`, `DELIVERED`, `OPENED`, `CLICKED`, `UNDELIVERABLE`, `UNROUTABLE`).
+
+| `type` | `data.status` / trigger | Useful for |
+|--------|-------------------------|------------|
+| `message:updated` | `DELIVERED` — message reached recipient | Delivery tracking |
+| `message:updated` | `UNDELIVERABLE` — all channels/providers failed (check `data.reason`) | Alerting, fallback logic |
+| `message:updated` | `UNROUTABLE` — no eligible channel/provider for recipient | Data quality, profile fixes |
+| `message:updated` | `OPENED` — email open pixel tracked | Engagement metrics |
+| `message:updated` | `CLICKED` — tracked link clicked | Conversion tracking |
+| `notification:submitted` | Template submitted for review | Approval workflows |
+| `notification:published` | Template published | Cache invalidation, audit logging |
+| `audiences:user:matched` / `audiences:user:unmatched` | User entered/left an audience | Sync downstream systems |
+
+> **Note on bounces/complaints:** Courier does not emit dedicated `message:bounced` or `message:complained` events. Hard bounces and spam complaints typically surface as `UNDELIVERABLE` `message:updated` events with the provider-specific reason in `data.providers[].error` and the aggregated reason in `data.reason`. Inspect those fields to drive list-hygiene logic.
 
 ### Webhook Best Practices
 

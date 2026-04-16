@@ -32,7 +32,7 @@
 | Operation | Novu | Courier |
 |-----------|------|---------|
 | Send a notification | `POST /v1/events/trigger` | `POST /send` |
-| Create/update a subscriber | `POST /v2/subscribers` | `PUT /profiles/:id` |
+| Create/update a subscriber | `POST /v2/subscribers` | `POST /profiles/:id` (merge) |
 | Get a subscriber | `GET /v2/subscribers/:id` | `GET /profiles/:id` |
 | Set subscriber preferences | `PATCH /v2/subscribers/:id/preferences` | `PUT /users/:id/preferences/:topic` |
 | Get message status | `GET /messages/:id` | `GET /messages/:id` |
@@ -40,6 +40,8 @@
 | Broadcast to topic | `POST /v1/events/trigger` (with `topics`) | `POST /send` (with list/audience) |
 | Create/update tenant | `POST /v1/tenants` | `PUT /tenants/:id` |
 | Bulk send | Topic trigger (fan-out) | `POST /bulk` |
+
+> Note: `PUT /profiles/:id` is a **full replacement** — any fields not included are deleted. Use `POST` for partial updates; reach for `PUT` only when you deliberately want to wipe unlisted fields.
 
 ### Common Mistakes
 - Trying to replicate Novu's code-first workflow definitions (`@novu/framework`) as a single Courier resource (split content into a Template, orchestration into an Automation)
@@ -119,11 +121,18 @@ from novu_py import Novu
 novu = Novu(secret_key="sk_...")
 ```
 
-**Before (Novu — `novu`):**
+**Before (Novu — legacy `novu` SDK, pseudocode):**
 ```python
+# The legacy `novu` Python SDK used an EventApi class. Real usage requires
+# passing the secret key; this snippet is pseudocode for shape only.
 from novu.api import EventApi
 
-EventApi().trigger(...)
+event_api = EventApi(url="https://api.novu.co", api_key="sk_...")
+event_api.trigger(
+    name="welcome-email",
+    recipients="user-123",
+    payload={"name": "Jane Doe"},
+)
 ```
 
 **After (Courier):**
@@ -216,17 +225,44 @@ client.profiles.create(
 
 ### Device Tokens and Webhooks
 
-Novu stores push device tokens and chat webhook URLs as subscriber credentials. In Courier, these live directly on the profile:
+Novu stores push device tokens and chat webhook URLs as subscriber credentials. In Courier:
+
+- **Push device tokens** are a first-class resource. Register them with `client.users.tokens.addSingle(token, { user_id, provider_key, device })` — not as a profile field. This way Courier can manage per-device routing, token refresh, and invalidation. See [push.md](../channels/push.md) and [SKILL.md](../../SKILL.md) for the canonical shape.
+- **Chat webhooks / Slack / Teams credentials** live on the profile (`slack`, `ms_teams`, `discord`, etc.) so template routing can pick them up automatically.
 
 ```typescript
+await client.users.tokens.addSingle("fcm-device-token-here", {
+  user_id: "user-123",
+  provider_key: "firebase-fcm",
+  device: { app_id: "com.acme.app", platform: "android" },
+});
+
 await client.profiles.create("user-123", {
   profile: {
     email: "jane@example.com",
-    firebaseToken: "fcm-device-token-here",
     slack: { access_token: "xoxb-...", channel: "C01234" },
   },
 });
 ```
+
+```python
+client.users.tokens.add_single(
+    token="fcm-device-token-here",
+    user_id="user-123",
+    provider_key="firebase-fcm",
+    device={"app_id": "com.acme.app", "platform": "android"},
+)
+
+client.profiles.create(
+    user_id="user-123",
+    profile={
+        "email": "jane@example.com",
+        "slack": {"access_token": "xoxb-...", "channel": "C01234"},
+    },
+)
+```
+
+> For iOS (APNs), set `provider_key: "apn"`. See [push.md](../channels/push.md) for the full provider-key table.
 
 ### Bulk Migration
 
@@ -236,8 +272,12 @@ For large subscriber sets, use the [Bulk API](https://www.courier.com/docs/api-r
 
 ### TypeScript
 
-**Before (Novu — `@novu/api`):**
+**Before (Novu — `@novu/api`, current SDK):**
 ```typescript
+import { Novu } from "@novu/api";
+
+const novu = new Novu({ secretKey: process.env.NOVU_SECRET_KEY! });
+
 await novu.trigger({
   workflowId: "welcome-email",
   to: [{ subscriberId: "user-123" }],
@@ -248,10 +288,13 @@ await novu.trigger({
 });
 ```
 
-**Before (Novu — `@novu/node`):**
+**Before (Novu — `@novu/node`, legacy SDK):**
 ```typescript
-await novu.trigger({
-  name: "welcome-email",
+import { Novu } from "@novu/node";
+
+const novu = new Novu(process.env.NOVU_API_KEY!);
+
+await novu.trigger("welcome-email", {
   to: { subscriberId: "user-123" },
   payload: {
     name: "Jane Doe",
@@ -276,11 +319,14 @@ await client.send.message({
 
 ### Python
 
-**Before (Novu — `novu-py`):**
+**Before (Novu — `novu-py`, current SDK):**
 ```python
-import novu_py
+from novu_py import Novu
+from novu_py.models import TriggerEventRequestDto
 
-novu.trigger(trigger_event_request_dto=novu_py.TriggerEventRequestDto(
+novu = Novu(secret_key="sk_...")
+
+novu.trigger(trigger_event_request_dto=TriggerEventRequestDto(
     workflow_id="welcome-email",
     to={"subscriber_id": "user-123"},
     payload={
@@ -439,10 +485,11 @@ await client.send.message({
 Manage list membership via the API:
 
 ```typescript
-await client.lists.subscribe("beta-users", "user-123");
+// Additive single-user subscribe. The list is auto-created if it doesn't exist.
+await client.lists.subscriptions.subscribeUser("user-123", { list_id: "beta-users" });
 ```
 
-For attribute-based targeting (e.g., all users on the enterprise plan), use [Audiences](https://docs.courier.com/docs/platform/users/audiences) instead of lists.
+For attribute-based targeting (e.g., all users on the enterprise plan), use [Audiences](https://www.courier.com/docs/platform/users/audiences) instead of lists.
 
 ## 10. Migrate Orchestration Logic
 
@@ -482,12 +529,11 @@ See [Batching](./batching.md) for window strategies, aggregation patterns, and d
 Tenants work similarly across both platforms. In Novu, tenant data is passed during trigger and available in templates as `{{ tenant.data.* }}`. In Courier, branding attributes live directly on the Tenant resource.
 
 ```typescript
-await client.tenants.createOrReplace("acme-corp", {
+// `update` is create-or-replace (PUT /tenants/{id}). Brands live in the Brands API;
+// tenants reference a brand via `brand_id`.
+await client.tenants.update("acme-corp", {
   name: "Acme Corp",
-  brand: {
-    logo: "https://acme.com/logo.png",
-    colors: { primary: "#1a73e8" },
-  },
+  brand_id: "BRAND_ACME", // optional
 });
 
 await client.send.message({

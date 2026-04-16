@@ -9,7 +9,7 @@
 - Honor preference changes immediately
 - Link to preferences in every email footer
 - Provide one-click unsubscribe for marketing
-- GDPR/CAN-SPAM require easy opt-out mechanism
+- Opt-out must be easy — one click or one reply
 
 ### Category Defaults
 | Category | Default | Can Opt Out? |
@@ -26,7 +26,7 @@
 ### Common Mistakes
 - Allowing opt-out from security/transaction notifications
 - Pre-checking marketing opt-in boxes (invalid consent)
-- Making opt-out difficult (violates regulations)
+- Making opt-out difficult
 - Not honoring preference changes immediately
 - No unsubscribe link in marketing emails
 - Too many preference categories (confuses users)
@@ -41,6 +41,9 @@ const prefs = await client.users.preferences.retrieve("user-123");
 
 **Update Preferences:**
 ```typescript
+// The topic ("weekly-digest") must already exist in Settings > Preferences;
+// this call sets the *user's* preference for that topic, it does not create
+// the topic definition itself. Calling it for an unknown topic returns 404.
 await client.users.preferences.updateOrCreateTopic("weekly-digest", {
   user_id: "user-123",
   topic: {
@@ -68,7 +71,6 @@ Let users control what notifications they receive and how.
 ## Why Preferences Matter
 
 - **Reduce unsubscribes:** Users who can control frequency don't opt out entirely
-- **Legal compliance:** GDPR, CAN-SPAM require easy opt-out
 - **Better engagement:** Users receive what they want, when they want
 - **Trust:** Respecting preferences builds trust
 
@@ -224,11 +226,13 @@ Users can control both what and how:
 
 |                     | Email | Push | SMS |
 |---------------------|-------|------|-----|
-| Security alerts     | Required | Required | Required |
+| Security alerts     | Required | Required | Required at highest severity tier only (see below) |
 | Order updates       | Yes | Yes | Optional |
 | Activity            | Yes | Yes | Optional |
 | Weekly digest       | Yes | No | No |
 | Promotions          | Optional | Optional | Optional |
+
+"Required" means the user can't opt out — it does **not** mean every alert uses every required channel. Security-alert fan-out is tiered by event severity (see [Security Alert Channels](../transactional/authentication.md#security-alert-channels)); SMS is only sent for the highest-severity events (password changed, 2FA disabled, suspicious activity), not for every new device login.
 
 ## Frequency Preferences
 
@@ -241,7 +245,7 @@ Users can control both what and how:
 
 ### Implementation
 
-If user prefers digest for a category, queue notifications for batched sending instead of immediate delivery.
+If the user prefers digest for a category, queue notifications for batched sending instead of immediate delivery — **but only for categories that are safe to batch**. Transactional categories that [batching.md](./batching.md) excludes (OTP, password reset, security alerts, order confirmations, payment receipts, shipping) must always send in real time regardless of the user's digest preference. Enforce the blocklist in your digest dispatcher; don't rely on UI to prevent users from opting these into a digest.
 
 ## Best Practices
 
@@ -273,7 +277,7 @@ When user changes preference:
 
 ### One-Click Unsubscribe
 
-Required by some regulations. Generate unique unsubscribe links for each email.
+Generate unique unsubscribe links for each email. Gmail and Yahoo require list-unsubscribe headers for bulk senders; Courier sets these automatically when you configure an unsubscribe link.
 
 ### Unsubscribe vs Preference Center
 
@@ -284,7 +288,6 @@ Offer both options:
 
 ## Related
 
-- [Compliance](./compliance.md) - Legal requirements for preferences
 - [Multi-Channel](./multi-channel.md) - Channel routing
 - [Campaigns](../growth/campaigns.md) - Marketing opt-in requirements
 - [Hosted Preference Page](https://www.courier.com/docs/platform/preferences/hosted-page) - Deploy a hosted preference page in minutes

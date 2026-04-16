@@ -373,7 +373,7 @@ Share prompts work best after:
 - Require qualification action (purchase, activity threshold) before issuing rewards
 - Limit referrals per user (e.g., 25/month)
 - Detect suspicious patterns (same IP, rapid signups, disposable emails)
-- See fraud validation code in the [Referral Flow](#referral-flow) section above
+- See fraud validation code in [Basic Fraud Prevention](#basic-fraud-prevention) above
 
 ## Related
 

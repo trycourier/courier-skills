@@ -25,7 +25,7 @@
 | Password reset | Email | - |
 | Order confirmation | Email | - |
 | Shipping | Email + Push | - |
-| Security alert | All channels | - |
+| Security alert | Tiered by severity (see [Security Alert Channels](./authentication.md#security-alert-channels)) | - |
 
 ### Common Mistakes
 - Adding promotional content ("Use code SAVE20 on your next order!")
@@ -46,7 +46,7 @@ await client.send.message({
     data: { orderId: "12345", items: [...] }
   }
 }, {
-  idempotencyKey: `order-confirmation-12345`
+  headers: { "Idempotency-Key": `order-confirmation-12345` }
 });
 ```
 
@@ -62,23 +62,21 @@ Transactional notifications are:
 - **Required for service delivery** (order confirmations, OTPs, etc.)
 - **Time-sensitive** (deliver immediately or near-immediately)
 
-## Legal Definition
+## What Counts as Transactional
 
-Under CAN-SPAM and GDPR, transactional notifications:
-- **Do not require explicit opt-in** (implied consent from action)
-- **Cannot contain promotional content** (or they become marketing)
+Transactional notifications:
+- **Do not require explicit opt-in** — consent is implied from the user's action
+- **Cannot contain promotional content** — adding promo reclassifies the message as marketing and pulls it under marketing rules
 - **Must be primarily informational** (confirm, update, alert)
 
-### The FTC Test
-
-Per the FTC's CAN-SPAM guidance, a message is transactional if it:
+A message is transactional if it:
 1. Facilitates or confirms a transaction the user agreed to
 2. Provides information about an ongoing relationship
 3. Delivers goods/services the user is entitled to receive
 4. Provides account information (balance, usage, etc.)
 5. Informs about changes to terms/features the user is using
 
-**If you add promotional content**, the message is reclassified as marketing and requires opt-in.
+**If you add promotional content**, treat the message as marketing and require opt-in.
 
 ## Categories
 
@@ -139,7 +137,7 @@ Keep transactional messages purely informational.
 
 - **OTP codes:** SMS primary, email fallback
 - **Order shipped:** Email + Push
-- **Security alerts:** Email + Push + SMS (all channels for maximum reach)
+- **Security alerts:** Tiered by severity — lower-severity events (e.g. new device login) go to Email + Push; high-severity events (password changed, 2FA disabled, suspicious activity) add SMS for maximum reach. See [Security Alert Channels](./authentication.md#security-alert-channels) for the canonical table.
 
 ## Subject Line Patterns
 
@@ -169,7 +167,7 @@ Keep transactional messages purely informational.
 
 **Resend functionality:**
 - Allow after 60 seconds
-- Limit attempts (3 per hour)
+- Per-flow limits (see [authentication.md](./authentication.md) for OTP / magic link / password reset / verification; authentication is the authoritative source for these caps)
 - Show countdown timer
 
 **Expired links:**
@@ -178,9 +176,9 @@ Keep transactional messages purely informational.
 - Provide support contact
 
 **"I didn't request this":**
-- Include in password resets, OTPs, security alerts
+- Include in security-related **emails** — password resets, security alerts, and magic links (SMS OTPs don't carry trackable links; include a "Didn't request? Reply STOP and contact support" line instead)
 - Link to security contact
-- Log clicks for monitoring
+- Log clicks for monitoring (email only)
 
 ## Testing
 
@@ -197,5 +195,4 @@ Test each transactional notification for:
 ## Related
 
 - [Reliability](../guides/reliability.md) - Idempotency and retry patterns
-- [Compliance](../guides/compliance.md) - Legal requirements
 - [Multi-Channel](../guides/multi-channel.md) - Channel routing strategies

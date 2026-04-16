@@ -17,18 +17,11 @@
 
 ### Version Detection
 
-Before writing any Inbox code, determine the SDK version:
+This file documents **v8, the current version**. Write v8 code for all new integrations.
 
-| Signal | Version |
-|--------|---------|
-| `@trycourier/courier-react` or `@trycourier/courier-react-17` in package.json | **v8** |
-| `@trycourier/courier-ui-inbox` (Web Components) in package.json | **v8** |
-| `<CourierInbox />`, `useCourier()`, `courier.shared.signIn()` | **v8** |
-| `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast` in package.json | **v7** |
-| `<CourierProvider>`, `<Inbox />`, `useInbox()`, `clientKey` prop | **v7** |
-| New project / no existing code | **Use v8** |
+Quick v7 vs v8 sniff: if the codebase imports `@trycourier/courier-react` or uses `<CourierInbox />` / `useCourier()`, it's v8 — continue with this file. If it imports `@trycourier/react-provider` / `@trycourier/react-inbox` / `@trycourier/react-toast` or uses `<CourierProvider>` / `<Inbox />` / a `clientKey` prop, it's **v7 (legacy)** — see [inbox-v7-legacy.md](./inbox-v7-legacy.md) for recognition patterns and migration guidance before touching the code.
 
-**v7 is legacy. Do NOT write new v7 code.** If the user is on v7, the correct path is to upgrade to v8 — do not build new features on v7. Help them migrate using the guide: `https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide`. Only maintain existing v7 code if the user explicitly cannot upgrade yet (e.g., they depend on Tags or Pins, which v8 does not yet support).
+**Do not write new v7 code.** If the existing project is on v7, propose migration to v8 before adding features. The v7 file exists only to help maintain existing code and guide upgrades.
 
 ### Common Mistakes
 - Not using JWT authentication (JWT is required in v8)
@@ -92,22 +85,40 @@ Courier uses three types of credentials in different contexts:
 
 The API Key is the same key regardless of which env var you store it in. The SDK and CLI just look for different variable names by convention.
 
-JWT is required for Inbox. Generate tokens server-side using your API key:
+JWT is required for Inbox. Generate tokens server-side using your API key. The SDKs expose the issue-token endpoint directly — prefer that over raw HTTP.
+
+**TypeScript (`@trycourier/courier`):**
 
 ```typescript
-// Server-side: Generate JWT for user
-const response = await fetch('https://api.courier.com/auth/issue-token', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${process.env.COURIER_API_KEY}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    scope: 'user_id:user-123 inbox:read:messages inbox:write:events read:preferences',
-    expires_in: '7 days'
-  })
+import Courier from "@trycourier/courier";
+const client = new Courier(); // reads COURIER_API_KEY
+
+const { token } = await client.auth.issueToken({
+  scope: "user_id:user-123 inbox:read:messages inbox:write:events read:preferences",
+  expires_in: "7 days",
 });
-const { token } = await response.json();
+```
+
+**Python (`trycourier`):**
+
+```python
+from courier import Courier
+client = Courier()  # reads COURIER_API_KEY
+
+resp = client.auth.issue_token(
+    scope="user_id:user-123 inbox:read:messages inbox:write:events read:preferences",
+    expires_in="7 days",
+)
+token = resp.token
+```
+
+**Raw HTTP** (for languages without a Courier SDK):
+
+```bash
+curl -X POST https://api.courier.com/auth/issue-token \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"user_id:user-123 inbox:read:messages inbox:write:events read:preferences","expires_in":"7 days"}'
 ```
 
 ### JWT Refresh Strategy
@@ -115,20 +126,14 @@ const { token } = await response.json();
 JWTs expire based on `expires_in`. Build a refresh mechanism to avoid broken inbox connections:
 
 ```typescript
-// Server-side endpoint
+import Courier from "@trycourier/courier";
+const courier = new Courier();
+
 app.get("/api/courier-token", authenticate, async (req, res) => {
-  const response = await fetch("https://api.courier.com/auth/issue-token", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.COURIER_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      scope: `user_id:${req.user.id} inbox:read:messages inbox:write:events read:preferences`,
-      expires_in: "7 days",
-    }),
+  const { token } = await courier.auth.issueToken({
+    scope: `user_id:${req.user.id} inbox:read:messages inbox:write:events read:preferences`,
+    expires_in: "7 days",
   });
-  const { token } = await response.json();
   res.json({ token });
 });
 ```
@@ -179,12 +184,16 @@ export default function App() {
 ### Popup Menu (v8)
 
 ```tsx
+import { useEffect } from "react";
 import { CourierInboxPopupMenu, useCourier } from "@trycourier/courier-react";
+// See the "Token Management" section above for useCourierToken.
 
 export default function App() {
   const courier = useCourier();
+  const courierToken = useCourierToken("user-123");
 
   useEffect(() => {
+    if (!courierToken) return;
     courier.shared.signIn({ userId: "user-123", jwt: courierToken });
   }, [courierToken]);
 
@@ -298,12 +307,17 @@ import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier
 Toasts are short-lived notifications connected to the Inbox message feed:
 
 ```tsx
+import { useEffect } from "react";
 import { CourierToast, useCourier } from "@trycourier/courier-react";
+// useCourierToken defined earlier in "Token Management" — fetches a
+// short-lived JWT from your backend and refreshes before expiry.
 
 function App() {
   const courier = useCourier();
+  const courierToken = useCourierToken("user-123");
 
   useEffect(() => {
+    if (!courierToken) return;
     courier.shared.signIn({ userId: "user-123", jwt: courierToken });
   }, [courierToken]);
 
@@ -338,10 +352,10 @@ import { useEffect } from "react";
 import { useCourier, type InboxMessage, defaultFeeds } from "@trycourier/courier-react";
 
 export default function App() {
-  const { auth, inbox } = useCourier();
+  const { shared, inbox } = useCourier();
 
   useEffect(() => {
-    auth.signIn({
+    shared.signIn({
       userId: "user-123",
       jwt: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     });
@@ -628,12 +642,31 @@ npm install @trycourier/courier-react-native
 ### Setup
 
 ```tsx
+import { useEffect, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { Courier, CourierInboxView } from "@trycourier/courier-react-native";
 
-function App() {
-  const courierToken = useCourierToken();
+// Fetches a short-lived Courier JWT from your backend. The React Native
+// signIn API uses the parameter name `accessToken` (it's the same JWT as
+// the web `jwt` field — just named differently in the RN SDK).
+function useCourierToken(userId: string): string | null {
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
+    fetch("https://api.example.com/courier-token")
+      .then((r) => r.json())
+      .then((d) => setToken(d.token));
+  }, [userId]);
+
+  return token;
+}
+
+function App() {
+  const navigation = useNavigation();
+  const courierToken = useCourierToken("user-123");
+
+  useEffect(() => {
+    if (!courierToken) return;
     Courier.shared.signIn({
       accessToken: courierToken,
       userId: "user-123",
@@ -642,8 +675,8 @@ function App() {
 
   return (
     <CourierInboxView
-      onClickMessageAtIndex={(message, index) => {
-        navigation.navigate(message.data.screen);
+      onClickMessageAtIndex={(message, _index) => {
+        if (message.data?.screen) navigation.navigate(message.data.screen);
       }}
     />
   );
@@ -742,7 +775,7 @@ await client.send.message({
 
 ### Client-Side Read State (v8)
 
-```typescript
+```tsx
 import { useCourier } from "@trycourier/courier-react";
 
 function NotificationBell() {
@@ -760,28 +793,38 @@ function NotificationBell() {
 
 ### Server-Side State
 
+The Node SDK's `client.messages` resource exposes `retrieve`, `list`, `cancel`, `content`, and `history` — there is **no `archive` method**. To archive an inbox message from the server, call the REST endpoint directly using the same API key:
+
 ```typescript
-// Archive a message (removes from inbox)
-await client.messages.archive(messageId);
+await fetch(`https://api.courier.com/messages/${messageId}/archive`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.COURIER_API_KEY}`,
+  },
+});
 ```
 
-Read state is managed client-side through the Inbox SDK. Use `messages.archive()` from the backend to remove messages from the inbox when the user engages via another channel.
+Read state is managed client-side through the Inbox SDK. Use the REST archive endpoint from the backend to remove messages from the inbox when the user engages via another channel.
 
 ## Real-Time Updates (v8)
 
 Courier Inbox uses WebSocket for real-time updates. You **must** call `inbox.listenForUpdates()` after authentication:
 
 ```tsx
+import { useEffect } from "react";
 import { useCourier, CourierInbox, defaultFeeds } from "@trycourier/courier-react";
+// See the "Token Management" section above for useCourierToken.
 
 function App() {
-  const { auth, inbox } = useCourier();
+  const { shared, inbox } = useCourier();
+  const courierToken = useCourierToken("user-123");
 
   useEffect(() => {
-    auth.signIn({ userId: "user-123", jwt: courierToken });
+    if (!courierToken) return;
+    shared.signIn({ userId: "user-123", jwt: courierToken });
     inbox.registerFeeds(defaultFeeds());
     inbox.listenForUpdates();
-  }, [courierToken]);
+  }, [courierToken, shared, inbox]);
 
   return <CourierInbox />;
 }
@@ -793,11 +836,12 @@ function App() {
 
 Organize notifications by type in data and use feeds/tabs to filter:
 
-```typescript
-// Include category in data for filtering
-data: {
-  category: "social", // or "orders", "account", etc.
-  ...
+```jsonc
+// Include `category` in message.data so feeds/tabs can filter on it.
+{
+  "category": "social", // or "orders", "account", etc.
+  "actorId": "user-42",
+  "targetId": "post-7"
 }
 ```
 
@@ -829,8 +873,12 @@ When a user opens an email, mark the inbox message as read:
 app.post('/email-clicked', async (req, res) => {
   const { messageId, userId } = req.body;
 
-  // Archive the inbox message since user engaged via email
-  await client.messages.archive(messageId);
+  // Archive the inbox message since user engaged via email.
+  // The Node SDK does not expose archive — call the REST endpoint directly.
+  await fetch(`https://api.courier.com/messages/${messageId}/archive`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.COURIER_API_KEY}` },
+  });
 });
 ```
 
@@ -842,4 +890,7 @@ app.post('/email-clicked', async (req, res) => {
 - [Throttling](../guides/throttling.md) — Controlling frequency
 - [Engagement](../growth/engagement.md) — Activity notification patterns
 - [Preferences](../guides/preferences.md) — User notification preferences
+- [Inbox (v7 legacy)](./inbox-v7-legacy.md) — Recognition patterns and migration guidance for existing v7 code
 - [v8 Migration Guide](https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide) — Step-by-step upgrade from v7
+
+<!-- Target line budget: <= 850 lines. v7-specific content lives in inbox-v7-legacy.md; do not re-inline it here. If this file creeps past the budget, consider splitting v8 Web Components into its own file (inbox-web-components.md). -->

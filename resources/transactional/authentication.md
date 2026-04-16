@@ -8,7 +8,7 @@
 - Email verification: 24-48 hour expiry, allow resend after 60 seconds
 - Magic links: 15 minute expiry, single use
 - ALWAYS include "I didn't request this" in security emails
-- Security alerts send to ALL channels (email + push + SMS)
+- Security alerts fan out based on severity — see [Security Alert Channels](#security-alert-channels) below; most events go to email + push, and the highest-severity events (password change, 2FA disabled, suspicious activity) also include SMS
 
 ### Rate Limits
 | Action | Limit | Lockout |
@@ -48,12 +48,16 @@ await client.send.message({
     }
   }
 }, {
-  idempotencyKey: `otp-user123-${otpRequestId}`
+  // otpRequestId: row ID from your OTP attempts table. Using it in the key
+  // means retries of THIS attempt collapse, while the user's "Resend code"
+  // button generates a new otpRequestId → new send.
+  headers: { "Idempotency-Key": `otp-user123-${otpRequestId}` },
 });
 ```
 
 **Send OTP (Python):**
 ```python
+# otp_request_id is the row ID from your OTP attempts table.
 client.send.message(
     message={
         "to": {"phone_number": "+15551234567"},
@@ -61,7 +65,7 @@ client.send.message(
             "body": "Your Acme code is 847293. Expires in 10 min. Never share this code."
         },
     },
-    idempotency_key=f"otp-user123-{otp_request_id}",
+    extra_headers={"Idempotency-Key": f"otp-user123-{otp_request_id}"},
 )
 ```
 
@@ -75,7 +79,7 @@ await client.send.message({
     routing: { method: "all", channels: ["email", "push", "sms"] }
   }
 }, {
-  idempotencyKey: `login-alert-user-123-${sessionId}`
+  headers: { "Idempotency-Key": `login-alert-user-123-${sessionId}` }
 });
 ```
 
@@ -84,11 +88,11 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "NEW_DEVICE_LOGIN",
+        "template": "nt_01kmrbv3q6x9v2d5c8n1w4ht",
         "data": {"device": "Chrome on Windows", "location": "New York"},
         "routing": {"method": "all", "channels": ["email", "push", "sms"]},
     },
-    idempotency_key=f"login-alert-user-123-{session_id}",
+    extra_headers={"Idempotency-Key": f"login-alert-user-123-{session_id}"},
 )
 ```
 
@@ -230,7 +234,7 @@ Try SMS first, fall back to email if SMS fails. Use single-channel routing with 
 
 ### Security Alert Escalation
 
-Send to all available channels simultaneously: Email + Push + SMS + In-app. Maximum reach for critical security events.
+Channel fan-out is **tiered by event severity** — see the canonical [Security Alert Channels](#security-alert-channels) table above. The highest-severity events (suspicious activity) go to every available channel (Email + Push + SMS + In-app) for maximum reach; lower-severity events like a new device login go to Email + Push only to avoid SMS fatigue. Never downgrade the tier for a specific event; if you want to include SMS on new-device-login in your product, update the table — don't silently diverge.
 
 ## Rate Limiting
 
@@ -254,7 +258,6 @@ Enforce the rate limits defined in [Quick Reference > Rate Limits](#rate-limits)
 
 ## Related
 
-- [SMS](../channels/sms.md) - SMS delivery and compliance
+- [SMS](../channels/sms.md) - SMS delivery
 - [Email](../channels/email.md) - Email deliverability
 - [Reliability](../guides/reliability.md) - Idempotency for auth flows
-- [Compliance](../guides/compliance.md) - Data protection requirements

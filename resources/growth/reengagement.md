@@ -56,7 +56,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "LIGHT_NUDGE",
+        "template": "nt_01kmrbun4x7q1v5d8c2n6w9hj",
         "data": {
             "lastActivity": "your dashboard",
             "whatsNew": ["Dark mode", "API improvements"],

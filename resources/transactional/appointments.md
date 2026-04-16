@@ -52,7 +52,7 @@ await client.send.message({
     }
   }
 }, {
-  idempotencyKey: `appt-confirmed-user-123-appt-456`
+  headers: { "Idempotency-Key": `appt-confirmed-user-123-appt-456` }
 });
 ```
 
@@ -61,7 +61,7 @@ await client.send.message({
 client.send.message(
     message={
         "to": {"user_id": "user-123"},
-        "template": "APPOINTMENT_CONFIRMED",
+        "template": "nt_01kmrbwr7x1q5v8d2c6n4w9hj",
         "data": {
             "date": "January 30, 2026",
             "time": "2:00 PM PST",
@@ -70,7 +70,7 @@ client.send.message(
             "calendarLinks": {"google": "...", "outlook": "...", "ics": "..."},
         },
     },
-    idempotency_key="appt-confirmed-user-123-appt-456",
+    extra_headers={"Idempotency-Key": "appt-confirmed-user-123-appt-456"},
 )
 ```
 
@@ -89,7 +89,7 @@ await client.send.message({
     routing: { method: "all", channels: ["email", "sms"] }
   }
 }, {
-  idempotencyKey: `appt-reminder-24h-user-123-appt-456`
+  headers: { "Idempotency-Key": `appt-reminder-24h-user-123-appt-456` }
 });
 ```
 
@@ -99,8 +99,6 @@ Acme: Reminder - Appt with Dr. Smith tomorrow at 2pm. 123 Medical Center. Reply 
 ```
 
 ---
-
-Best practices for booking confirmations, reminders, and rescheduling notifications.
 
 ## Appointment Lifecycle
 
