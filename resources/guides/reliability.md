@@ -27,7 +27,7 @@ Use a **request id** (the unique id of the OTP/reset attempt from your own syste
 
 ### Common Mistakes
 - Missing idempotency keys (causes duplicate notifications)
-- Static idempotency keys for notifications that should repeat (OTP needs timestamp)
+- Static idempotency keys for notifications that should repeat (OTP needs a unique per-request ID, not a fixed key)
 - Retrying 4xx errors (they won't succeed, fix the issue)
 - Blocking on webhook processing (should be async)
 - Not handling webhook duplicates

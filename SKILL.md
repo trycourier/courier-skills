@@ -1,6 +1,6 @@
 ---
 name: courier-notification-skills
-description: Use when building notifications across email, SMS, push, in-app, Slack, Teams, or WhatsApp. Covers transactional messages (password reset, OTP, orders, billing), growth notifications (onboarding, engagement, referral), multi-channel routing, and reliability patterns.
+description: Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, or WhatsApp. Covers transactional messages (password reset, OTP, orders, billing), growth notifications (onboarding, engagement, referral), multi-channel routing, preferences and topics, reliability and webhooks, template CRUD and Elemental content, routing strategies, provider configuration, the Courier CLI and MCP server, and migrations from Knock, Novu, or other notification systems.
 ---
 
 # Courier Notification Skills
@@ -56,9 +56,10 @@ await client.send.message({
     data: { /* merge variables */ },
   },
 }, {
-  // Pass the Idempotency-Key via headers. The SDK also exposes an
-  // `idempotencyKey` request option, but as of @trycourier/courier@7.10.2
-  // that option is a no-op — the header is only sent when set explicitly here.
+  // Pass the Idempotency-Key via headers. Always set it explicitly here —
+  // that is the one path guaranteed to be sent to the API across SDK
+  // versions. Verify against your installed SDK version before relying on
+  // any other `idempotencyKey` request option.
   headers: { "Idempotency-Key": "order-confirmation-12345" },
 });
 ```
@@ -76,7 +77,10 @@ client.send.message(
         "to": {"user_id": "user-123"},
         "template": "nt_01kmrbq6ypf25tsge12qek41r0",
         "data": {},
-    }
+    },
+    # Pass the Idempotency-Key via extra_headers. Python does not accept
+    # idempotency_key= as a keyword argument — the header is the only way.
+    extra_headers={"Idempotency-Key": "order-confirmation-12345"},
 )
 ```
 
@@ -100,15 +104,29 @@ client.send.message(
 | Register a user's device token | `client.users.tokens.addSingle(token, { user_id, provider_key, device })` | `client.users.tokens.add_single(token, user_id=..., provider_key=..., device=...)` |
 | Trigger an automation from a template | `client.automations.invoke.invokeByTemplate(templateId, { recipient, data })` | `client.automations.invoke.invoke_by_template(template_id, recipient=..., data=...)` |
 | Trigger an ad-hoc automation | `client.automations.invoke.invokeAdHoc({ recipient, automation })` | `client.automations.invoke.invoke_ad_hoc(recipient=..., automation=...)` |
+| Create a routing strategy | `client.routingStrategies.create({ name, routing, channels?, providers? })` → returns `{ id: "rs_...", ... }` | `client.routing_strategies.create(name=..., routing=..., ...)` |
+| Replace a routing strategy (full PUT) | `client.routingStrategies.replace(id, { name, routing, ... })` | `client.routing_strategies.replace(id, name=..., routing=..., ...)` |
+| Configure a provider | `client.providers.create({ provider, settings, title?, alias? })` | `client.providers.create(provider=..., settings=..., ...)` |
+| List provider catalog (required `settings` schema) | `client.providers.catalog.list({ keys?, name?, channel? })` | `client.providers.catalog.list(keys=..., channel=...)` |
+| Cancel a message | `client.messages.cancel(messageId)` | `client.messages.cancel(message_id)` |
+| Retrieve a template | `client.notifications.retrieve(templateId)` | `client.notifications.retrieve(template_id)` |
+| List templates | `client.notifications.list()` | `client.notifications.list()` |
+| Replace a template (full PUT) | `client.notifications.replace(templateId, { notification, state })` | `client.notifications.replace(template_id, notification=..., state=...)` |
+| Archive a template | `client.notifications.archive(templateId)` | `client.notifications.archive(template_id)` |
+| Get published template content | `client.notifications.retrieveContent(templateId)` | `client.notifications.retrieve_content(template_id)` |
+
+> The table above covers the most common operations. [templates.md](./resources/guides/templates.md), [routing-strategies.md](./resources/guides/routing-strategies.md), and [providers.md](./resources/guides/providers.md) each contain their own complete SDK shape tables for CRUD on their respective resources (including `list`, `retrieve`, `replace`, `archive`).
 
 **Shapes that do NOT exist (do not invent them):**
 
-- `client.messages.archive(...)` — archive is REST-only: `POST /messages/{id}/archive`
+- `client.messages.archive(...)` — archive is REST-only: `POST /messages/{id}/archive`. Note: `client.notifications.archive(id)` and `client.routingStrategies.archive(id)` / `client.providers.archive(id)` DO exist — this restriction is specific to the messages namespace.
 - `client.tenants.createOrReplace(...)` — use `client.tenants.update`
 - `client.lists.subscribe(listId, userId)` — use `subscriptions.subscribeUser` or `subscriptions.subscribe`
 - Bulk `createJob({ message: { template } })` without `event` — `event` is required
 - `client.users.preferences.update(...)` — use `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic })`.
 - `client.automations.invoke(templateId, ...)` — the real shape is `client.automations.invoke.invokeByTemplate(...)` or `client.automations.invoke.invokeAdHoc(...)`.
+- `client.routing.create(...)` / `client.strategies.*` — the real namespace is `client.routingStrategies.*` (Node) / `client.routing_strategies.*` (Python).
+- `client.integrations.*` — there is no `integrations` namespace; provider configurations live under `client.providers.*` and the provider type catalog under `client.providers.catalog.*`.
 
 **Shapes that exist but should not be the default:**
 
@@ -124,6 +142,13 @@ client.send.message(
 - ALWAYS use E.164 format for phone numbers
 - Only send to channels the user has asked for or that make sense for the use case — don't blast every channel by default
 - For template sends, use Courier-generated `nt_...` IDs as canonical; treat IDs as opaque workspace-specific values and resolve aliases to `nt_...` before sending
+
+### See also (not duplicated here)
+
+- **Quiet hours** (non-OTP, non-security): [resources/guides/patterns.md](./resources/guides/patterns.md) and [resources/guides/throttling.md](./resources/guides/throttling.md)
+- **429 / provider rate limits and retries**: [resources/guides/throttling.md](./resources/guides/throttling.md) and [resources/guides/reliability.md](./resources/guides/reliability.md)
+- **Compliance (GDPR, CAN-SPAM, TCPA, 10DLC)**: app-layer concern — see channel guides ([resources/channels/email.md](./resources/channels/email.md), [resources/channels/sms.md](./resources/channels/sms.md)) for sender-auth and opt-in mechanics; consult legal counsel for jurisdictional requirements
+- **Test vs. production workspaces and safe deploys**: [resources/guides/quickstart.md](./resources/guides/quickstart.md) (API keys per environment) and [resources/guides/reliability.md](./resources/guides/reliability.md)
 
 ### Courier Inbox Version Detection
 
@@ -203,7 +228,7 @@ When you need current API signatures, SDK methods, or features not covered in th
 | Send emails, fix deliverability, set up SPF/DKIM/DMARC | You need a durable, detailed record. Receipts, confirmations, long-form content, attachments, rich formatting. Deliverability depends on sender reputation (SPF/DKIM/DMARC); not real-time. | [Email](./resources/channels/email.md) |
 | Send SMS, handle 10DLC registration | You need reach and speed for short, time-sensitive messages. OTP, appointment reminders, shipping updates. 10DLC registration required in US; small character budget; per-message cost. | [SMS](./resources/channels/sms.md) |
 | Send push notifications, handle iOS/Android differences | You need to nudge an engaged app user. Activity notifications, real-time alerts, re-engagement. Requires device token + OS permission; iOS and Android permission models differ; silent for users who disabled permission. | [Push](./resources/channels/push.md) |
-| Build in-app notification center | You need persistent, in-app notifications with read state, cross-device sync, and an inbox UI. Only visible in-app. Requires the Courier Inbox SDK (v7 vs v8 matters — see the file's header and the Inbox Version Detection section above). | [Inbox](./resources/channels/inbox.md) |
+| Build in-app notification center | You need persistent, in-app notifications with read state, cross-device sync, and an inbox UI. Only visible in-app. Requires the Courier Inbox SDK (v7 vs v8 matters — see the file's header and the Inbox Version Detection section above). | [Inbox (v8)](./resources/channels/inbox.md) — v8 primary. If you have existing v7 code (`@trycourier/react-inbox`, `<CourierProvider>`, `useInbox`), see [Inbox v7 legacy](./resources/channels/inbox-v7-legacy.md) before touching it. |
 | Send Slack messages with Block Kit | The recipient is a Slack user or channel. Internal alerts, team notifications, chatops. Requires OAuth + bot setup; Block Kit has its own JSON shape; rate-limited per workspace. | [Slack](./resources/channels/slack.md) |
 | Send Microsoft Teams messages | The recipient uses Microsoft Teams. Same use cases as Slack, different org. Requires connector or bot; Adaptive Cards have their own shape. | [MS Teams](./resources/channels/ms-teams.md) |
 | Send WhatsApp messages with templates | Regulated markets, customer support, high-engagement regions (LATAM, EU, IN). Rich media + templates. Approved Message Templates required outside the 24-hour customer service window; per-conversation pricing by category. | [WhatsApp](./resources/channels/whatsapp.md) |
@@ -245,6 +270,8 @@ When you need current API signatures, SDK methods, or features not covered in th
 | Use the CLI for ad-hoc operations, debugging, agent workflows | [CLI](./resources/guides/cli.md) |
 | Use the MCP Server for structured API access from AI agents | [MCP Server](./resources/guides/mcp.md) |
 | Manage templates via API (create, publish, version) | [Templates](./resources/guides/templates.md) |
+| Create routing strategies via API (`rs_...`, provider priority) | [Routing Strategies](./resources/guides/routing-strategies.md) |
+| Configure providers via API (SendGrid, Twilio, etc., catalog discovery) | [Providers](./resources/guides/providers.md) |
 | Understand Elemental content format (element types, control flow, localization) | [Elemental](./resources/guides/elemental.md) |
 | Reusable code patterns (consent, quiet hours, masking, retry) | [Patterns](./resources/guides/patterns.md) |
 | Migrate from any notification system to Courier | [General Migration](./resources/guides/migrate-general.md) |
@@ -294,6 +321,8 @@ For common tasks, you only need to read these specific files:
 | Migrating from Knock | [migrate-from-knock.md](./resources/guides/migrate-from-knock.md), [quickstart.md](./resources/guides/quickstart.md) |
 | Migrating from Novu | [migrate-from-novu.md](./resources/guides/migrate-from-novu.md), [quickstart.md](./resources/guides/quickstart.md) |
 | Template CRUD / programmatic templates | [templates.md](./resources/guides/templates.md), [patterns.md](./resources/guides/patterns.md) |
+| Create routing strategy programmatically | [routing-strategies.md](./resources/guides/routing-strategies.md), [templates.md](./resources/guides/templates.md) |
+| Configure a provider via API (SendGrid/Twilio/etc.) | [providers.md](./resources/guides/providers.md), [multi-channel.md](./resources/guides/multi-channel.md) |
 | Elemental content format (element types, control flow) | [elemental.md](./resources/guides/elemental.md) |
 | Inline vs templated sending | [templates.md](./resources/guides/templates.md), [quickstart.md](./resources/guides/quickstart.md) |
 | Lists, bulk sends, multi-tenant | [patterns.md](./resources/guides/patterns.md) |

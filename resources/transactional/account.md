@@ -223,7 +223,7 @@ Include:
 - Percentage used
 - Estimated time until limit
 - Link to usage details
-- Upgrade option
+- Link to plan options (keep it informational — a bare "View plans" link is transactional; promotional copy like "Upgrade now and save 20%" crosses into marketing and requires opt-in)
 
 ### Limit Reached
 
@@ -232,7 +232,7 @@ Channels: Email + Push + In-app
 Include:
 - What limit was reached
 - Reset date
-- Upgrade option
+- Link to plan options (same boundary as above — informational link is fine, promotional upsell is not)
 - Impact on service
 
 ## Account Deletion

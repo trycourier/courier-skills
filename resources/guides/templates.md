@@ -12,7 +12,10 @@
 - Elemental version string is always `"2022-01-01"`
 - ElementalContentSugar (`title`/`body`) only works for inline sends — use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
-- A template needs a `routing.strategy_id` from your workspace to route through channels — if you have existing templates, copy the value from one via `GET /notifications/{id}` or the Studio UI; if starting from scratch, create a template in the [Design Studio](https://app.courier.com/designer) first, then retrieve its `routing.strategy_id` via the API to use in programmatic template creation. You can also set `routing: null` on create and assign routing later.
+- A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
+  1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })` — returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
+  2. **Reuse an existing strategy** — copy its ID from an existing template via `GET /notifications/{id}` or list them with `client.routingStrategies.list()`.
+  3. **Defer it** — set `routing: null` on create and assign a `strategy_id` later via `notifications.replace`.
 - Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404 — the archive operation uses the `DELETE` method.
 
 ### Common Mistakes
@@ -272,6 +275,8 @@ curl -X POST "https://api.courier.com/notifications" \
 ```
 
 **Minimal create** (empty template, DRAFT):
+
+**TypeScript:**
 ```typescript
 await client.notifications.create({
   notification: {
@@ -283,6 +288,20 @@ await client.notifications.create({
     content: { version: "2022-01-01", elements: [] }
   }
 });
+```
+
+**Python:**
+```python
+client.notifications.create(
+    notification={
+        "name": "Placeholder",
+        "tags": [],
+        "brand": None,
+        "subscription": None,
+        "routing": None,
+        "content": {"version": "2022-01-01", "elements": []},
+    },
+)
 ```
 
 ### Replace a Template
@@ -314,7 +333,7 @@ await client.notifications.replace("nt_01abc123", {
 **Python:**
 ```python
 client.notifications.replace(
-    id="nt_01abc123",
+    "nt_01abc123",
     notification={
         "name": "Shipping Update v2",
         "tags": ["transactional", "orders"],
@@ -394,6 +413,14 @@ for (const template of results) {
 }
 ```
 
+**Python:**
+```python
+response = client.notifications.list()
+
+for template in response.results:
+    print(template.id, template.title)
+```
+
 **CLI:**
 ```bash
 courier notifications list --format json --transform "results.#.id"
@@ -409,10 +436,17 @@ Paginated — use `paging.cursor` for the next page.
 
 ### Get a Template
 
+**TypeScript:**
 ```typescript
 const template = await client.notifications.retrieve("nt_01abc123");
 ```
 
+**Python:**
+```python
+template = client.notifications.retrieve("nt_01abc123")
+```
+
+**curl:**
 ```bash
 curl -s "https://api.courier.com/notifications/nt_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY"
@@ -553,6 +587,36 @@ The `locales` property on `text`, `action`, `quote`, and `meta` elements is docu
 ## Full Lifecycle Example
 
 End-to-end: create a multi-channel order confirmation template, publish it, then send.
+
+> **Step 0 (optional) — create a routing strategy if you don't already have one:**
+>
+> TypeScript:
+> ```typescript
+> const strategy = await client.routingStrategies.create({
+>   name: "Orders — email + SMS fallback",
+>   routing: { method: "single", channels: ["email", "sms"] },
+>   channels: {
+>     email: { providers: ["sendgrid", "aws-ses"] },
+>     sms: { providers: ["twilio"] }
+>   }
+> });
+> // then use strategy.id as routing.strategy_id below
+> ```
+>
+> Python:
+> ```python
+> strategy = client.routing_strategies.create(
+>     name="Orders — email + SMS fallback",
+>     routing={"method": "single", "channels": ["email", "sms"]},
+>     channels={
+>         "email": {"providers": ["sendgrid", "aws-ses"]},
+>         "sms": {"providers": ["twilio"]},
+>     },
+> )
+> # then use strategy.id as routing["strategy_id"] below
+> ```
+>
+> See [routing-strategies.md](./routing-strategies.md) for the full CRUD lifecycle.
 
 **TypeScript:**
 ```typescript
@@ -711,6 +775,8 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 - [Elemental](./elemental.md) - Full element-type reference (moved out of this file)
 - [Quickstart](./quickstart.md) - Send your first notification
 - [Patterns](./patterns.md) - Reusable code patterns (idempotency, retry, multi-channel)
+- [Routing Strategies](./routing-strategies.md) - Create/list/replace `rs_...` routing strategies via API
+- [Providers](./providers.md) - Configure provider integrations (SendGrid, Twilio, etc.) via API
 - [Multi-Channel](./multi-channel.md) - Routing strategies and channel priority
 - [CLI](./cli.md) - CLI for ad-hoc template operations (`courier notifications list`)
 - [Reliability](./reliability.md) - Idempotency keys for sends using templates

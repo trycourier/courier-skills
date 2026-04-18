@@ -16,7 +16,7 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 ### Common Mistakes
 - Nesting `channel` elements inside other `channel` elements (they must be top-level siblings).
 - Using Sugar `{ title, body }` inside `POST /notifications` payloads (the API expects the full `version` + `elements` form).
-- Forgetting that `text` requires `align` per the API schema — omitting it can fail strict validation.
+- The `text` element supports an `align` property (`"left"`, `"center"`, `"right"`). It defaults to `"left"` when omitted, but including it explicitly is recommended to avoid ambiguity across renderers.
 - Using `loop` without a `group` wrapper when you need to repeat multiple elements per item.
 - Placing `raw` provider payloads outside a `channel` element.
 

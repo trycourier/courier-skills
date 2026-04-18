@@ -7,10 +7,27 @@
 ### Rules
 - MCP provides structured tool access; agents discover tools automatically and call them with typed parameters
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- 58 tools (verified 2026-04) covering most of the Courier API (send, messages, profiles, lists, audiences, notifications, brands, automations, bulk, tenants, preferences, tokens, translations, inbound, audit). Count may drift; call the MCP server's tool-list endpoint for the current list
+- Tools cover most of the Courier API (send, messages, profiles, lists, audiences, notifications, brands, automations, bulk, tenants, preferences, tokens, translations, inbound, audit). The exact count may change — call the MCP server's tool-list endpoint for the current list
 - **Coverage gap vs. REST/CLI:** MCP currently exposes **read-only** access to notification templates (list/get content/get draft). Template **writes** (create, replace, publish, archive, versions, checks) are not in MCP yet — use the [CLI](./cli.md) or the REST API for those
 - Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
+
+### Practical setup guardrails
+
+- Treat tool count as informative, not absolute: if the number changed, proceed as long as the tools you need are present.
+- If a workflow requires template writes, switch to [CLI](./cli.md) or REST early instead of forcing MCP.
+- For production or CI usage, prefer a dedicated API key per environment/workspace.
+- Validate auth and basic tool calls immediately after setup before relying on the integration for larger tasks.
+
+### Quick verification checklist
+
+Run this once after setup:
+
+1. Confirm the server connects in your editor (status is healthy/connected).
+2. Run one read call (for example `list_notifications` or `list_messages`) to confirm auth.
+3. Run one write-safe call in your expected workflow area (for example profile merge or tenant list) to confirm parameter shape expectations.
+4. Verify your needed feature is in MCP; if not (for example template publish/create), route to CLI/REST.
+5. Save a short note in project docs or PR description indicating which path is used (`MCP` vs `CLI/REST`) for repeatability.
 
 ### MCP vs CLI
 
@@ -140,7 +157,7 @@ const response = await client.responses.create({
 
 ## Available Tools
 
-58 tools (verified 2026-04) covering most of the Courier API. All backed by the official `@trycourier/courier` Node SDK with typed error handling. Notification template **writes** (create/replace/publish/archive/versions/checks) are not yet in MCP — use the [CLI](./cli.md) or REST.
+Tools cover most of the Courier API, all backed by the official `@trycourier/courier` Node SDK with typed error handling. Notification template **writes** (create/replace/publish/archive/versions/checks) are not yet in MCP — use the [CLI](./cli.md) or REST. Call the MCP server's tool-list endpoint for the current count and names.
 
 ### Send
 

@@ -13,7 +13,7 @@
 ### Inactivity Triggers
 | User Type | Inactive Period | Action |
 |-----------|----------------|--------|
-| New (< 7 days) | 3 days | Onboarding help |
+| New (< 7 days) | 3+ days | Redirect to onboarding sequence (not re-engagement) |
 | Active | 7 days | Light nudge |
 | Active | 14 days | Stronger outreach |
 | Active | 30+ days | Win-back campaign |
@@ -67,16 +67,22 @@ client.send.message(
 
 **Cart Abandonment (Transactional - 1hr):**
 ```typescript
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbuw8q2x6v1d4c7n5j9ht",
-    data: {
-      items: [{ name: "Widget", price: 29.99 }],
-      cartUrl: "https://acme.com/cart"
-    }
-  }
-});
+// Use an idempotency key on retry-sensitive transactional paths like this one
+// so a retried webhook from your cart-abandonment job cannot double-send.
+// Python SDK: pass the header via `extra_headers={"Idempotency-Key": ...}`.
+await client.send.message(
+  {
+    message: {
+      to: { user_id: "user-123" },
+      template: "nt_01kmrbuw8q2x6v1d4c7n5j9ht",
+      data: {
+        items: [{ name: "Widget", price: 29.99 }],
+        cartUrl: "https://acme.com/cart",
+      },
+    },
+  },
+  { headers: { "Idempotency-Key": `cart-abandon-${cartId}` } },
+);
 ```
 
 **Welcome Back (when user returns):**

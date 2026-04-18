@@ -120,6 +120,7 @@ Always require a qualification action before issuing rewards to prevent fraud:
 ```typescript
 interface Referral {
   referrerId: string;
+  referrerName: string;
   refereeId: string;
   refereeEmail: string;
   signedUpAt: Date;

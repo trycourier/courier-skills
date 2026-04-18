@@ -447,6 +447,7 @@ await client.send.message({
 
 ## Related
 
+- [Quickstart](../guides/quickstart.md) - New to Courier? Start here for install, API key, first send
 - [Multi-Channel](../guides/multi-channel.md) - Email as part of routing strategy
 - [Reliability](../guides/reliability.md) - Retry logic and error handling
 - [Batching](../guides/batching.md) - Email digests

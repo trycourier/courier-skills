@@ -132,23 +132,24 @@ if (await getGlobalSendRate() > GLOBAL_MAX_PER_SECOND) {
 
 ## Courier Throttling Features
 
-### Send Limits
+### Metadata Tags for Your Own Analytics
 
-Configure send limits in Courier to automatically throttle:
+Courier does not throttle sends server-side based on arbitrary tags — the `metadata.tags` field is primarily a grouping and filtering handle for your own analytics, message logs, and webhook consumers. Attach tags so you can later filter `courier messages list --tag ...`, slice analytics, or drive your own rate-limit decisions in the application tier.
 
 ```typescript
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "nt_01kmrbuc9q3x7v1d5c8n2w6hj",
-    data: { ... },
-    // Courier respects configured limits
+    data: { /* ... */ },
     metadata: {
       tags: ["social", "low-priority"]
     }
   }
 });
 ```
+
+Provider-level rate limits (e.g. SendGrid/Twilio caps) are enforced per provider — see [Provider Rate Limits](#provider-rate-limits) below for the 429 retry pattern. For product-level controls (daily/weekly caps per user, quiet hours, preference frequency), implement in your application using the patterns elsewhere in this guide, or use [Preferences](./preferences.md) topics with `frequency` settings.
 
 ### Automation Throttling
 
@@ -262,8 +263,9 @@ function isQuietHours(userTimezone: string): boolean {
 }
 
 function getNext8am(userTimezone: string): Date {
-  // See onboarding.md "Timezone-Aware Scheduling" for a date-fns-tz-based
-  // implementation that avoids Date.toLocaleString round-tripping.
+  // See ../growth/onboarding.md "Timezone-Aware Scheduling" for a
+  // date-fns-tz-based implementation that avoids Date.toLocaleString
+  // round-tripping.
   const now = new Date();
   const hour = parseInt(
     new Date().toLocaleString("en-US", { timeZone: userTimezone, hour: "numeric", hour12: false }),

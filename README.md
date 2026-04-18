@@ -127,6 +127,8 @@ courier-skills/
         ├── throttling.md
         ├── catalog.md
         ├── templates.md
+        ├── routing-strategies.md
+        ├── providers.md
         ├── elemental.md
         ├── patterns.md
         ├── migrate-general.md

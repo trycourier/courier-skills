@@ -8,6 +8,7 @@
 - Email verification: 24-48 hour expiry, allow resend after 60 seconds
 - Magic links: 15 minute expiry, single use
 - ALWAYS include "I didn't request this" in security emails
+- NEVER batch or delay OTP, password reset, or security alert notifications — send them immediately, bypass digests/quiet hours
 - Security alerts fan out based on severity — see [Security Alert Channels](#security-alert-channels) below; most events go to email + push, and the highest-severity events (password change, 2FA disabled, suspicious activity) also include SMS
 
 ### Rate Limits

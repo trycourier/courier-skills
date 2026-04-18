@@ -14,9 +14,18 @@ For every other case — including new inboxes, new features on existing inboxes
 
 ### Rules for v7 work
 
-- Do **not** use v7 for new projects.
-- Do **not** add new v7 components; if the task adds functionality, propose a v8 migration first.
-- Client Keys are still accepted by v7 but JWT is strongly preferred. If a codebase passes a `clientKey` prop, advise moving to JWT at the same time as any non-trivial change.
+- Avoid using v7 for new projects; default to v8 unless there's a concrete blocker.
+- For net-new inbox features, prefer a v8 migration first. If migration is temporarily blocked, keep v7 changes as small and local as possible.
+- Client Keys are still accepted by v7 but JWT is strongly preferred. If a codebase passes a `clientKey` prop, recommend moving to JWT as part of the next meaningful touch.
+- If staying on v7, leave a migration follow-up note (issue or TODO) so the codebase does not get stuck in legacy mode.
+
+### Quick validation checklist (before shipping a v7 change)
+
+- Confirm this is truly v7 using package/import signals in the Version Detection table below.
+- Confirm and document the migration blocker (for example, dependency on v7-only Tags or Pins).
+- Keep scope to maintenance/bugfix updates; avoid introducing new v7-only architectural surface.
+- Run a smoke test: inbox renders, auth succeeds, and new messages appear in the feed.
+- Add a migration pointer to v8 docs in the PR or task notes.
 
 ## Version Detection
 

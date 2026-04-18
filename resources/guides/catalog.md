@@ -1,13 +1,15 @@
 # Notification Catalog
 
+> **New to Courier?** Start with [quickstart.md](./quickstart.md) to install the SDK, set your API key, and send your first notification. If you're moving from another notification system, see [migrate-general.md](./migrate-general.md). Use this catalog once you're set up to plan *which* notifications to build.
+
 ## Quick Reference
 
 ### Rules
-- Start with essential transactional notifications first
-- Add authentication/security notifications second
-- Add engagement notifications based on product needs
-- Add growth notifications as you scale
+- Start with essential transactional notifications first; that usually delivers the biggest reliability and trust gains.
+- Add authentication/security notifications next, especially for account and payment-sensitive apps.
+- Add engagement and growth notifications based on product stage and user behavior.
 - Before adding any notification, ask: Does user need this? Is it actionable?
+- Use companion guides based on risk: treat [preferences.md](./preferences.md) as required for consent-sensitive messaging and [reliability.md](./reliability.md) as required for failure-sensitive flows (OTP, billing, security, delivery guarantees).
 
 ### Universal Essential Notifications
 Every app needs these:
@@ -53,6 +55,72 @@ Notification recommendations by app type to help you plan what to build.
 2. Review essential vs optional notifications
 3. Check channel recommendations
 4. Use as a starting point - adapt to your needs
+
+### Companion Guides by Situation
+
+| Situation | Companion docs to open | Why |
+|----------|-------------------------|-----|
+| Security/auth flows (OTP, reset, suspicious activity) | [authentication.md](../transactional/authentication.md), [sms.md](../channels/sms.md), [reliability.md](./reliability.md) | Tightens expiry, channel choice, idempotency, and retry behavior |
+| Growth/campaign messaging | [preferences.md](./preferences.md), [throttling.md](./throttling.md), [growth/index.md](../growth/index.md) | Helps prevent over-notification and consent issues |
+| Multi-channel production templates | [multi-channel.md](./multi-channel.md), [templates.md](./templates.md), [routing-strategies.md](./routing-strategies.md), [providers.md](./providers.md) | Moves from planning into robust channel routing and provider fallback |
+
+## Quick Implementation Examples
+
+These examples show how catalog choices map into working notification calls.
+
+### Example 1: SaaS starter set (TypeScript)
+
+```typescript
+import Courier from "@trycourier/courier";
+
+const client = new Courier();
+
+// Prioritize essential flows first from this catalog.
+const starterNotifications = [
+  { template: "nt_verify_email", idempotency: "verify-user-123" },
+  { template: "nt_password_reset", idempotency: "password-reset-user-123-req-42" },
+  { template: "nt_payment_confirmation", idempotency: "payment-rcpt-inv-887" },
+];
+
+for (const n of starterNotifications) {
+  await client.send.message(
+    {
+      message: {
+        to: { user_id: "user-123" },
+        template: n.template,
+        data: {},
+      },
+    },
+    { headers: { "Idempotency-Key": n.idempotency } }
+  );
+}
+```
+
+### Example 2: E-commerce stage-to-channel map (Python)
+
+```python
+from courier import Courier
+
+client = Courier()
+
+ORDER_STAGE_CHANNELS = {
+    "placed": ["email", "inbox"],
+    "shipped": ["email", "push"],
+    "out_for_delivery": ["push", "sms"],
+}
+
+def notify_order_stage(user_id: str, order_id: str, stage: str):
+    channels = ORDER_STAGE_CHANNELS.get(stage, ["email"])
+    client.send.message(
+        message={
+            "to": {"user_id": user_id},
+            "template": "nt_order_stage_update",
+            "data": {"order_id": order_id, "stage": stage},
+            "routing": {"method": "all", "channels": channels},
+        },
+        extra_headers={"Idempotency-Key": f"order-{order_id}-{stage}"},
+    )
+```
 
 ## SaaS / Subscription Apps
 

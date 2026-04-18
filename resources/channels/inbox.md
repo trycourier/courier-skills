@@ -52,10 +52,10 @@ Courier provides pre-built, customizable inbox components for:
 
 - React (v8: `@trycourier/courier-react`)
 - Web Components (v8: `@trycourier/courier-ui-inbox` — works with Vue, Angular, Svelte, vanilla JS)
-- React Native (`@trycourier/courier-react-native`)
-- iOS (Swift)
-- Android (Kotlin)
-- Flutter
+- React Native (`@trycourier/courier-react-native`) — see [React Native Integration](#react-native-integration) below
+- iOS (Swift) — see the [Courier iOS SDK docs](https://www.courier.com/docs/sdk-libraries/ios)
+- Android (Kotlin) — see the [Courier Android SDK docs](https://www.courier.com/docs/sdk-libraries/android)
+- Flutter — see the [Courier Flutter SDK docs](https://www.courier.com/docs/sdk-libraries/flutter)
 
 ---
 
@@ -186,7 +186,7 @@ export default function App() {
 ```tsx
 import { useEffect } from "react";
 import { CourierInboxPopupMenu, useCourier } from "@trycourier/courier-react";
-// See the "Token Management" section above for useCourierToken.
+// See the "JWT Refresh Strategy" section above for useCourierToken.
 
 export default function App() {
   const courier = useCourier();
@@ -309,7 +309,7 @@ Toasts are short-lived notifications connected to the Inbox message feed:
 ```tsx
 import { useEffect } from "react";
 import { CourierToast, useCourier } from "@trycourier/courier-react";
-// useCourierToken defined earlier in "Token Management" — fetches a
+// useCourierToken defined earlier in the "JWT Refresh Strategy" section — fetches a
 // short-lived JWT from your backend and refreshes before expiry.
 
 function App() {
@@ -813,7 +813,7 @@ Courier Inbox uses WebSocket for real-time updates. You **must** call `inbox.lis
 ```tsx
 import { useEffect } from "react";
 import { useCourier, CourierInbox, defaultFeeds } from "@trycourier/courier-react";
-// See the "Token Management" section above for useCourierToken.
+// See the "JWT Refresh Strategy" section above for useCourierToken.
 
 function App() {
   const { shared, inbox } = useCourier();

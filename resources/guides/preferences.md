@@ -35,15 +35,23 @@
 ### Templates
 
 **Get User Preferences:**
+
+TypeScript:
 ```typescript
 const prefs = await client.users.preferences.retrieve("user-123");
 ```
 
+Python:
+```python
+prefs = client.users.preferences.retrieve("user-123")
+```
+
 **Update Preferences:**
+
+The topic (`weekly-digest`) must already exist in Settings > Preferences; these calls set the *user's* preference for that topic, they do not create the topic definition itself. Calling for an unknown topic returns 404.
+
+TypeScript:
 ```typescript
-// The topic ("weekly-digest") must already exist in Settings > Preferences;
-// this call sets the *user's* preference for that topic, it does not create
-// the topic definition itself. Calling it for an unknown topic returns 404.
 await client.users.preferences.updateOrCreateTopic("weekly-digest", {
   user_id: "user-123",
   topic: {
@@ -52,16 +60,37 @@ await client.users.preferences.updateOrCreateTopic("weekly-digest", {
 });
 ```
 
+Python:
+```python
+client.users.preferences.update_or_create_topic(
+    "weekly-digest",
+    user_id="user-123",
+    topic={"status": "OPTED_OUT"},
+)
+```
+
 **Check Before Sending:**
+
+Courier auto-checks when topics are configured — link templates to topics in the Courier dashboard.
+
+TypeScript:
 ```typescript
-// Courier auto-checks when topics are configured
-// Link templates to topics in Courier dashboard
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "nt_01kmrbu5x8q2v6d1c4n7w9hj" // Template linked to "weekly-digest" topic
   }
 });
+```
+
+Python:
+```python
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": "nt_01kmrbu5x8q2v6d1c4n7w9hj",  # Template linked to "weekly-digest" topic
+    },
+)
 ```
 
 ---
@@ -135,13 +164,21 @@ Example: routing specifies `["email", "push", "sms"]` but user opted out of SMS 
 
 ### Get User Preferences
 
+**TypeScript:**
 ```typescript
 const preferences = await client.users.preferences.retrieve("user-123");
 // Returns: { items: [{ topic_id, status, ... }] }
 ```
 
+**Python:**
+```python
+preferences = client.users.preferences.retrieve("user-123")
+# Returns an object with `.items` — list of { topic_id, status, ... }
+```
+
 ### Update Preferences for a Topic
 
+**TypeScript:**
 ```typescript
 await client.users.preferences.updateOrCreateTopic("order-updates", {
   user_id: "user-123",
@@ -153,11 +190,24 @@ await client.users.preferences.updateOrCreateTopic("order-updates", {
 });
 ```
 
+**Python:**
+```python
+client.users.preferences.update_or_create_topic(
+    "order-updates",
+    user_id="user-123",
+    topic={
+        "status": "OPTED_IN",  # or "OPTED_OUT"
+        "has_custom_routing": True,
+        "custom_routing": ["email"],
+    },
+)
+```
+
 ## Preference Center UI
 
 ### Courier Preferences Component
 
-Courier provides a pre-built, customizable preference center component for React applications.
+Courier provides a pre-built preference center component. For v8 React apps, `@trycourier/courier-react` includes `<CourierPreferences />` which renders a ready-made UI for topic opt-in/opt-out. For setup and customization options, see the [Courier Preferences docs](https://www.courier.com/docs/sdk-libraries/courier-react/preferences).
 
 ### Custom Preference Center
 

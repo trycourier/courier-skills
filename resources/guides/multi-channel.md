@@ -477,6 +477,41 @@ SMS Providers:
 2. MessageBird (Backup)
 ```
 
+### Setup (API)
+
+The same setup can be done over the API — configure the provider integrations via `/providers`, then define priority order per channel via a routing strategy's `channels.{channel}.providers` array. The position of a provider key in that array is the drag-to-reorder equivalent.
+
+```typescript
+// 1. Configure the provider integrations (one-time, usually from an IaC script).
+//    See providers.md for the catalog discovery pattern and full CRUD.
+await client.providers.create({
+  provider: "sendgrid",
+  settings: { api_key: process.env.SENDGRID_API_KEY!, from_address: "notifications@acme.co" }
+});
+await client.providers.create({
+  provider: "aws-ses",
+  settings: { access_key_id: process.env.AWS_ACCESS_KEY_ID!, secret_access_key: process.env.AWS_SECRET_ACCESS_KEY!, region: "us-east-1" }
+});
+await client.providers.create({
+  provider: "twilio",
+  settings: { account_sid: process.env.TWILIO_ACCOUNT_SID!, auth_token: process.env.TWILIO_AUTH_TOKEN!, messaging_service_sid: "MG..." }
+});
+
+// 2. Define priority order per channel via a routing strategy.
+//    Array order in channels.{channel}.providers = failover priority.
+await client.routingStrategies.create({
+  name: "Transactional",
+  routing: { method: "single", channels: ["email", "sms"] },
+  channels: {
+    email: { providers: ["sendgrid", "aws-ses"] }, // SendGrid first, SES fallback
+    sms: { providers: ["twilio"] }
+  }
+});
+```
+
+- See [providers.md](./providers.md) for configuring provider integrations (catalog discovery, key rotation, per-provider `settings`).
+- See [routing-strategies.md](./routing-strategies.md) for the full routing strategy CRUD, per-provider `override`/`if`/`timeouts`, and how to link the resulting `rs_...` to templates via `routing.strategy_id`.
+
 ### When Failover Triggers
 
 Courier fails over to the next provider when:
@@ -572,6 +607,8 @@ const analytics = {
 
 ## Related
 
+- [Routing Strategies](./routing-strategies.md) - Create/replace stored `rs_...` strategies via API
+- [Providers](./providers.md) - Configure provider integrations via API (catalog, settings, rotation)
 - [Preferences](./preferences.md) - User channel preferences
 - [Reliability](./reliability.md) - Failover and retry logic
 - [Batching](./batching.md) - Combining notifications

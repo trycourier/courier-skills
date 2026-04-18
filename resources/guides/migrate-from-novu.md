@@ -374,14 +374,28 @@ See [Multi-Channel](./multi-channel.md) for routing strategies, escalation patte
 
 Novu's subscriber preferences (per-workflow and per-channel) map to Courier preference topics. Courier enforces preferences automatically at send time.
 
-### TypeScript
+### Read preferences
 
 **Before (Novu):**
 ```typescript
 const prefs = await novu.subscribers.getPreferences("user-123");
 ```
 
-**After (Courier):**
+**After (Courier) — TypeScript:**
+```typescript
+const prefs = await client.users.preferences.retrieve("user-123");
+```
+
+**After (Courier) — Python:**
+```python
+prefs = client.users.preferences.retrieve("user-123")
+```
+
+### Update a topic preference
+
+Novu's per-workflow/per-channel preference writes map to Courier's `updateOrCreateTopic`. This is a separate call from reading — there is no single "set all preferences" API.
+
+**TypeScript:**
 ```typescript
 await client.users.preferences.updateOrCreateTopic("weekly-digest", {
   user_id: "user-123",
@@ -391,6 +405,19 @@ await client.users.preferences.updateOrCreateTopic("weekly-digest", {
     custom_routing: ["email"],
   },
 });
+```
+
+**Python:**
+```python
+client.users.preferences.update_or_create_topic(
+    "weekly-digest",
+    user_id="user-123",
+    topic={
+        "status": "OPTED_OUT",
+        "has_custom_routing": True,
+        "custom_routing": ["email"],
+    },
+)
 ```
 
 ### Hosted Preference Page
