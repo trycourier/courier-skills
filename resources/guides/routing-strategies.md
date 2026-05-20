@@ -6,7 +6,8 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 
 ### Rules
 - Routing strategy IDs use the `rs_` prefix (e.g., `rs_01abc123`) and are opaque, workspace-scoped values
-- `name` and `routing` are the only required fields on create; `channels` defaults to empty when omitted. `providers` is nested **inside** each channel entry (e.g., `channels.email.providers`), not a top-level field
+- `name` and `routing` are the only required fields on create; both `channels` and `providers` are top-level optional fields that default to empty when omitted
+- **Channel-level vs provider-level config:** `channels.{channel}.providers` is the **ordered failover list** for a channel (position = priority). The **top-level** `providers` map carries **per-provider** settings (`override`, `if`, `timeouts`, `metadata`) keyed by provider name. You typically use both: `channels.email.providers: ["sendgrid","aws-ses"]` for order, and `providers.sendgrid.override: {...}` for SendGrid-specific config
 - `routing.method` is `"single"` (try channels in order until one succeeds) or `"all"` (send to all channels in parallel)
 - `channels.{channel}.providers` is an **ordered** array — position = failover priority (same as dragging providers in the dashboard)
 - `PUT /routing-strategies/{id}` is a **full replacement** — any field you omit is reset to its default

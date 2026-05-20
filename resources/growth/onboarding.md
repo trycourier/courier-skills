@@ -210,63 +210,147 @@ If user selected a goal during signup (increase productivity, team collaboration
 | 4-7 | Email | Help offer |
 | 7+ | Email (less frequent) | Re-engagement territory |
 
-## Automation
+## Orchestration
 
-### Courier Automations
+### Courier Journeys
 
-Use Courier Automations to build onboarding sequences with delays, conditions, and cancellation:
+Use [Journeys](../guides/journeys.md) to build onboarding sequences with delays, branching, and exit conditions — defined entirely via API.
 
-```typescript
-type OnboardingUser = {
-  id: string;
-  name: string;
-  timezone?: string;
-};
+**Journey DAG for onboarding:**
 
-async function startOnboarding(user: OnboardingUser) {
-  await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
-    recipient: user.id,
-    data: {
-      cancelation_token: `onboarding-${user.id}`,
-      userName: user.name,
-      signupDate: new Date().toISOString(),
-      timezone: user.timezone ?? "America/New_York",
+```json
+{
+  "name": "Onboarding Sequence",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "trigger",
+      "trigger_type": "api-invoke",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user_name": { "type": "string" },
+          "signup_date": { "type": "string" },
+          "timezone": { "type": "string" }
+        },
+        "required": ["user_name"]
+      }
     },
-  });
+    { "id": "send-welcome", "type": "send", "message": { "template": "<welcome-template-id>" } },
+    { "id": "wait-1-day", "type": "delay", "mode": "duration", "duration": "P1D" },
+    {
+      "id": "check-setup",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/users/{{data.user_id}}/setup-status",
+      "merge_strategy": "overwrite"
+    },
+    {
+      "id": "branch-setup",
+      "type": "branch",
+      "paths": [
+        {
+          "label": "Setup complete",
+          "conditions": [["data.setup_complete", "is equal", true]],
+          "nodes": [
+            { "id": "send-success", "type": "send", "message": { "template": "<success-template-id>" } },
+            { "id": "exit-done", "type": "exit" }
+          ]
+        }
+      ],
+      "default": {
+        "label": "Still onboarding",
+        "nodes": [
+          { "id": "send-reminder", "type": "send", "message": { "template": "<reminder-template-id>" } },
+          { "id": "wait-2-days", "type": "delay", "mode": "duration", "duration": "P2D" },
+          { "id": "send-nudge", "type": "send", "message": { "template": "<nudge-template-id>" } },
+          { "id": "exit-default", "type": "exit" }
+        ]
+      }
+    }
+  ],
+  "enabled": true
 }
+```
 
-await startOnboarding({ id: "user-123", name: "Jane", timezone: "America/Los_Angeles" });
+**Invoke when a user signs up:**
+
+The `fetch` node above templates the URL with `{{data.user_id}}`, so include `user_id` inside `data` (the top-level `user_id` is used for recipient resolution but isn't guaranteed to be projected into `data` for variable interpolation).
+
+**Node:**
+```typescript
+const { runId } = await client.journeys.invoke(JOURNEY_ID, {
+  user_id: "user-123",
+  profile: { email: "jane@example.com" },
+  data: {
+    user_id: "user-123",
+    user_name: "Jane",
+    signup_date: "2026-05-20T12:00:00Z",
+    timezone: "America/Los_Angeles",
+  },
+});
+```
+
+**Python:**
+```python
+response = client.journeys.invoke(
+    template_id=JOURNEY_ID,
+    user_id="user-123",
+    profile={"email": "jane@example.com"},
+    data={
+        "user_id": "user-123",
+        "user_name": "Jane",
+        "signup_date": "2026-05-20T12:00:00Z",
+        "timezone": "America/Los_Angeles",
+    },
+)
+```
+
+**curl (ad-hoc / CI):**
+```bash
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "profile": { "email": "jane@example.com" },
+    "data": {
+      "user_id": "user-123",
+      "user_name": "Jane",
+      "signup_date": "2026-05-20T12:00:00Z",
+      "timezone": "America/Los_Angeles"
+    }
+  }'
 ```
 
 ### Exit Conditions
 
-When the user activates, cancel the onboarding sequence and send a success message:
+Exit conditions are built into the journey DAG as branch nodes. When the user activates, the journey checks their status via a fetch node and exits early instead of sending more reminders. No external cancel call is needed — the journey handles it.
+
+To send a success message on activation, include a send node in the "Setup complete" branch path (as shown above).
+
+### Legacy: Automations
+
+If you have existing Automations for onboarding, they continue to work:
 
 ```typescript
-async function completeOnboarding(userId: string) {
-  await client.automations.invoke.invokeAdHoc({
-    recipient: userId,
-    automation: {
-      steps: [
-        { action: "cancel", cancelation_token: `onboarding-${userId}` },
-      ],
-    },
-  });
+await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
+  recipient: "user-123",
+  data: {
+    cancelation_token: `onboarding-${userId}`,
+    userName: "Jane",
+    signupDate: new Date().toISOString(),
+    timezone: "America/Los_Angeles",
+  },
+});
 
-  await client.send.message({
-    message: {
-      to: { user_id: userId },
-      template: "nt_01kmrbsav5n8q2x6c1d4w7jth",
-      data: {
-        achievement: "First dashboard created!",
-        nextStep: "Invite your team",
-      },
-      routing: { method: "all", channels: ["email", "push", "inbox"] },
-    },
-  });
-}
-
-await completeOnboarding("user-123");
+// Cancel when user activates
+await client.automations.invoke.invokeAdHoc({
+  recipient: userId,
+  automation: {
+    steps: [{ action: "cancel", cancelation_token: `onboarding-${userId}` }],
+  },
+});
 ```
 
 ### Timezone-Aware Scheduling
@@ -382,6 +466,7 @@ async function sendStepReminder(progress: OnboardingProgress): Promise<void> {
 
 ## Related
 
+- [Journeys](../guides/journeys.md) - Build multi-step onboarding flows as code
 - [Account](../transactional/account.md) - Welcome message (transactional)
 - [Adoption](./adoption.md) - Feature discovery after onboarding
 - [Re-engagement](./reengagement.md) - If onboarding fails

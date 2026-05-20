@@ -32,7 +32,7 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 | [Webhook Handler](#webhook-handler) | You need to react to delivery events (bounces, clicks, undeliverable) | You only need to check status on demand (use `client.messages.retrieve`) |
 | [Retry with Exponential Backoff](#retry-with-exponential-backoff) | Your ingest path calls `send.message` and must survive 5xx/network errors | Courier-to-provider retries — those are Courier's job |
 | [Actor Aggregation](#actor-aggregation) | Social/activity notifications ("Alice liked", "Bob commented") | Transactional — never aggregate critical messages |
-| [Automation Cancellation](#automation-cancellation) | Scheduled reminders whose triggering condition can go stale (cart, abandoned signup) | One-shot sends |
+| [Sequence Cancellation](#sequence-cancellation) | Scheduled reminders whose triggering condition can go stale (cart, abandoned signup) | One-shot sends |
 | [Data Masking](#data-masking) | Security alerts, change confirmations, any notification with PII in the body | Sends where the PII IS the value (order confirmation needs the address) |
 | [Lists and Bulk Sends](#lists-and-bulk-sends) | Audience-scale delivery (newsletters, product-launch digests) | Single-recipient sends |
 | [Tenants (Multi-Tenant / B2B)](#tenants-multi-tenant-b2b) | B2B apps where each customer org needs its own branding or preferences | Consumer apps with one brand |
@@ -404,11 +404,46 @@ def format_actors(names: list[str]) -> str:
     return f"{names[0]}, {names[1]}, and {remaining} {noun}"
 ```
 
-## Automation Cancellation
+## Sequence Cancellation
 
-Cancel an automation sequence when the user takes the desired action.
+End a multi-step sequence when the user takes the desired action. With [Journeys](./journeys.md), build exit logic directly into the DAG using branch nodes and exit nodes — the journey checks a condition before each step and exits early when the goal is met.
 
-**TypeScript:**
+**Journeys approach (recommended):**
+
+Design the journey with a branch node that checks whether the user has activated before continuing. This makes cancellation part of the flow itself — no external cancel call needed.
+
+```json
+{
+  "id": "check-activated",
+  "type": "fetch",
+  "method": "get",
+  "url": "https://api.yourapp.com/users/{{data.user_id}}/status",
+  "merge_strategy": "overwrite"
+},
+{
+  "id": "branch-activated",
+  "type": "branch",
+  "paths": [
+    {
+      "label": "User activated",
+      "conditions": [["data.activated", "is equal", true]],
+      "nodes": [{ "id": "exit-activated", "type": "exit" }]
+    }
+  ],
+  "default": {
+    "label": "Continue sequence",
+    "nodes": [
+      { "id": "send-reminder", "type": "send", "message": { "template": "<template-id>" } },
+      { "id": "wait-2d", "type": "delay", "mode": "duration", "duration": "P2D" }
+    ]
+  }
+}
+```
+
+See [Journeys](./journeys.md) for the full workflow (create → template → wire → publish → invoke).
+
+**Legacy: Automations approach** (if you have existing Automations):
+
 ```typescript
 await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
   recipient: "user-123",
@@ -429,7 +464,6 @@ await client.automations.invoke.invokeAdHoc({
 });
 ```
 
-**Python:**
 ```python
 client.automations.invoke.invoke_by_template(
     "onboarding-sequence",
@@ -552,6 +586,8 @@ For large audiences (product launches, monthly digests) where per-user data vari
 
 The bulk `message` definition **requires `event`** (an event ID or notification ID). You may optionally also pass `template` or `content` (V2 format) to override the content associated with that event.
 
+> **Email bulk jobs:** each user **must include `profile.email`** for email provider routing. `to.email` alone is not sufficient and the message will not deliver. The same pattern applies to other channels — put contact info on `profile`, not `to`.
+
 **TypeScript:**
 ```typescript
 // V1: event required. `event` can be a mapped event ID or a notification ID (nt_...).
@@ -569,8 +605,8 @@ const job = await client.bulk.createJob({
 
 await client.bulk.addUsers(job.jobId, {
   users: [
-    { to: { user_id: "user-1" }, data: { highlights: 12 } },
-    { to: { user_id: "user-2" }, data: { highlights: 7 } },
+    { profile: { email: "user1@example.com" }, to: { user_id: "user-1" }, data: { highlights: 12 } },
+    { profile: { email: "user2@example.com" }, to: { user_id: "user-2" }, data: { highlights: 7 } },
   ],
 });
 
@@ -593,8 +629,8 @@ job = client.bulk.create_job(message={"event": "nt_01kmrc0v4q7x1v5d8c2n6w9hj"})
 # })
 
 client.bulk.add_users(job.job_id, users=[
-    {"to": {"user_id": "user-1"}, "data": {"highlights": 12}},
-    {"to": {"user_id": "user-2"}, "data": {"highlights": 7}},
+    {"profile": {"email": "user1@example.com"}, "to": {"user_id": "user-1"}, "data": {"highlights": 12}},
+    {"profile": {"email": "user2@example.com"}, "to": {"user_id": "user-2"}, "data": {"highlights": 7}},
 ])
 
 # run_job returns an empty response on success — don't assert on the return

@@ -4,8 +4,8 @@
 
 ### Rules
 - Use Courier's Test environment API key during migration; switch to Production only after validation
-- Novu Workflows = Courier Templates (content) + Automations (orchestration) — split them
-- Novu's code-first `@novu/framework` workflows don't have a 1:1 equivalent; extract content into Templates and orchestration into Automations
+- Novu Workflows = Courier Templates (content) + Journeys (orchestration) — split them. Use [Journeys](./journeys.md) for new flows; Automations are legacy.
+- Novu's code-first `@novu/framework` workflows map to Journeys — extract content into Templates and orchestration into Journey DAGs
 - Novu Inbox (`@novu/react`) maps to Courier Inbox — swap for `@trycourier/courier-react`
 - Keep the same `subscriberId` values as Courier `user_id` to simplify cutover
 - Idempotency keys work the same way — keep using them
@@ -14,15 +14,15 @@
 
 | Novu | Courier | Notes |
 |------|---------|-------|
-| Workflows (code-first via `@novu/framework`) | Templates + Automations | Content and orchestration are independent resources |
+| Workflows (code-first via `@novu/framework`) | Templates + Journeys | Content and orchestration are independent resources — see [Journeys](./journeys.md) |
 | Events API / `novu.trigger()` | `POST /send` | Different payload shape; `subscriberId` becomes `user_id` |
 | Subscribers | Users / Profiles | Courier profiles accept nested JSON for custom data |
 | Subscriber credentials (deviceTokens, webhookUrl) | Profile channel tokens | Stored directly on the Courier profile |
 | Topics | Subscription Topics / Lists | Topics for broadcast fan-out; lists for static subscriber groups |
 | Tenants | Tenants | Branding lives directly on the Courier Tenant resource |
-| Digest step | Automations batch/digest step | Configure window and aggregation in the automation |
-| Delay step | Automation delay step | Same concept |
-| Custom step | Fetch Data node or condition logic | No direct equivalent; use automation nodes |
+| Digest step | Journeys (`throttle` + `delay` + `fetch` nodes) | Timing in journey; aggregation in your app |
+| Delay step | Journeys `delay` node | Same concept — `mode: "duration"` or `mode: "until"` |
+| Custom step | Journeys `fetch` node | HTTP request + merge response into run state |
 | Inbox (`@novu/react`, `NovuProvider`) | Inbox (`@trycourier/courier-react`, `CourierInbox`) | v8 uses JWT auth and `useCourier()` hook; both offer headless mode |
 | Subscriber preferences | Preferences (topics) | Courier enforces at send time automatically |
 | Environments (dev/production) | Test/Production keys | Courier uses separate API keys per environment; copy from [Settings > API Keys](https://app.courier.com/settings/api-keys) |
@@ -39,12 +39,12 @@
 | List messages | `GET /messages` | `GET /messages` |
 | Broadcast to topic | `POST /v1/events/trigger` (with `topics`) | `POST /send` (with list/audience) |
 | Create/update tenant | `POST /v1/tenants` | `PUT /tenants/:id` |
-| Bulk send | Topic trigger (fan-out) | `POST /bulk` |
+| Bulk send | Topic trigger (fan-out) | 3-step flow: `POST /bulk` (create job with `event`) → `POST /bulk/{job_id}` (add users; email jobs need `profile.email` per user) → `POST /bulk/{job_id}/run` |
 
 > Note: `PUT /profiles/:id` is a **full replacement** — any fields not included are deleted. Use `POST` for partial updates; reach for `PUT` only when you deliberately want to wipe unlisted fields.
 
 ### Common Mistakes
-- Trying to replicate Novu's code-first workflow definitions (`@novu/framework`) as a single Courier resource (split content into a Template, orchestration into an Automation)
+- Trying to replicate Novu's code-first workflow definitions (`@novu/framework`) as a single Courier resource (split content into a Template, orchestration into a Journey)
 - Using `subscriberId` in Courier send calls instead of mapping it to `user_id`
 - Forgetting to configure provider integrations in the Courier dashboard before sending
 - Not migrating subscriber preferences (users lose their opt-out choices)
@@ -157,16 +157,16 @@ Novu bundles content, routing, and orchestration into code-first Workflows (via 
 1. Create a **Template** in the [Designer](https://www.courier.com/docs/platform/content/template-designer/template-designer-overview) for the content (email body, SMS text, push title/body)
 2. Use `{{variable}}` syntax for dynamic data — same Handlebars-style as Novu
 3. Add content blocks for each channel the notification should support
-4. If your Novu Workflow has digest, delay, or condition steps, create a separate **Automation** for the orchestration logic
+4. If your Novu Workflow has digest, delay, or condition steps, create a separate **Journey** for the orchestration logic — see [Journeys](./journeys.md)
 
 ### Novu Step → Courier Equivalent
 
-| Novu Workflow Step | Courier Equivalent |
-|--------------------|-------------------|
-| Channel step (email, sms, push, chat, in-app) | Automation send step (references a Template) |
-| Digest step | Automation digest node |
-| Delay step | Automation delay node |
-| Custom step | Fetch Data node or condition logic |
+| Novu Workflow Step | Courier Journey Node |
+|--------------------|---------------------|
+| Channel step (email, sms, push, chat, in-app) | `send` node (references a journey-scoped template) |
+| Digest step | `throttle` node + `delay` node (aggregation in your app) |
+| Delay step | `delay` node (`mode: "duration"`) |
+| Custom step | `fetch` node (HTTP request + merge into state) |
 
 ## 5. Migrate Subscribers
 
@@ -520,34 +520,43 @@ For attribute-based targeting (e.g., all users on the enterprise plan), use [Aud
 
 ## 10. Migrate Orchestration Logic
 
-Novu workflow steps (digest, delay, conditions) map to Courier Automations:
+Novu workflow steps (digest, delay, conditions) map to Courier [Journeys](./journeys.md) (recommended) or Automations (legacy):
 
-| Novu Step | Courier Equivalent |
-|-----------|--------------------|
-| Digest step | Automation digest node |
-| Delay step | Automation delay node |
-| Condition / filter | Automation condition node |
-| Channel step | Automation send node (references a Template) |
+| Novu Step | Courier Journey Node | Legacy Automation Equivalent |
+|-----------|---------------------|------------------------------|
+| Digest step | `throttle` node + `delay` node | Automation digest node |
+| Delay step | `delay` node (`mode: "duration"`) | Automation delay node |
+| Condition / filter | `branch` node with `conditions` | Automation condition node |
+| Channel step | `send` node (references a journey-scoped template) | Automation send node |
+| Custom step | `fetch` node (HTTP request + merge into state) | No direct equivalent |
+
+Novu's code-first `@novu/framework` workflow definitions map naturally to Journeys — both are defined programmatically as DAGs.
 
 ### Digest Example
 
 **Before (Novu):** Digest step configured inside the workflow with `amount`, `unit`, and optional `digestKey`.
 
-**After (Courier):**
+**After (Courier Journeys):**
+
+```bash
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "data": { "event_type": "like", "actor_name": "Jane", "target_id": "post-789" }
+  }'
+```
+
+The journey DAG handles throttling and batching via `throttle` and `delay` nodes. See [Journeys](./journeys.md) for the full workflow.
+
+**Legacy: Automations approach:**
 ```typescript
 await client.automations.invoke.invokeByTemplate("social-activity-batch", {
   recipient: "user-123",
-  data: {
-    event_type: "like",
-    actor_name: "Jane",
-    target_id: "post-789",
-  },
+  data: { event_type: "like", actor_name: "Jane", target_id: "post-789" },
 });
 ```
-
-Configure the automation in the Courier dashboard:
-1. **Digest step:** Collect events for 5 minutes, keyed by `target_id`
-2. **Send step:** Reference a template that uses aggregated batch data
 
 See [Batching](./batching.md) for window strategies, aggregation patterns, and digest implementation.
 

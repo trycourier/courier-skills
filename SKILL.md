@@ -1,6 +1,6 @@
 ---
 name: courier-notification-skills
-description: Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, or WhatsApp. Covers transactional messages (password reset, OTP, orders, billing), growth notifications (onboarding, engagement, referral), multi-channel routing, preferences and topics, reliability and webhooks, template CRUD and Elemental content, routing strategies, provider configuration, the Courier CLI and MCP server, and migrations from Knock, Novu, or other notification systems.
+description: Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, or WhatsApp. Covers transactional messages (password reset, OTP, orders, billing), growth notifications (onboarding, engagement, referral), multi-channel routing, preferences and topics, reliability and webhooks, journeys (multi-step notification sequences via API), template CRUD and Elemental content, routing strategies, provider configuration, the Courier CLI and MCP server, and migrations from Knock, Novu, or other notification systems.
 ---
 
 # Courier Notification Skills
@@ -102,8 +102,14 @@ client.send.message(
 | Get a user's preferences | `client.users.preferences.retrieve(userId)` | `client.users.preferences.retrieve(user_id)` |
 | Update a user's preference for a topic | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic: { status, ... } })` | `client.users.preferences.update_or_create_topic(topic_id, user_id=..., topic=...)` |
 | Register a user's device token | `client.users.tokens.addSingle(token, { user_id, provider_key, device })` | `client.users.tokens.add_single(token, user_id=..., provider_key=..., device=...)` |
-| Trigger an automation from a template | `client.automations.invoke.invokeByTemplate(templateId, { recipient, data })` | `client.automations.invoke.invoke_by_template(template_id, recipient=..., data=...)` |
-| Trigger an ad-hoc automation | `client.automations.invoke.invokeAdHoc({ recipient, automation })` | `client.automations.invoke.invoke_ad_hoc(recipient=..., automation=...)` |
+| Create a journey | `client.journeys.create({ name, nodes, enabled })` | `client.journeys.create(name=..., nodes=..., enabled=...)` |
+| Replace a journey (draft) | `client.journeys.replace(id, { name, nodes, enabled })` | `client.journeys.replace(id, name=..., nodes=..., enabled=...)` |
+| Publish a journey | `client.journeys.publish(id)` | `client.journeys.publish(id)` |
+| Invoke a journey (start a run) | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` | `client.journeys.invoke(template_id=id, user_id=..., data=..., profile=...)` → `.run_id` |
+| Create a journey-scoped template | `POST /journeys/{id}/templates` (no SDK helper) | `POST /journeys/{id}/templates` (no SDK helper) |
+| Publish a journey-scoped template | `POST /journeys/{id}/templates/{templateId}/publish` (no SDK helper) | `POST /journeys/{id}/templates/{templateId}/publish` (no SDK helper) |
+| Trigger an automation (legacy) | `client.automations.invoke.invokeByTemplate(templateId, { recipient, data })` | `client.automations.invoke.invoke_by_template(template_id, recipient=..., data=...)` |
+| Trigger an ad-hoc automation (legacy) | `client.automations.invoke.invokeAdHoc({ recipient, automation })` | `client.automations.invoke.invoke_ad_hoc(recipient=..., automation=...)` |
 | Create a routing strategy | `client.routingStrategies.create({ name, routing, channels?, providers? })` → returns `{ id: "rs_...", ... }` | `client.routing_strategies.create(name=..., routing=..., ...)` |
 | Replace a routing strategy (full PUT) | `client.routingStrategies.replace(id, { name, routing, ... })` | `client.routing_strategies.replace(id, name=..., routing=..., ...)` |
 | Configure a provider | `client.providers.create({ provider, settings, title?, alias? })` | `client.providers.create(provider=..., settings=..., ...)` |
@@ -115,7 +121,7 @@ client.send.message(
 | Archive a template | `client.notifications.archive(templateId)` | `client.notifications.archive(template_id)` |
 | Get published template content | `client.notifications.retrieveContent(templateId)` | `client.notifications.retrieve_content(template_id)` |
 
-> The table above covers the most common operations. [templates.md](./resources/guides/templates.md), [routing-strategies.md](./resources/guides/routing-strategies.md), and [providers.md](./resources/guides/providers.md) each contain their own complete SDK shape tables for CRUD on their respective resources (including `list`, `retrieve`, `replace`, `archive`).
+> The table above covers the most common operations. [journeys.md](./resources/guides/journeys.md), [templates.md](./resources/guides/templates.md), [routing-strategies.md](./resources/guides/routing-strategies.md), and [providers.md](./resources/guides/providers.md) each contain their own complete SDK shape tables for CRUD on their respective resources (including `list`, `retrieve`, `replace`, `archive`). **For new multi-step flows, use Journeys instead of Automations** — see [Journeys](./resources/guides/journeys.md).
 
 **Shapes that do NOT exist (do not invent them):**
 
@@ -124,7 +130,8 @@ client.send.message(
 - `client.lists.subscribe(listId, userId)` — use `subscriptions.subscribeUser` or `subscriptions.subscribe`
 - Bulk `createJob({ message: { template } })` without `event` — `event` is required
 - `client.users.preferences.update(...)` — use `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic })`.
-- `client.automations.invoke(templateId, ...)` — the real shape is `client.automations.invoke.invokeByTemplate(...)` or `client.automations.invoke.invokeAdHoc(...)`.
+- `client.automations.invoke(templateId, ...)` — the real shape is `client.automations.invoke.invokeByTemplate(...)` or `client.automations.invoke.invokeAdHoc(...)`. Note: for new multi-step flows, prefer Journeys (`POST /journeys`) over Automations.
+- Journey **management** SDK methods (`client.journeys.create/replace/publish/invoke`) DO exist and should be preferred over raw REST. **Journey-scoped template** operations (`POST /journeys/{id}/templates`, `.../publish`) currently have no SDK helper — use REST/curl for those. Journeys are not in MCP yet.
 - `client.routing.create(...)` / `client.strategies.*` — the real namespace is `client.routingStrategies.*` (Node) / `client.routing_strategies.*` (Python).
 - `client.integrations.*` — there is no `integrations` namespace; provider configurations live under `client.providers.*` and the provider type catalog under `client.providers.catalog.*`.
 
@@ -273,6 +280,7 @@ When you need current API signatures, SDK methods, or features not covered in th
 | Create routing strategies via API (`rs_...`, provider priority) | [Routing Strategies](./resources/guides/routing-strategies.md) |
 | Configure providers via API (SendGrid, Twilio, etc., catalog discovery) | [Providers](./resources/guides/providers.md) |
 | Understand Elemental content format (element types, control flow, localization) | [Elemental](./resources/guides/elemental.md) |
+| Build multi-step notification journeys (delays, branches, sequences) | [Journeys](./resources/guides/journeys.md) |
 | Reusable code patterns (consent, quiet hours, masking, retry) | [Patterns](./resources/guides/patterns.md) |
 | Migrate from any notification system to Courier | [General Migration](./resources/guides/migrate-general.md) |
 | Migrate from Knock to Courier | [Migrate from Knock](./resources/guides/migrate-from-knock.md) |
@@ -285,7 +293,7 @@ The skill does not (yet) have dedicated guides for these areas. Fetch the page b
 | Topic | Fetch |
 |-------|-------|
 | Audiences (attribute-based targeting) | https://www.courier.com/docs/platform/users/audiences |
-| Automations (workflows, delays, digests, conditions) | https://www.courier.com/docs/automations/overview |
+| Automations (legacy dashboard workflows — for new multi-step flows, use [Journeys](./resources/guides/journeys.md)) | https://www.courier.com/docs/automations/overview |
 | Brands (logos, colors, reusable visual identity) | https://www.courier.com/docs/platform/content/brands |
 | Tenants (multi-tenant B2B, per-tenant branding/preferences) | https://www.courier.com/docs/platform/tenants/tenants-overview (also see [Patterns](./resources/guides/patterns.md) "Tenants" section for code) |
 | Events / event mapping | https://www.courier.com/docs/platform/automations/inbound-events (plus the `event` field on [Send API](https://www.courier.com/docs/reference/send/message)) |
@@ -304,11 +312,12 @@ For common tasks, you only need to read these specific files:
 | SMS setup | [sms.md](./resources/channels/sms.md) (includes 10DLC) |
 | Push notification setup | [push.md](./resources/channels/push.md) |
 | In-app inbox setup | [inbox.md](./resources/channels/inbox.md) — v8 primary; see [inbox-v7-legacy.md](./resources/channels/inbox-v7-legacy.md) only for existing v7 code |
-| Onboarding sequence | [onboarding.md](./resources/growth/onboarding.md), [multi-channel.md](./resources/guides/multi-channel.md) |
+| Onboarding sequence | [onboarding.md](./resources/growth/onboarding.md), [journeys.md](./resources/guides/journeys.md) |
 | Security alerts | [authentication.md](./resources/transactional/authentication.md), [multi-channel.md](./resources/guides/multi-channel.md) |
 | Digest/batching | [batching.md](./resources/guides/batching.md), [preferences.md](./resources/guides/preferences.md) |
 | Payment/billing notifications | [billing.md](./resources/transactional/billing.md), [reliability.md](./resources/guides/reliability.md) |
-| Appointment reminders | [appointments.md](./resources/transactional/appointments.md), [sms.md](./resources/channels/sms.md) |
+| Trial ending / subscription renewal reminder | [billing.md](./resources/transactional/billing.md) (Trial Ending Journey), [journeys.md](./resources/guides/journeys.md) |
+| Appointment reminders | [appointments.md](./resources/transactional/appointments.md), [journeys.md](./resources/guides/journeys.md) |
 | WhatsApp templates | [whatsapp.md](./resources/channels/whatsapp.md) |
 | Slack/Teams integration | [slack.md](./resources/channels/slack.md) or [ms-teams.md](./resources/channels/ms-teams.md) |
 | New to Courier / first notification | [quickstart.md](./resources/guides/quickstart.md) |
@@ -335,6 +344,11 @@ For common tasks, you only need to read these specific files:
 | Making sends reliable | [reliability.md](./resources/guides/reliability.md), [patterns.md](./resources/guides/patterns.md) |
 | Reducing notification fatigue | [throttling.md](./resources/guides/throttling.md), [batching.md](./resources/guides/batching.md), [preferences.md](./resources/guides/preferences.md) |
 | Templates + multi-channel routing | [templates.md](./resources/guides/templates.md), [multi-channel.md](./resources/guides/multi-channel.md) |
+| Build a multi-step journey programmatically | [journeys.md](./resources/guides/journeys.md), [elemental.md](./resources/guides/elemental.md) |
+| Cart abandonment sequence | [reengagement.md](./resources/growth/reengagement.md), [journeys.md](./resources/guides/journeys.md) |
+| Appointment reminder ladder | [appointments.md](./resources/transactional/appointments.md), [journeys.md](./resources/guides/journeys.md) |
+| Escalation (in-app → push → email) | [multi-channel.md](./resources/guides/multi-channel.md), [journeys.md](./resources/guides/journeys.md) |
+| Win-back / re-engagement sequence | [reengagement.md](./resources/growth/reengagement.md), [journeys.md](./resources/guides/journeys.md) |
 
 ## Decision Guide
 
@@ -345,6 +359,9 @@ For common tasks, you only need to read these specific files:
 
 - **A new notification channel** (email, SMS, push, Slack, etc.)
   → See [By Channel](#by-channel) for the channel-specific guide.
+
+- **Multi-step notification sequences** (onboarding drips, escalations, reminder ladders, cart abandonment, win-back)
+  → Start with [Journeys](./resources/guides/journeys.md). Journeys let you define the full DAG (delays, branches, sends) as code via the API.
 
 - **Notification infrastructure** (routing, preferences, reliability, batching)
   → See [Cross-Cutting Guides](#cross-cutting-guides) for the relevant guide.

@@ -87,15 +87,8 @@ await client.send.message(
 
 **Welcome Back (when user returns):**
 ```typescript
-// Cancel re-engagement sequence
-await client.automations.invoke.invokeAdHoc({
-  recipient: userId,
-  automation: {
-    steps: [
-      { action: "cancel", cancelation_token: `reengagement-${userId}` }
-    ]
-  }
-});
+// With Journeys, exit logic is built into the DAG — no external cancel needed.
+// See the journey example in the "Journey with Exit Logic" section below.
 
 // Send welcome back
 await client.send.message({
@@ -231,54 +224,102 @@ Include:
 - Expiration date
 - CTA to claim discount
 
-### Automation with Cancellation
+### Journey with Exit Logic
 
-Start a win-back sequence that auto-cancels when the user returns:
+Build the win-back sequence as a [Journey](../guides/journeys.md) with branch nodes that check whether the user has returned before each step:
+
+```json
+{
+  "name": "Win-Back Sequence",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "trigger",
+      "trigger_type": "api-invoke",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user_name": { "type": "string" },
+          "last_activity": { "type": "string" }
+        }
+      }
+    },
+    {
+      "id": "throttle-user",
+      "type": "throttle",
+      "scope": "user",
+      "max_allowed": 1,
+      "period": "P30D"
+    },
+    { "id": "send-miss-you", "type": "send", "message": { "template": "<miss-you-template-id>" } },
+    { "id": "wait-3d", "type": "delay", "mode": "duration", "duration": "P3D" },
+    {
+      "id": "check-return",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/users/{{data.user_id}}/activity",
+      "merge_strategy": "overwrite"
+    },
+    {
+      "id": "branch-returned",
+      "type": "branch",
+      "paths": [
+        {
+          "label": "User returned",
+          "conditions": [["data.returned", "is equal", true]],
+          "nodes": [{ "id": "exit-returned", "type": "exit" }]
+        }
+      ],
+      "default": {
+        "nodes": [
+          { "id": "send-whats-new", "type": "send", "message": { "template": "<whats-new-template-id>" } },
+          { "id": "wait-7d", "type": "delay", "mode": "duration", "duration": "P7D" },
+          { "id": "send-last-chance", "type": "send", "message": { "template": "<last-chance-template-id>" } },
+          { "id": "exit-end", "type": "exit" }
+        ]
+      }
+    }
+  ],
+  "enabled": true
+}
+```
+
+**Invoke when a user becomes inactive:**
+
+```bash
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "data": { "user_name": "Jane", "last_activity": "2026-05-10T12:00:00Z" }
+  }'
+```
+
+The journey checks whether the user returned before sending additional messages — no external cancel call needed.
+
+### Legacy: Automations with Cancellation
+
+If you have existing Automations:
 
 ```typescript
-// Start win-back sequence
 await client.automations.invoke.invokeByTemplate("winback-sequence", {
   recipient: userId,
   data: {
     cancelation_token: `reengagement-${userId}`,
     userName: user.name,
     lastActivity: user.lastActiveAt.toISOString(),
-    whatsNew: await getRecentFeatures(),
   },
 });
 
-// When user returns — cancel the sequence and welcome back
-async function onUserReturn(userId: string): Promise<void> {
-  // Cancel any active re-engagement sequence
-  await client.automations.invoke.invokeAdHoc({
-    recipient: userId,
-    automation: {
-      steps: [
-        { action: "cancel", cancelation_token: `reengagement-${userId}` }
-      ]
-    }
-  });
-
-  // Increment return count for analytics
-  await incrementReengagementSuccess(userId);
-
-  // Send welcome back via in-app
-  await client.send.message({
-    message: {
-      to: { user_id: userId },
-      content: {
-        title: "Welcome back!",
-        body: "Here's what's new since you left.",
-      },
-      routing: { method: "single", channels: ["inbox"] },
-    },
-  });
-}
+// When user returns
+await client.automations.invoke.invokeAdHoc({
+  recipient: userId,
+  automation: {
+    steps: [{ action: "cancel", cancelation_token: `reengagement-${userId}` }]
+  }
+});
 ```
-
-### Exit Condition
-
-When user returns, cancel the win-back sequence and send a welcome back message instead.
 
 ## Cart Abandonment
 
@@ -407,6 +448,7 @@ Include:
 
 ## Related
 
+- [Journeys](../guides/journeys.md) - Build multi-step win-back and cart abandonment flows as code
 - [Onboarding](./onboarding.md) - Prevent churn early
 - [Engagement](./engagement.md) - Keep users active
 - [Campaigns](./campaigns.md) - Promotional win-back offers

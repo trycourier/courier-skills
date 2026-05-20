@@ -63,6 +63,7 @@ Notification recommendations by app type to help you plan what to build.
 | Security/auth flows (OTP, reset, suspicious activity) | [authentication.md](../transactional/authentication.md), [sms.md](../channels/sms.md), [reliability.md](./reliability.md) | Tightens expiry, channel choice, idempotency, and retry behavior |
 | Growth/campaign messaging | [preferences.md](./preferences.md), [throttling.md](./throttling.md), [growth/index.md](../growth/index.md) | Helps prevent over-notification and consent issues |
 | Multi-channel production templates | [multi-channel.md](./multi-channel.md), [templates.md](./templates.md), [routing-strategies.md](./routing-strategies.md), [providers.md](./providers.md) | Moves from planning into robust channel routing and provider fallback |
+| Multi-step sequences (onboarding, reminders, cart abandonment, win-back) | [journeys.md](./journeys.md), [elemental.md](./elemental.md) | Defines the DAG (delays, branches, sends) as code via the Journeys API |
 
 ## Quick Implementation Examples
 
@@ -76,10 +77,11 @@ import Courier from "@trycourier/courier";
 const client = new Courier();
 
 // Prioritize essential flows first from this catalog.
+// Replace these with your own workspace template IDs (look like `nt_01...`).
 const starterNotifications = [
-  { template: "nt_verify_email", idempotency: "verify-user-123" },
-  { template: "nt_password_reset", idempotency: "password-reset-user-123-req-42" },
-  { template: "nt_payment_confirmation", idempotency: "payment-rcpt-inv-887" },
+  { template: "nt_01kmrbq6ypf25tsge12qek41r0", idempotency: "verify-user-123" },           // Email verification
+  { template: "nt_01kmrbzj3q6x9v2d5c8n1w4ht", idempotency: "password-reset-user-123-req-42" }, // Password reset
+  { template: "nt_01kmrc06x1q5v8d2c6n4w9hj", idempotency: "payment-rcpt-inv-887" },         // Payment confirmation
 ];
 
 for (const n of starterNotifications) {
@@ -114,7 +116,8 @@ def notify_order_stage(user_id: str, order_id: str, stage: str):
     client.send.message(
         message={
             "to": {"user_id": user_id},
-            "template": "nt_order_stage_update",
+            # Replace with your own workspace template ID (looks like `nt_01...`).
+            "template": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
             "data": {"order_id": order_id, "stage": stage},
             "routing": {"method": "all", "channels": channels},
         },
@@ -423,6 +426,7 @@ Before adding a notification, ask:
 
 ## Related
 
+- [Journeys](./journeys.md) - Build multi-step notification sequences (onboarding, reminders, win-back)
 - [Multi-Channel](./multi-channel.md) - Channel routing strategies
 - [Preferences](./preferences.md) - Let users control what they receive
 - [Transactional](../transactional/index.md) - Transactional patterns

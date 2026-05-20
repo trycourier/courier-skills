@@ -96,22 +96,26 @@ Collect notifications over a time window, then send a summary.
 
 **Implementation:**
 
-```typescript
-// Queue notification instead of sending immediately
-await client.automations.invoke.invokeByTemplate("batch-likes", {
-  recipient: targetUserId,
-  data: {
-    actorName: "Jane",
-    targetType: "post",
-    targetId: "post-123"
-  }
-});
+```bash
+# Invoke the batching journey for each event
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "'"$TARGET_USER_ID"'",
+    "data": {
+      "actorName": "Jane",
+      "targetType": "post",
+      "targetId": "post-123"
+    }
+  }'
 ```
 
-In your Courier Automation:
-1. **Delay step:** Wait 5-10 minutes
-2. **Fetch step:** Get all queued events for this user/target
-3. **Send step:** Send batched notification with aggregated data
+In your [Journey](./journeys.md) DAG:
+1. **Throttle node:** Limit to 1 run per user per 5-10 minutes
+2. **Delay node:** Wait for the batch window to close
+3. **Fetch node:** Pull queued events from your backend (your app queues and aggregates)
+4. **Send node:** Send batched notification with aggregated data
 
 ### 2. Count-Based Batching
 
@@ -135,14 +139,61 @@ Scheduled summaries at fixed intervals.
 | Daily digest | Once per day | Activity summaries, newsletters |
 | Weekly digest | Once per week | Low-engagement users, recaps |
 
-## Courier Automations for Batching
+## Server-Side Batching
 
-### Using the Batch Step
+### Journeys + Fetch for Aggregation
 
-Courier Automations has a built-in batch step that collects events over a time window:
+[Journeys](./journeys.md) can implement batch/digest patterns by combining a **throttle** node (to limit how often a user receives a batch), a **delay** node (to wait for the batch window), and a **fetch** node (to pull aggregated events from your backend). The journey itself does not aggregate events — your application queues the events, and the journey's fetch node retrieves the aggregated data at send time.
+
+```json
+{
+  "name": "Social Activity Batch",
+  "nodes": [
+    { "id": "trigger-1", "type": "trigger", "trigger_type": "api-invoke" },
+    {
+      "id": "throttle-per-user",
+      "type": "throttle",
+      "scope": "user",
+      "max_allowed": 1,
+      "period": "PT5M"
+    },
+    { "id": "wait-5m", "type": "delay", "mode": "duration", "duration": "PT5M" },
+    {
+      "id": "fetch-batched-events",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/users/{{data.user_id}}/pending-notifications",
+      "merge_strategy": "overwrite"
+    },
+    { "id": "send-batch", "type": "send", "message": { "template": "<batch-template-id>" } }
+  ],
+  "enabled": true
+}
+```
+
+Your application invokes the journey on each event. The throttle node ensures only one run proceeds per user per window. That run waits, fetches aggregated data from your backend, and sends a single batched notification.
+
+```bash
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "data": {
+      "event_type": "like",
+      "actor_name": "Jane",
+      "target_id": "post-789"
+    }
+  }'
+```
+
+> **Note:** Journeys do not have a built-in batch/digest node that aggregates events automatically. The aggregation lives in your application; the journey orchestrates the timing and send. For built-in event aggregation, see the Automations batch step below.
+
+### Automations Batch Step
+
+Courier Automations have a built-in batch step that collects and aggregates events server-side. If you need Courier to handle the aggregation (not just the timing), use Automations:
 
 ```typescript
-// Each event triggers the automation
 await client.automations.invoke.invokeByTemplate("social-activity-batch", {
   recipient: "user-123",
   data: {
@@ -153,10 +204,6 @@ await client.automations.invoke.invokeByTemplate("social-activity-batch", {
   }
 });
 ```
-
-Configure the automation in the Courier dashboard:
-1. **Batch step:** Collect events for 5 minutes
-2. **Send step:** Use aggregated data in template
 
 ### Batch Data in Templates
 
@@ -268,10 +315,11 @@ if (batchedEvents.length === 0) {
 
 ### Batch Cancellation
 
-If user engages before batch sends, consider canceling:
+If user engages before batch sends, consider canceling. With [Journeys](./journeys.md), build a branch node that checks engagement before the send node — the journey exits early if the user already saw the content. See [Patterns — Sequence Cancellation](./patterns.md#sequence-cancellation).
+
+**Legacy: Automations cancellation** (if you have existing Automations):
 
 ```typescript
-// User opened the app and saw the activity
 await client.automations.invoke.invokeAdHoc({
   recipient: userId,
   automation: {
@@ -297,4 +345,5 @@ await client.automations.invoke.invokeAdHoc({
 - [Throttling](./throttling.md) - Rate limiting notifications
 - [Preferences](./preferences.md) - User frequency preferences
 - [Inbox](../channels/inbox.md) - In-app notification batching
-- [Automations](https://www.courier.com/docs/automations/overview) - Configure server-side batch/digest steps with delays, conditions, and aggregation windows
+- [Journeys](./journeys.md) - Build multi-step batch/digest flows with throttle, delay, and send nodes
+- [Automations](https://www.courier.com/docs/automations/overview) - Legacy dashboard-configured batch/digest steps

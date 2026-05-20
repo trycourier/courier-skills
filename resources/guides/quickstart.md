@@ -241,6 +241,7 @@ courier send message \
 | Manage user notification preferences | [Preferences](./preferences.md) |
 | Use the CLI for debugging and agent workflows | [CLI](./cli.md) |
 | Build a specific notification type | [Catalog](./catalog.md) |
+| Build multi-step notification sequences | [Journeys](./journeys.md) |
 
 ## Related
 

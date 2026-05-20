@@ -409,7 +409,8 @@ Returns `204 No Content` on success.
 const { results, paging } = await client.notifications.list();
 
 for (const template of results) {
-  console.log(template.id, template.title);
+  // V2 templates expose `name`; legacy templates expose `title`. Fall back across both.
+  console.log(template.id, (template as any).name ?? (template as any).title);
 }
 ```
 
@@ -418,12 +419,16 @@ for (const template of results) {
 response = client.notifications.list()
 
 for template in response.results:
-    print(template.id, template.title)
+    # V2 templates expose `name`; legacy templates expose `title`. Fall back across both.
+    print(template.id, getattr(template, "name", None) or getattr(template, "title", None))
 ```
 
 **CLI:**
 ```bash
 courier notifications list --format json --transform "results.#.id"
+# Names: prefer `name` (V2). For workspaces with a mix of V2 and legacy templates,
+# request both fields and pick whichever is populated:
+courier notifications list --format json --transform "results.#.{id:id,name:name,title:title}"
 ```
 
 **curl:**
@@ -772,6 +777,7 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 
 ## Related
 
+- [Journeys](./journeys.md) - Use templates in multi-step flows (journey-scoped templates)
 - [Elemental](./elemental.md) - Full element-type reference (moved out of this file)
 - [Quickstart](./quickstart.md) - Send your first notification
 - [Patterns](./patterns.md) - Reusable code patterns (idempotency, retry, multi-channel)

@@ -304,8 +304,15 @@ Best practices:
 - Multiple touchpoints (7d + 24h + 2h) are most effective
 - Include easy reschedule option
 
+## Automated Reminder Ladders
+
+For automated reminder sequences with delays and cancel-on-reschedule (e.g., 7 day → 24 hour → 2 hour → 15 minute), build the reminder ladder as a [Journey](../guides/journeys.md). Use delay nodes for the timing gaps, branch nodes to check for reschedule/cancellation, and exit nodes to stop the sequence early.
+
+See [Journeys](../guides/journeys.md) for the full create → template → wire → publish → invoke workflow and node type reference.
+
 ## Related
 
+- [Journeys](../guides/journeys.md) - Build automated reminder ladders with delays and branches
 - [SMS](../channels/sms.md) - SMS reminder best practices
 - [Push](../channels/push.md) - Push notification timing
 - [Multi-Channel](../guides/multi-channel.md) - Reminder channel strategy

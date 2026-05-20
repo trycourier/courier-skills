@@ -6,7 +6,7 @@
 - Use Courier's Test environment API key during migration; switch to Production only after validation
 - Run old and new systems in parallel during migration — don't cut over in one step
 - Keep the same user identifiers when creating Courier profiles to simplify cutover
-- Content lives in Templates; orchestration lives in Automations — keep them separate
+- Content lives in Templates; orchestration lives in Journeys (or legacy Automations) — keep them separate
 - Configure provider integrations (SendGrid, Twilio, etc.) in the Courier dashboard before sending
 - Idempotency keys prevent duplicates during the parallel-run phase
 
@@ -14,7 +14,7 @@
 - Cutting over all traffic at once instead of running in parallel
 - Forgetting to configure providers in the dashboard before sending
 - Not migrating user preferences (users lose their opt-out choices)
-- Recreating complex orchestration logic in code instead of using Automations
+- Recreating complex orchestration logic in code instead of using Journeys
 - Sending to production before validating in the Test environment
 - Not mapping existing user IDs to Courier profile IDs (causes duplicate users)
 
@@ -58,7 +58,7 @@ For each notification your system sends, record:
 | Email/SMS/push send function | `client.send.message()` | Single API for all channels |
 | User / recipient table | Profiles | `POST /profiles/:id` (merge) — accepts nested JSON |
 | Template (HTML, text, etc.) | Templates | Built in Courier Designer or via API (Elemental format) |
-| Send queue / orchestration | Automations | Delays, batching, conditions, sequences |
+| Send queue / orchestration | Journeys (recommended) or Automations (legacy) | Delays, batching, conditions, sequences — see [Journeys](./journeys.md) |
 | User preferences / opt-outs | Preference Topics | Enforced automatically at send time |
 | Provider config (API keys, etc.) | Integrations | Configured in the Courier dashboard |
 | Webhook handlers for status | Courier Webhooks | Delivery, bounce, complaint events |
@@ -242,14 +242,26 @@ See [Multi-Channel](./multi-channel.md) for routing strategies, escalation, and 
 
 ## 7. Migrate Orchestration
 
-If your system has delays, sequences, or batching, move that logic to Courier Automations.
+If your system has delays, sequences, or batching, move that logic to Courier [Journeys](./journeys.md).
 
-| Your System | Courier Automation |
-|-------------|-------------------|
-| Cron job / delayed queue | Delay step |
-| Batch / digest aggregation | Digest step |
-| Conditional sends (if user did X) | Condition step |
-| Multi-step sequences (onboarding drip) | Automation template with send + delay steps |
+| Your System | Courier Journey Node |
+|-------------|---------------------|
+| Cron job / delayed queue | `delay` node (`mode: "duration"` or `mode: "until"`) |
+| Batch / digest aggregation | `throttle` node + `delay` node |
+| Conditional sends (if user did X) | `branch` node with conditions |
+| Multi-step sequences (onboarding drip) | Journey DAG with `send` + `delay` + `branch` nodes |
+
+```bash
+# Create and invoke a journey — see journeys.md for full workflow
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user-123", "data": {"name": "Jane", "plan": "pro"}}'
+```
+
+See [Journeys](./journeys.md) for the full create → template → wire → publish → invoke workflow, and [Batching](./batching.md) for digest strategies.
+
+**Legacy: Automations** — if you prefer dashboard-configured orchestration, Automations still work:
 
 ```typescript
 await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
@@ -257,8 +269,6 @@ await client.automations.invoke.invokeByTemplate("onboarding-sequence", {
   data: { name: "Jane", plan: "pro" },
 });
 ```
-
-See [Batching](./batching.md) for digest strategies.
 
 ## 8. Migrate Preferences
 
@@ -359,7 +369,7 @@ await client.send.message({
 - [ ] Create or migrate templates
 - [ ] Migrate user preferences
 - [ ] Replace send calls with `client.send.message()`
-- [ ] Migrate orchestration to Automations
+- [ ] Migrate orchestration to Journeys (or Automations if using dashboard)
 - [ ] Set up webhook handlers for delivery events
 - [ ] Run shadow mode and validate
 - [ ] Run dual-send and compare

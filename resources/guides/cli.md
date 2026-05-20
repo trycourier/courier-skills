@@ -34,9 +34,10 @@
 | Create a user profile | `courier profiles create --user-id "user-123" --profile '{"email": "a@b.com"}'` |
 | Get a user profile | `courier profiles retrieve --user-id "user-123"` |
 | Check user preferences | `courier users:preferences retrieve --user-id "user-123"` |
-| Trigger an automation | `courier automations:invoke invoke-by-template --template-id "onboarding-sequence" --recipient "user-123" --data '{}'` |
+| Invoke a journey (recommended for multi-step flows) | `courier journeys invoke --template-id "$JOURNEY_ID" --user-id "user-123" --data '{"plan":"pro"}'` |
 | Create a bulk job | `courier bulk create-job --message '{"event":"monthly-digest","template":"monthly-digest"}'` (`event` is required) |
 | List templates | `courier notifications list` |
+| Trigger a legacy automation | `courier automations:invoke invoke-by-template --template-id "onboarding-sequence" --recipient "user-123" --data '{}'` (legacy — prefer journeys for new flows) |
 
 ### Output Formats
 
@@ -170,8 +171,10 @@ courier bulk retrieve-job --job-id "job-abc"
 ```
 
 > The `event` field is **required** when creating a bulk job (same as the `event` field on `client.bulk.createJob`). Omitting it returns a 400. `event` can be a template alias/slug that also matches your `template`, or any string you use to identify the job. The `--user` flag is singular and repeatable; each value is a full `InboundBulkMessageUser` object (`{"to": { "user_id": ... }, "data": ...}`), not a bare `{"user_id": ...}`.
+>
+> **Email bulk jobs:** Each user **must include `profile.email`** for email provider routing — `to.email` alone is not sufficient and the message will not deliver. Example user: `--user '{"profile":{"email":"jane@example.com"},"to":{"user_id":"user-1"},"data":{"highlights":12}}'`. SMS/push jobs are similar — put the contact info on `profile`, not `to`.
 
-## Tenants, Automations, and Preferences
+## Tenants, Journeys, Automations, and Preferences
 
 **Tenants** scope branding and preferences per customer organization (B2B):
 
@@ -190,7 +193,25 @@ courier send message \
 
 > `courier tenants update` is an **upsert** — use it to both create and update a tenant. There is no separate `courier tenants create` command.
 
-**Automations** trigger multi-step notification sequences (delays, conditions, batching):
+**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI supports the full journey lifecycle. **Journey-scoped templates** (the templates referenced inside `send` nodes) are not yet in the CLI — use curl/REST for those. See [Journeys](./journeys.md) for the full workflow.
+
+```bash
+# Create a journey shell
+courier journeys create \
+  --name "Onboarding" \
+  --node '{"id":"t1","type":"trigger","trigger_type":"api-invoke"}'
+
+# Publish the current draft
+courier journeys publish --template-id "$JOURNEY_ID"
+
+# Invoke a journey (mirror user_id into data so fetch URL templating works)
+courier journeys invoke \
+  --template-id "$JOURNEY_ID" \
+  --user-id "user-123" \
+  --data '{"user_id":"user-123","plan":"pro"}'
+```
+
+**Automations** (legacy) — if you have existing Automations, the CLI still supports them:
 
 ```bash
 courier automations:invoke invoke-by-template \
@@ -247,7 +268,9 @@ Shows the final content sent to the provider, after template variables and routi
 
 > There is no `courier messages output` command; the rendered-content command is `courier messages content` (which maps to `client.messages.content(id)` in the SDK).
 
-### Debugging list / bulk sends (requestId vs message_id)
+### Debugging list / bulk sends: requestId vs message id
+
+<a id="debugging-list-bulk-sends-requestid-vs-message-id"></a>
 
 For a single send (`to: { email }` / `to: { user_id }`), the `requestId` returned by `client.send.message` *is* the message ID — pass it straight to `courier messages retrieve --message-id "<requestId>"` and `client.messages.retrieve(requestId)`.
 
@@ -283,8 +306,9 @@ courier messages list --format json --transform "results.#.id"
 # Get the status of a specific message
 courier messages retrieve --message-id "1-abc123" --format json --transform "status"
 
-# List template names
-courier notifications list --format json --transform "results.#.title"
+# List template names. V2 templates expose `name`; legacy templates expose `title`.
+# Pull both and use whichever is populated.
+courier notifications list --format json --transform "results.#.{id:id,name:name,title:title}"
 ```
 
 ## Zero-Config Agent Pattern

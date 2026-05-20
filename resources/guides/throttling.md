@@ -151,12 +151,27 @@ await client.send.message({
 
 Provider-level rate limits (e.g. SendGrid/Twilio caps) are enforced per provider — see [Provider Rate Limits](#provider-rate-limits) below for the 429 retry pattern. For product-level controls (daily/weekly caps per user, quiet hours, preference frequency), implement in your application using the patterns elsewhere in this guide, or use [Preferences](./preferences.md) topics with `frequency` settings.
 
-### Automation Throttling
+### Journey Throttling (Recommended)
 
-Use Courier Automations to add delays and limits:
+[Journeys](./journeys.md) have a native `throttle` node that rate-limits runs per user, globally, or by a dynamic key:
+
+```json
+{
+  "id": "throttle-per-user",
+  "type": "throttle",
+  "scope": "user",
+  "max_allowed": 5,
+  "period": "PT1H"
+}
+```
+
+Scope options: `user` (per recipient), `global` (across all runs), `dynamic` (custom key via `throttle_key`). See [Journeys — Node Types Reference](./journeys.md#node-types-reference) for full details.
+
+### Legacy: Automation Throttling
+
+If you have existing Automations:
 
 ```typescript
-// Invoke automation with throttle context
 await client.automations.invoke.invokeByTemplate("activity-notification", {
   recipient: "user-123",
   data: { ... }
@@ -439,6 +454,7 @@ await logThrottleDecision({
 
 ## Related
 
+- [Journeys](./journeys.md) - Native throttle nodes for journey-level rate limiting
 - [Batching](./batching.md) - Combining notifications
 - [Reliability](./reliability.md) - Handling rate limit errors
 - [Preferences](./preferences.md) - User frequency settings

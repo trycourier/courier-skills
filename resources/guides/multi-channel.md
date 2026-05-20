@@ -231,10 +231,62 @@ T+1hr:    Email (if still unread)
 T+24hr:   SMS (if critical and still unread)
 ```
 
-**Implementation with Courier Automations:**
+**Implementation with Courier Journeys (recommended):**
+
+Build the escalation as a journey DAG with delay and send nodes. See [Journeys](./journeys.md) for the full create → template → wire → publish → invoke workflow.
+
+```json
+{
+  "name": "Escalating Notification",
+  "nodes": [
+    { "id": "trigger-1", "type": "trigger", "trigger_type": "api-invoke" },
+    { "id": "send-inbox", "type": "send", "message": { "template": "<inbox-template-id>" } },
+    { "id": "wait-15m", "type": "delay", "mode": "duration", "duration": "PT15M" },
+    {
+      "id": "check-read",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/notifications/{{data.notification_id}}/status",
+      "merge_strategy": "overwrite"
+    },
+    {
+      "id": "branch-read",
+      "type": "branch",
+      "paths": [
+        {
+          "label": "Already read",
+          "conditions": [["data.read", "is equal", true]],
+          "nodes": [{ "id": "exit-read", "type": "exit" }]
+        }
+      ],
+      "default": {
+        "nodes": [
+          { "id": "send-push", "type": "send", "message": { "template": "<push-template-id>" } },
+          { "id": "wait-1h", "type": "delay", "mode": "duration", "duration": "PT1H" },
+          { "id": "send-email", "type": "send", "message": { "template": "<email-template-id>" } }
+        ]
+      }
+    }
+  ],
+  "enabled": true
+}
+```
+
+Invoke the journey when the event occurs:
+
+```bash
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "data": { "approvalId": "apr-789", "requestedBy": "Jane" }
+  }'
+```
+
+**Legacy: Automations approach** (if you have existing Automations):
 
 ```typescript
-// Invoke automation that handles escalation
 await client.automations.invoke.invokeByTemplate("escalating-notification", {
   recipient: "user-123",
   data: {
@@ -244,13 +296,6 @@ await client.automations.invoke.invokeByTemplate("escalating-notification", {
   }
 });
 ```
-
-Configure the automation in Courier dashboard:
-1. Send to In-app
-2. Wait 15 minutes
-3. Check if read → If not, send Push
-4. Wait 1 hour
-5. Check if read → If not, send Email
 
 ### Delivery-Based Escalation
 
@@ -440,13 +485,11 @@ app.post('/webhooks/email-opened', async (req, res) => {
 
 ### Cancellation
 
-Cancel pending notifications if user takes action:
+With [Journeys](./journeys.md), build exit logic directly into the DAG using branch nodes and exit nodes — the journey checks conditions before each step and exits early when appropriate. See [Patterns — Sequence Cancellation](./patterns.md#sequence-cancellation) for details.
+
+**Legacy: Automations cancellation** (if you have existing Automations):
 
 ```typescript
-// User completed action, cancel escalation
-const userId = "user-123";
-const approvalId = "approval-456";
-
 await client.automations.invoke.invokeAdHoc({
   recipient: userId,
   automation: {

@@ -187,19 +187,216 @@ Include:
 - Effective date
 - Proration amount (if applicable)
 
-### Trial Ending
+### Trial Ending / Renewal Reminder
 
-Send 3 days before trial ends. Channels: Email + Push.
+A trial-ending or renewal-reminder ladder is the canonical multi-step billing flow. Build it as a [Journey](../guides/journeys.md) so the timing, status checks, and exit conditions live in one place.
 
-Subject: Your free trial ends in 3 days
+**Cadence:**
 
-Include:
-- Trial end date
-- What happens after (charge amount)
-- Benefits of continuing
-- Continue button
-- Change plans option
-- Cancel option
+| When | Channels | Purpose |
+|------|----------|---------|
+| 7 days before trial end / renewal | Email | First heads-up, room to change plans |
+| 3 days before | Email + Push | Reminder with clear next steps |
+| 1 day before | Email + Push | Final notice |
+| After end | Email | Welcome (converted) or trial-expired (not converted) |
+
+Each reminder must include trial/renewal end date, charge amount, "Continue", "Change plan", and "Cancel" actions. Skip later reminders if the user already converted, canceled, or disabled auto-renew.
+
+**Journey DAG:**
+
+```json
+{
+  "name": "Trial Ending Reminder",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "trigger",
+      "trigger_type": "api-invoke",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user_id": { "type": "string" },
+          "subscription_id": { "type": "string" },
+          "trial_end": { "type": "string" },
+          "reminder_times": {
+            "type": "object",
+            "properties": {
+              "seven_days_before": { "type": "string" },
+              "three_days_before": { "type": "string" },
+              "one_day_before": { "type": "string" },
+              "after_end": { "type": "string" }
+            }
+          }
+        },
+        "required": ["user_id", "subscription_id", "trial_end", "reminder_times"]
+      }
+    },
+
+    { "id": "wait-7d-before", "type": "delay", "mode": "until", "until": "{{data.reminder_times.seven_days_before}}" },
+    {
+      "id": "check-status-7d",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "merge_strategy": "overwrite"
+    },
+    {
+      "id": "branch-status-7d",
+      "type": "branch",
+      "paths": [
+        {
+          "label": "Already converted or canceled",
+          "conditions": [["data.subscription.status", "is not equal", "trialing"]],
+          "nodes": [{ "id": "exit-7d", "type": "exit" }]
+        }
+      ],
+      "default": {
+        "label": "Still trialing",
+        "nodes": [
+          { "id": "send-7d", "type": "send", "message": { "template": "<trial-7d-template-id>" } }
+        ]
+      }
+    },
+
+    { "id": "wait-3d-before", "type": "delay", "mode": "until", "until": "{{data.reminder_times.three_days_before}}" },
+    {
+      "id": "check-status-3d",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "merge_strategy": "overwrite"
+    },
+    {
+      "id": "branch-status-3d",
+      "type": "branch",
+      "paths": [
+        {
+          "conditions": [["data.subscription.status", "is not equal", "trialing"]],
+          "nodes": [{ "id": "exit-3d", "type": "exit" }]
+        }
+      ],
+      "default": {
+        "nodes": [
+          { "id": "send-3d", "type": "send", "message": { "template": "<trial-3d-template-id>" } }
+        ]
+      }
+    },
+
+    { "id": "wait-1d-before", "type": "delay", "mode": "until", "until": "{{data.reminder_times.one_day_before}}" },
+    {
+      "id": "check-status-1d",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "merge_strategy": "overwrite"
+    },
+    {
+      "id": "branch-status-1d",
+      "type": "branch",
+      "paths": [
+        {
+          "conditions": [["data.subscription.status", "is not equal", "trialing"]],
+          "nodes": [{ "id": "exit-1d", "type": "exit" }]
+        }
+      ],
+      "default": {
+        "nodes": [
+          { "id": "send-1d", "type": "send", "message": { "template": "<trial-1d-template-id>" } }
+        ]
+      }
+    },
+
+    { "id": "wait-after-end", "type": "delay", "mode": "until", "until": "{{data.reminder_times.after_end}}" },
+    {
+      "id": "check-status-final",
+      "type": "fetch",
+      "method": "get",
+      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "merge_strategy": "overwrite"
+    },
+    {
+      "id": "branch-final",
+      "type": "branch",
+      "paths": [
+        {
+          "label": "Converted to paid",
+          "conditions": [["data.subscription.status", "is equal", "active"]],
+          "nodes": [
+            { "id": "send-welcome-paid", "type": "send", "message": { "template": "<welcome-paid-template-id>" } },
+            { "id": "exit-converted", "type": "exit" }
+          ]
+        }
+      ],
+      "default": {
+        "label": "Trial expired",
+        "nodes": [
+          { "id": "send-expired", "type": "send", "message": { "template": "<trial-expired-template-id>" } },
+          { "id": "exit-expired", "type": "exit" }
+        ]
+      }
+    }
+  ],
+  "enabled": true
+}
+```
+
+**Invoke when a trial starts (precompute the timestamps, mirror `user_id` into `data`):**
+
+```typescript
+function offsetISO(end: Date, days: number): string {
+  return new Date(end.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+const trialEnd = new Date("2026-06-01T00:00:00Z");
+
+await client.journeys.invoke(JOURNEY_ID, {
+  user_id: "user-123",
+  profile: { email: "jane@example.com" },
+  data: {
+    user_id: "user-123",
+    subscription_id: "sub_abc",
+    trial_end: trialEnd.toISOString(),
+    reminder_times: {
+      seven_days_before: offsetISO(trialEnd, 7),
+      three_days_before: offsetISO(trialEnd, 3),
+      one_day_before: offsetISO(trialEnd, 1),
+      after_end: trialEnd.toISOString(),
+    },
+  },
+});
+```
+
+```python
+from datetime import datetime, timedelta, timezone
+
+trial_end = datetime(2026, 6, 1, tzinfo=timezone.utc)
+
+def offset_iso(end: datetime, days: int) -> str:
+    return (end - timedelta(days=days)).isoformat().replace("+00:00", "Z")
+
+client.journeys.invoke(
+    template_id=JOURNEY_ID,
+    user_id="user-123",
+    profile={"email": "jane@example.com"},
+    data={
+        "user_id": "user-123",
+        "subscription_id": "sub_abc",
+        "trial_end": trial_end.isoformat().replace("+00:00", "Z"),
+        "reminder_times": {
+            "seven_days_before": offset_iso(trial_end, 7),
+            "three_days_before": offset_iso(trial_end, 3),
+            "one_day_before": offset_iso(trial_end, 1),
+            "after_end": trial_end.isoformat().replace("+00:00", "Z"),
+        },
+    },
+)
+```
+
+**Why this shape:**
+- `delay` `mode: "until"` schedules each reminder at an absolute time computed by your app — Courier doesn't compute "N days before" for you.
+- The `fetch` node before each send is what makes this safe in production: a converted or canceled user stops getting reminders without any external cancel call.
+- Each `send` node references a journey-scoped template (created via `POST /journeys/{id}/templates`). For per-template `name` vs Designer-managed copy, see [journeys.md](../guides/journeys.md) and [templates.md](../guides/templates.md).
+- Use idempotent invocation keys at your application layer (one journey run per `subscription_id`) to avoid double-scheduling on retries.
 
 ### Subscription Canceled
 
@@ -277,6 +474,7 @@ Always use idempotency keys — see [Quick Reference > Idempotency Keys](#idempo
 
 ## Related
 
+- [Journeys](../guides/journeys.md) - Multi-step billing flows (trial ending, dunning, renewal reminders)
 - [Email](../channels/email.md) - Email design for receipts
 - [SMS](../channels/sms.md) - SMS for urgent billing alerts
 - [Reliability](../guides/reliability.md) - Idempotency for billing

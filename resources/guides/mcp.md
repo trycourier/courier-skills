@@ -8,7 +8,10 @@
 - MCP provides structured tool access; agents discover tools automatically and call them with typed parameters
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
 - Tools cover most of the Courier API (send, messages, profiles, lists, audiences, notifications, brands, automations, bulk, tenants, preferences, tokens, translations, inbound, audit). The exact count may change — call the MCP server's tool-list endpoint for the current list
-- **Coverage gap vs. REST/CLI:** MCP currently exposes **read-only** access to notification templates (list/get content/get draft). Template **writes** (create, replace, publish, archive, versions, checks) are not in MCP yet — use the [CLI](./cli.md) or the REST API for those
+- **What MCP cannot do yet (use SDK/CLI/REST instead):**
+  - **Journey management** (create/replace/publish/invoke) — use SDK (`client.journeys.*`) or CLI (`courier journeys ...`). See [Journeys](./journeys.md).
+  - **Notification template writes** (create, replace, publish, archive, versions, checks) — use [CLI](./cli.md) or REST. MCP has read-only template tools (list/get content/get draft).
+  - **Journey-scoped templates** — REST-only across all surfaces.
 - Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
 
@@ -236,12 +239,14 @@ Tools cover most of the Courier API, all backed by the official `@trycourier/cou
 | `get_user_push_token` | Get a specific push token |
 | `create_or_replace_user_push_token` | Create or replace a push token |
 
-### Automations
+### Automations (Legacy)
+
+> **For new multi-step flows, use [Journeys](./journeys.md) instead.** Journey **management** is supported by the Node/Python SDKs and the CLI (`client.journeys.create/replace/publish/invoke`, `courier journeys ...`); **journey-scoped template** CRUD is currently REST-only. **MCP has no journey tools yet** — drive Journeys from the SDK or CLI, not MCP.
 
 | Tool | Description |
 |------|-------------|
-| `invoke_automation_template` | Invoke an automation from a template |
-| `invoke_ad_hoc_automation` | Invoke an ad-hoc automation with inline steps |
+| `invoke_automation_template` | Invoke an automation from a template (legacy) |
+| `invoke_ad_hoc_automation` | Invoke an ad-hoc automation with inline steps (legacy) |
 
 ### Bulk
 
@@ -283,7 +288,7 @@ Tools cover most of the Courier API, all backed by the official `@trycourier/cou
 
 | Tool | Description |
 |------|-------------|
-| `track_inbound_event` | Track an inbound event that can trigger automations |
+| `track_inbound_event` | Track an inbound event that can trigger automations or journeys |
 
 ### Audit Events
 

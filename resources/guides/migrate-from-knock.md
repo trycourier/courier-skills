@@ -4,7 +4,7 @@
 
 ### Rules
 - Use Courier's Test environment API key during migration; switch to Production only after validation
-- Knock Workflows = Courier Templates (content) + Automations (orchestration) — split them
+- Knock Workflows = Courier Templates (content) + Journeys (orchestration) — split them. Use [Journeys](./journeys.md) for new flows; Automations are legacy.
 - Knock Objects don't have a 1:1 equivalent; pass that context via the `data` field on each send
 - Knock Feeds map to Courier Inbox — swap `@knocklabs/react` for `@trycourier/courier-react`
 - Keep the same `user_id` values when creating Courier profiles to simplify cutover
@@ -15,14 +15,14 @@
 | Knock | Courier | Notes |
 |-------|---------|-------|
 | Channels | Integrations | Provider config lives in the Courier dashboard; supports 50+ providers |
-| Workflows | Templates + Automations | Content and orchestration are independent resources |
+| Workflows | Templates + Journeys | Content and orchestration are independent resources — see [Journeys](./journeys.md) |
 | Recipients / Users | Users / Profiles | Same shape; profiles accept nested JSON |
 | Objects | `data` on send | Pass context inline instead of managing a separate entity |
 | Preferences (PreferenceSet) | Preferences (topics) | Courier enforces at send time automatically |
 | Tenants | Tenants | Branding lives directly on the Tenant resource |
 | Feeds (in-app) | Inbox | Drop-in React, iOS, Android, and vanilla JS components |
 | Commits | Publish (draft/live) | Edit in draft, publish when ready; published versions are immutable |
-| Batch function | Automations (batch/digest step) | Configure window and aggregation in the automation |
+| Batch function | Journeys (`throttle` + `delay` + `fetch` nodes) | Timing in journey; aggregation in your app. For built-in aggregation, see Automations batch step. |
 
 ### API Mapping
 
@@ -34,14 +34,14 @@
 | Set user preferences | `PUT /v1/users/:id/preferences/:set_id` | `PUT /users/:id/preferences/:topic` |
 | Get message status | `GET /v1/messages/:id` | `GET /messages/:id` |
 | List messages | `GET /v1/messages` | `GET /messages` |
-| Bulk send | `POST /v1/workflows/:key/trigger` (recipients array) | `POST /bulk` |
+| Bulk send | `POST /v1/workflows/:key/trigger` (recipients array) | 3-step flow: `POST /bulk` (create job with `event`) → `POST /bulk/{job_id}` (add users; email jobs need `profile.email` per user) → `POST /bulk/{job_id}/run` |
 | Create/update tenant | `PUT /v1/objects/tenants/:id` (Knock models tenants as Objects) | `PUT /tenants/:id` |
 
 > Note: `PUT /profiles/:id` is a **full replacement** — any fields not included are deleted. Use `POST` for partial updates; reach for `PUT` only when you deliberately want to wipe unlisted fields.
 
 ### Common Mistakes
 - Trying to recreate Knock Objects as a first-class Courier resource (use `data` instead)
-- Copying a Knock Workflow into a single Courier resource (split content into a Template, orchestration into an Automation)
+- Copying a Knock Workflow into a single Courier resource (split content into a Template, orchestration into a Journey)
 - Forgetting to configure provider integrations in the dashboard before sending
 - Migrating to Production keys before validating delivery in the Test environment
 - Not migrating user preferences (users lose their opt-out choices)
@@ -127,7 +127,7 @@ Knock bundles content and delivery logic into Workflows. In Courier, split them:
 1. Create a **Template** in the [Designer](https://www.courier.com/docs/platform/content/template-designer/template-designer-overview) for the content (email body, SMS text, push title/body)
 2. Use `{{variable}}` syntax for dynamic data — same Handlebars-style as Knock
 3. Add content blocks for each channel the notification should support
-4. If your Knock Workflow has delays, conditions, or batching, create a separate **Automation** for the orchestration logic
+4. If your Knock Workflow has delays, conditions, or batching, create a separate **Journey** for the orchestration logic — see [Journeys](./journeys.md)
 
 ## 5. Migrate Users
 
@@ -350,34 +350,42 @@ v8 uses JWT authentication (not client keys), `CourierInbox` (not `Inbox`), and 
 
 ## 9. Migrate Orchestration Logic
 
-Knock workflow steps (batch, delay, conditions) map to Courier Automations:
+Knock workflow steps (batch, delay, conditions) map to Courier [Journeys](./journeys.md) (recommended) or Automations (legacy):
 
-| Knock Step | Courier Equivalent |
-|------------|-------------------|
-| Batch function | Automation batch/digest step |
-| Delay step | Automation delay step |
-| Branch/condition step | Automation condition step |
-| Channel step | Automation send step (references a Template) |
+| Knock Step | Courier Journey Node | Legacy Automation Equivalent |
+|------------|---------------------|------------------------------|
+| Batch function | `throttle` node + `delay` node | Automation batch/digest step |
+| Delay step | `delay` node (`mode: "duration"`) | Automation delay step |
+| Branch/condition step | `branch` node with `conditions` | Automation condition step |
+| Channel step | `send` node (references a journey-scoped template) | Automation send step |
+
+Knock's code-first workflow definitions map naturally to Journeys — both are defined programmatically and versioned.
 
 ### Batch Example
 
 **Before (Knock):** Batch function configured inside the workflow with a window and batch key.
 
-**After (Courier):**
+**After (Courier Journeys):**
+
+```bash
+curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "data": { "event_type": "like", "actor_name": "Jane", "target_id": "post-789" }
+  }'
+```
+
+The journey DAG handles throttling and batching via `throttle` and `delay` nodes. See [Journeys](./journeys.md) for the full workflow.
+
+**Legacy: Automations approach:**
 ```typescript
 await client.automations.invoke.invokeByTemplate("social-activity-batch", {
   recipient: "user-123",
-  data: {
-    event_type: "like",
-    actor_name: "Jane",
-    target_id: "post-789",
-  },
+  data: { event_type: "like", actor_name: "Jane", target_id: "post-789" },
 });
 ```
-
-Configure the automation in the Courier dashboard:
-1. **Batch step:** Collect events for 5 minutes, keyed by `target_id`
-2. **Send step:** Reference a template that uses aggregated batch data
 
 See [Batching](./batching.md) for window strategies, aggregation patterns, and digest implementation.
 

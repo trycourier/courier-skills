@@ -76,6 +76,7 @@ Clone to the skill directory supported by your assistant, or point it at the `SK
 - Batching and digests
 - Throttling and rate limiting
 - Notification catalog by app type
+- Journeys (multi-step notification sequences via API — delays, branches, throttling)
 - Template management (CRUD, versioning, publish lifecycle)
 - Elemental content format (element types, control flow, localization)
 - Reusable code patterns (idempotency, consent, quiet hours, masking, retry)
@@ -126,6 +127,7 @@ courier-skills/
         ├── batching.md
         ├── throttling.md
         ├── catalog.md
+        ├── journeys.md
         ├── templates.md
         ├── routing-strategies.md
         ├── providers.md
