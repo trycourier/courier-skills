@@ -196,10 +196,10 @@ courier send message \
 **Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI supports the full journey lifecycle. **Journey-scoped templates** (the templates referenced inside `send` nodes) are not yet in the CLI — use curl/REST for those. See [Journeys](./journeys.md) for the full workflow.
 
 ```bash
-# Create a journey shell
+# Create a journey shell (node ids are server-generated — don't supply your own)
 courier journeys create \
   --name "Onboarding" \
-  --node '{"id":"t1","type":"trigger","trigger_type":"api-invoke"}'
+  --node '{"type":"trigger","trigger_type":"api-invoke"}'
 
 # Publish the current draft
 courier journeys publish --template-id "$JOURNEY_ID"

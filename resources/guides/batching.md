@@ -162,7 +162,7 @@ Scheduled summaries at fixed intervals.
       "id": "fetch-batched-events",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/users/{{data.user_id}}/pending-notifications",
+      "url": "https://api.yourapp.com/users/{{user_id}}/pending-notifications",
       "merge_strategy": "overwrite"
     },
     { "id": "send-batch", "type": "send", "message": { "template": "<batch-template-id>" } }

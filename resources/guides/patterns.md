@@ -417,7 +417,7 @@ Design the journey with a branch node that checks whether the user has activated
   "id": "check-activated",
   "type": "fetch",
   "method": "get",
-  "url": "https://api.yourapp.com/users/{{data.user_id}}/status",
+  "url": "https://api.yourapp.com/users/{{user_id}}/status",
   "merge_strategy": "overwrite"
 },
 {
@@ -426,7 +426,7 @@ Design the journey with a branch node that checks whether the user has activated
   "paths": [
     {
       "label": "User activated",
-      "conditions": [["data.activated", "is equal", true]],
+      "conditions": ["data.activated", "is equal", "true"],
       "nodes": [{ "id": "exit-activated", "type": "exit" }]
     }
   ],

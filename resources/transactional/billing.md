@@ -232,12 +232,12 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       }
     },
 
-    { "id": "wait-7d-before", "type": "delay", "mode": "until", "until": "{{data.reminder_times.seven_days_before}}" },
+    { "id": "wait-7d-before", "type": "delay", "mode": "until", "until": "{{reminder_times.seven_days_before}}" },
     {
       "id": "check-status-7d",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "url": "https://api.yourapp.com/subscriptions/{{subscription_id}}/status",
       "merge_strategy": "overwrite"
     },
     {
@@ -246,7 +246,7 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       "paths": [
         {
           "label": "Already converted or canceled",
-          "conditions": [["data.subscription.status", "is not equal", "trialing"]],
+          "conditions": ["data.subscription.status", "is not equal", "trialing"],
           "nodes": [{ "id": "exit-7d", "type": "exit" }]
         }
       ],
@@ -258,12 +258,12 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       }
     },
 
-    { "id": "wait-3d-before", "type": "delay", "mode": "until", "until": "{{data.reminder_times.three_days_before}}" },
+    { "id": "wait-3d-before", "type": "delay", "mode": "until", "until": "{{reminder_times.three_days_before}}" },
     {
       "id": "check-status-3d",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "url": "https://api.yourapp.com/subscriptions/{{subscription_id}}/status",
       "merge_strategy": "overwrite"
     },
     {
@@ -271,7 +271,7 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       "type": "branch",
       "paths": [
         {
-          "conditions": [["data.subscription.status", "is not equal", "trialing"]],
+          "conditions": ["data.subscription.status", "is not equal", "trialing"],
           "nodes": [{ "id": "exit-3d", "type": "exit" }]
         }
       ],
@@ -282,12 +282,12 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       }
     },
 
-    { "id": "wait-1d-before", "type": "delay", "mode": "until", "until": "{{data.reminder_times.one_day_before}}" },
+    { "id": "wait-1d-before", "type": "delay", "mode": "until", "until": "{{reminder_times.one_day_before}}" },
     {
       "id": "check-status-1d",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "url": "https://api.yourapp.com/subscriptions/{{subscription_id}}/status",
       "merge_strategy": "overwrite"
     },
     {
@@ -295,7 +295,7 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       "type": "branch",
       "paths": [
         {
-          "conditions": [["data.subscription.status", "is not equal", "trialing"]],
+          "conditions": ["data.subscription.status", "is not equal", "trialing"],
           "nodes": [{ "id": "exit-1d", "type": "exit" }]
         }
       ],
@@ -306,12 +306,12 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       }
     },
 
-    { "id": "wait-after-end", "type": "delay", "mode": "until", "until": "{{data.reminder_times.after_end}}" },
+    { "id": "wait-after-end", "type": "delay", "mode": "until", "until": "{{reminder_times.after_end}}" },
     {
       "id": "check-status-final",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/subscriptions/{{data.subscription_id}}/status",
+      "url": "https://api.yourapp.com/subscriptions/{{subscription_id}}/status",
       "merge_strategy": "overwrite"
     },
     {
@@ -320,7 +320,7 @@ Each reminder must include trial/renewal end date, charge amount, "Continue", "C
       "paths": [
         {
           "label": "Converted to paid",
-          "conditions": [["data.subscription.status", "is equal", "active"]],
+          "conditions": ["data.subscription.status", "is equal", "active"],
           "nodes": [
             { "id": "send-welcome-paid", "type": "send", "message": { "template": "<welcome-paid-template-id>" } },
             { "id": "exit-converted", "type": "exit" }

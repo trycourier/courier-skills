@@ -242,7 +242,7 @@ Use [Journeys](../guides/journeys.md) to build onboarding sequences with delays,
       "id": "check-setup",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/users/{{data.user_id}}/setup-status",
+      "url": "https://api.yourapp.com/users/{{user_id}}/setup-status",
       "merge_strategy": "overwrite"
     },
     {
@@ -251,7 +251,7 @@ Use [Journeys](../guides/journeys.md) to build onboarding sequences with delays,
       "paths": [
         {
           "label": "Setup complete",
-          "conditions": [["data.setup_complete", "is equal", true]],
+          "conditions": ["data.setup_complete", "is equal", "true"],
           "nodes": [
             { "id": "send-success", "type": "send", "message": { "template": "<success-template-id>" } },
             { "id": "exit-done", "type": "exit" }
@@ -275,7 +275,7 @@ Use [Journeys](../guides/journeys.md) to build onboarding sequences with delays,
 
 **Invoke when a user signs up:**
 
-The `fetch` node above templates the URL with `{{data.user_id}}`, so include `user_id` inside `data` (the top-level `user_id` is used for recipient resolution but isn't guaranteed to be projected into `data` for variable interpolation).
+The `fetch` node above templates the URL with `{{user_id}}`, so include `user_id` inside `data` (the top-level `user_id` is used for recipient resolution but isn't guaranteed to be projected into `data` for variable interpolation).
 
 **Node:**
 ```typescript

@@ -41,7 +41,7 @@ You don't need to ask all four — just the ones needed to route to the right 1-
 
 Before you write or evaluate any Courier code, ground it in this shape. If anything in a file below appears to contradict it, trust this block and fetch live docs to resolve — do **not** paste the contradicting snippet.
 
-**Node.js (`@trycourier/courier`, Stainless-generated):**
+**Node.js (`@trycourier/courier`):**
 
 ```typescript
 import Courier from "@trycourier/courier";
@@ -64,7 +64,7 @@ await client.send.message({
 });
 ```
 
-**Python (`trycourier`, Stainless-generated):**
+**Python (`trycourier`):**
 
 ```python
 from courier import Courier
@@ -84,7 +84,7 @@ client.send.message(
 )
 ```
 
-**Method naming quick lookup (generated SDKs — both SDKs follow the same structure, Node = camelCase, Python = snake_case):**
+**Method naming quick lookup (both SDKs follow the same structure, Node = camelCase, Python = snake_case):**
 
 | Operation | Node | Python |
 |-----------|------|--------|

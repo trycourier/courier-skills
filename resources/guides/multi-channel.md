@@ -246,7 +246,7 @@ Build the escalation as a journey DAG with delay and send nodes. See [Journeys](
       "id": "check-read",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/notifications/{{data.notification_id}}/status",
+      "url": "https://api.yourapp.com/notifications/{{notification_id}}/status",
       "merge_strategy": "overwrite"
     },
     {
@@ -255,7 +255,7 @@ Build the escalation as a journey DAG with delay and send nodes. See [Journeys](
       "paths": [
         {
           "label": "Already read",
-          "conditions": [["data.read", "is equal", true]],
+          "conditions": ["data.read", "is equal", "true"],
           "nodes": [{ "id": "exit-read", "type": "exit" }]
         }
       ],

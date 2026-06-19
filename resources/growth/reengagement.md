@@ -257,7 +257,7 @@ Build the win-back sequence as a [Journey](../guides/journeys.md) with branch no
       "id": "check-return",
       "type": "fetch",
       "method": "get",
-      "url": "https://api.yourapp.com/users/{{data.user_id}}/activity",
+      "url": "https://api.yourapp.com/users/{{user_id}}/activity",
       "merge_strategy": "overwrite"
     },
     {
@@ -266,7 +266,7 @@ Build the win-back sequence as a [Journey](../guides/journeys.md) with branch no
       "paths": [
         {
           "label": "User returned",
-          "conditions": [["data.returned", "is equal", true]],
+          "conditions": ["data.returned", "is equal", "true"],
           "nodes": [{ "id": "exit-returned", "type": "exit" }]
         }
       ],
