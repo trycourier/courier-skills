@@ -285,6 +285,37 @@ await client.send.message({
 });
 ```
 
+### Attachments
+
+Courier attaches files through a **provider override** — you pass the file on the send, in the shape the underlying provider expects. File content is base64-encoded. This is how you deliver the PDF for a receipt or invoice.
+
+```typescript
+await client.send.message({
+  message: {
+    to: { email: "jane@example.com" },
+    template: "nt_receipt",
+    data: { orderNumber: "12345" },
+    providers: {
+      sendgrid: {
+        override: {
+          body: {
+            attachments: [
+              {
+                content: pdfBase64,            // base64-encoded file
+                type: "application/pdf",
+                filename: "receipt-12345.pdf",
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
+});
+```
+
+The **override nesting is provider-specific** — it mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/external-integrations/email/intro-to-email) for the exact field. Attachments aren't part of the template — they're per-send data you supply at call time.
+
 ### Provider Failover
 
 Configure multiple email providers in Courier dashboard. If SendGrid fails, automatically try Mailgun:

@@ -24,7 +24,7 @@ Notifications triggered by a user action, expected by the recipient, and require
 | Password reset, magic link, email verification | Single send + [template](./guides/templates.md). Token lifecycle is yours; Courier delivers. |
 | OTP / 2FA code | Single send, SMS-first with email fallback — [multi-channel](./guides/multi-channel.md) `routing.method: "single"` |
 | Order confirmation, shipping, delivery | Single send per state change, or a [journey](./guides/journeys.md) when a delay or branch is involved |
-| Receipt / invoice | Single send + template; attach or link the PDF |
+| Receipt / invoice | Single send + template; [attach the PDF](./channels/email.md#attachments) or link it |
 | Dunning (payment failed) | [Journey](./guides/journeys.md): `send` → `delay` → `branch` on paid? → escalate channels → `exit` |
 | Appointment reminder ladder | [Journey](./guides/journeys.md) with `delay` nodes (`mode: "until"`), cancelled via `POST /journeys/cancel` when the appointment moves |
 | Trial ending / renewal notice | [Journey](./guides/journeys.md) with `delay` + `branch` on converted? |

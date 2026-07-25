@@ -159,6 +159,8 @@ interface OptInRecord {
 
 Never send non-critical notifications during 10pm-8am in the user's local timezone.
 
+> **Prefer the native delivery window.** Courier can enforce quiet hours on the send itself with `delay: { until: "Mo-Su 08:00-22:00", timezone }` — no app-side queue. See [Scheduling](./scheduling.md#delivery-window-business-hours-quiet-hours). Reach for the manual check below only when the decision depends on logic a delivery window can't express.
+
 **TypeScript:**
 ```typescript
 function isQuietHours(timezone: string): boolean {

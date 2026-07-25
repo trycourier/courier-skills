@@ -125,7 +125,7 @@ Sub-namespaces: `digests.schedules`, `journeys.templates`, `notifications.checks
 
 ### See also (not duplicated here)
 
-- **Quiet hours** (non-OTP, non-security): [patterns.md](./references/guides/patterns.md) and [throttling.md](./references/guides/throttling.md)
+- **Quiet hours / scheduled delivery** (non-OTP, non-security): [scheduling.md](./references/guides/scheduling.md) — use a native delivery window, not app-side queueing
 - **429 / provider rate limits and retries**: [throttling.md](./references/guides/throttling.md) and [reliability.md](./references/guides/reliability.md)
 - **Compliance (GDPR, CAN-SPAM, TCPA, 10DLC)**: app-layer concern — see channel guides ([email.md](./references/channels/email.md), [sms.md](./references/channels/sms.md)) for sender-auth and opt-in mechanics; consult legal counsel for jurisdictional requirements
 - **Test vs. production workspaces and safe deploys**: [quickstart.md](./references/guides/quickstart.md) (API keys per environment) and [reliability.md](./references/guides/reliability.md)
@@ -193,6 +193,7 @@ One row per file. Read the 1–2 that match the task — not the whole tree.
 | Channel routing, fallbacks, escalation, provider failover | [multi-channel.md](./references/guides/multi-channel.md) |
 | Idempotency, retries, delivery statuses, webhook verification | [reliability.md](./references/guides/reliability.md) |
 | Preference topics, opt-out, preference centers | [preferences.md](./references/guides/preferences.md) |
+| **Scheduling a send** — delay, exact timestamp, delivery windows (business/quiet hours) | [scheduling.md](./references/guides/scheduling.md) |
 | Aggregation and digests (`batch`, `add-to-digest`) | [batching.md](./references/guides/batching.md) |
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, publishing, versioning, locales | [templates.md](./references/guides/templates.md) |
