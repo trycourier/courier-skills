@@ -181,6 +181,8 @@ All template operations use the `/notifications` endpoints. Authenticate with `A
 | Publish | `POST` | `/notifications/{id}/publish` | Publish the current draft |
 | Get content | `GET` | `/notifications/{id}/content` | Get published content blocks |
 | Get draft | `GET` | `/notifications/{id}/draft/content` | Get draft content blocks |
+| **Upload content** | `PUT` | `/notifications/{id}/content` | Replace a template's content only — leaves name, tags, and routing untouched |
+| Update one element | `PUT` | `/notifications/{id}/elements/{elementId}` | Update a single element (V2/Elemental templates only) |
 | List versions | `GET` | `/notifications/{id}/versions` | Version history |
 
 ### Create a Template
@@ -377,6 +379,43 @@ curl -X PUT "https://api.courier.com/notifications/nt_01abc123" \
     "state": "DRAFT"
   }'
 ```
+
+### Upload Content to an Existing Template
+
+`putContent` replaces just the **content** of a template — its Elemental `elements` — without touching name, tags, brand, subscription, or routing. Reach for it when you're syncing template bodies from code (a CMS export, a generated layout) and don't want to resend the whole `notification` object as `replace` requires. It writes to the **draft** by default (`state` defaults to `"DRAFT"`), so publish afterward to go live.
+
+**TypeScript:**
+```typescript
+await client.notifications.putContent("nt_01abc123", {
+  content: {
+    version: "2022-01-01",
+    elements: [
+      { type: "meta", title: "Your order {{order_id}} has shipped" },
+      { type: "text", content: "Hi {{name}}, your package is on the way." },
+      { type: "action", content: "Track Shipment", href: "{{tracking_url}}" }
+    ]
+  }
+});
+await client.notifications.publish("nt_01abc123");
+```
+
+**Python:**
+```python
+client.notifications.put_content(
+    "nt_01abc123",
+    content={
+        "version": "2022-01-01",
+        "elements": [
+            {"type": "meta", "title": "Your order {{order_id}} has shipped"},
+            {"type": "text", "content": "Hi {{name}}, your package is on the way."},
+            {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
+        ],
+    },
+)
+client.notifications.publish("nt_01abc123")
+```
+
+To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). For per-locale content, `client.notifications.putLocale(...)` — see [Localization](./elemental.md#localization).
 
 ### Publish
 
