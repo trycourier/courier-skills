@@ -136,12 +136,12 @@ Courier is provider-agnostic. You write one `send` call and Courier delivers thr
 
 | Channel | Providers |
 |---------|-----------|
-| Email | SendGrid, Amazon SES, Postmark, Mailgun, Resend, SparkPost |
-| SMS | Twilio, MessageBird, Vonage, Plivo, Telnyx |
+| Email | SendGrid, Amazon SES, Postmark, Mailgun, Resend, SparkPost, Mandrill, Mailjet, MailerSend, Amply, Gmail, OneSignal, SMTP |
+| SMS | Twilio, Vonage, Telnyx, Sinch, Plivo, MessageBird, MessageMedia, Azure SMS, TextUs, Africa's Talking, SMSCentral |
 | Push | Firebase Cloud Messaging (FCM), Apple Push Notification service (APNs), Expo, OneSignal, Airship |
 | Chat | Slack, Microsoft Teams |
 | Messaging | WhatsApp Business API |
-| In-app | Courier Inbox (web, React, Web Components, React Native, iOS, Android, Flutter) |
+| In-app | Courier Inbox |
 
 Courier supports 50+ providers in total. For the complete, current list see the [Courier integrations docs](https://www.courier.com/docs/platform/channels/), or call `client.providers.catalog.list()` for the live catalog in your workspace.
 
