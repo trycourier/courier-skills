@@ -118,7 +118,6 @@ courier-skills/
 ├── .claude-plugin/marketplace.json   : Claude Code plugin manifest
 ├── .mcp.json                         : Courier docs MCP, shipped with the plugin
 ├── AGENTS.md                         : contributor guide
-├── scripts/verify-sdk-claims.py      : checks every SDK call exists in the installed package
 └── skills/courier/
     ├── SKILL.md                      : entry point that routes to the right reference
     └── references/
@@ -155,7 +154,7 @@ Courier supports 50+ providers in total. For the complete, current list see the 
 
 ## Contributing
 
-Found an issue or want to add a notification pattern? PRs welcome. Every documented SDK call is verified against the installed package by `scripts/verify-sdk-claims.py`, so run it before submitting.
+Found an issue or want to add a notification pattern? PRs welcome. Keep every documented SDK call grounded in the installed package's own type definitions rather than reconstructing signatures from memory.
 
 ## License
 
