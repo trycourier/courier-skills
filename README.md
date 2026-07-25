@@ -22,6 +22,8 @@ Ask your assistant in plain English. The skill routes the request to the right C
 - "Why did this message not deliver?" gives you the CLI delivery ladder: `messages list`, then `history`, then `content`.
 - "Send to a segment of trial users that stays current" gives you an audience with live filter rules.
 - "Give each B2B tenant its own branding and defaults" gives you tenants with per-tenant brand and preferences.
+- "Send a one-time passcode and an order receipt" gives you transactional sends with idempotency, and never batched or delayed.
+- "Build a 5-day onboarding series and a win-back flow" gives you lifecycle journeys with delays, branches, and recorded opt-in.
 
 One `send` call does the whole job. You address a user (or a list, audience, or tenant), content comes from a template or inline, routing picks the channels, and preferences gate delivery. Multi-step flows, meaning anything with a delay, a branch, or aggregation, are journeys: defined as JSON and invoked by API.
 
@@ -73,7 +75,7 @@ The same shape sends email, SMS, push, Slack, Teams, WhatsApp, or in-app. The ch
 
 **Channels.** Email (deliverability, SPF/DKIM/DMARC), SMS (10DLC, opt-in and opt-out), push (APNs and FCM, device tokens), in-app inbox (JWT auth, plus React, Web Components, React Native, iOS, Android, and Flutter rendering), Slack (Block Kit, OAuth), Microsoft Teams (Adaptive Cards), and WhatsApp (approved templates, the 24-hour window).
 
-**Notification types.** Transactional (password reset, OTP, orders, receipts, dunning, security alerts) and lifecycle marketing (onboarding, adoption, digests, win-back, campaigns). Each is mapped to the Courier primitive that implements it, with the safety rules stated inline.
+**Notification types.** [Transactional](./skills/courier/references/transactional.md) (password reset, OTP, orders, receipts, dunning, security alerts) and [lifecycle marketing](./skills/courier/references/lifecycle-marketing.md) (onboarding, adoption, digests, win-back, campaigns). Each is mapped to the Courier primitive that implements it, with the safety rules stated inline: transactional sends are never batched or delayed and mask PII, and marketing sends require recorded opt-in and one-click unsubscribe.
 
 **Core platform.** Quickstart, journeys (delays, branches, batching, digests, throttling, A/B experiments, cancellation), templates and Elemental, multi-channel routing, preferences and preference sections, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses, webhooks), routing strategies, and provider configuration.
 
@@ -98,7 +100,7 @@ Email, SMS, push, in-app inbox, Slack, Microsoft Teams, and WhatsApp, all throug
 Use the Courier Inbox. Send to the `inbox` channel server-side, then render it client-side with the React, Web Components, or React Native SDK, secured with a per-user scoped JWT. The inbox references in this skill cover the full setup, including real-time updates and unread counts.
 
 **What is the difference between transactional and marketing notifications?**
-Transactional notifications are triggered by a user action (password reset, order confirmation) and should never be batched or delayed. Marketing notifications are sent proactively and require recorded opt-in.
+Transactional notifications are triggered by a user action (password reset, order confirmation) and should never be batched or delayed. Marketing notifications are sent proactively and require recorded opt-in. See the [transactional guide](./skills/courier/references/transactional.md) and the [lifecycle marketing guide](./skills/courier/references/lifecycle-marketing.md) for patterns and the rules for each.
 
 **How do I handle notification preferences?**
 See [`references/guides/preferences.md`](./skills/courier/references/guides/preferences.md) for per-user subscription topics, opt-out, hosted [preference pages](https://www.courier.com/docs/platform/preferences/hosted-page), and workspace-level preference sections.
