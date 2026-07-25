@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Editor / OS noise
+*.swp
+*~
+.idea/
+.vscode/
+
+# Local dependency installs used only for SDK verification
+node_modules/
+.venv/
+__pycache__/
