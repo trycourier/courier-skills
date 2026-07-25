@@ -92,7 +92,7 @@ send       tenants      translations  users    workspacePreferences
 
 Sub-namespaces: `digests.schedules`, `journeys.templates`, `notifications.checks`, `providers.catalog`, `lists.subscriptions`, `profiles.lists`, `tenants.templates`, `tenants.preferences.items`, `users.preferences`, `users.tenants`, `users.tokens`, `automations.invoke`, `workspacePreferences.topics`.
 
-`auditEvents`, `brands`, `digests`, `inbound`, `requests`, `translations`, and `workspacePreferences` have no dedicated guide — use MCP or the CLI for those.
+`auditEvents`, `brands`, `digests`, `inbound`, `requests`, and `workspacePreferences` have no dedicated guide — use MCP or the CLI for those.
 
 ### Common operations
 
@@ -197,7 +197,8 @@ One row per file. Read the 1–2 that match the task — not the whole tree.
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, publishing, versioning, locales | [templates.md](./references/guides/templates.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md) — or read the installed package's own types |
-| Elemental content format — elements, control flow, i18n | [elemental.md](./references/guides/elemental.md) |
+| Elemental content format — elements, control flow | [elemental.md](./references/guides/elemental.md) |
+| **Localization** — per-locale content, and AI Translation in Design Studio (add a language, AI translates every field) | [elemental.md](./references/guides/elemental.md#localization) |
 | Routing strategies (`rs_...`, provider priority) | [routing-strategies.md](./references/guides/routing-strategies.md) |
 | Configuring providers via API, catalog discovery | [providers.md](./references/guides/providers.md) |
 | Lists, audiences, tenants, bulk targeting | [patterns.md](./references/guides/patterns.md) |
@@ -216,6 +217,6 @@ Most multi-step work pairs a use-case file with **journeys.md**. Most debugging 
 
 ### Not covered here
 
-Audiences, Broadcasts, Brands, Tenants, inbound events, Translations, preference sections, Test→Production promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/) — don't reconstruct their shapes from memory.
+Audiences, Broadcasts, Brands, Tenants, inbound events, preference sections, Test→Production promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/) — don't reconstruct their shapes from memory.
 
 For EU data residency specifically: point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.

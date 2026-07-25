@@ -454,6 +454,17 @@ The `meta` element carries `title` (used as the email subject and push/chat titl
 
 For full localization setup, see the official [Locales](https://www.courier.com/docs/platform/content/elemental/locales) docs and the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation) for workspace-wide string management.
 
+### AI Translation (Design Studio)
+
+For templates built in Design Studio, you don't have to write the `locales` blocks above by hand. Open a template, click the globe icon, pick a language, and Courier translates every string — subject lines, headings, body copy, button text — into that locale automatically. This is the fastest way to localize and the one to reach for first.
+
+- **Variables are preserved.** Placeholders like `{user.name}` or `{order.total}` are repositioned for the target language's grammar, not dropped.
+- **Manual edits stick.** Override any translated string by typing your own; the override survives future re-translations of that locale.
+- **Outdated strings are flagged.** When you change the default-locale template, Courier marks which translations are now stale; re-translate only those with **Translate all**, leaving unchanged strings and overrides intact.
+- **Not used for model training** — templates, customer data, and variables stay within Courier's infrastructure.
+
+Reach for hand-written `locales` (or the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation)) when a template is defined in code rather than Design Studio, or when you localize as part of a deploy pipeline. Docs: [AI Translation](https://www.courier.com/docs/platform/content/design-studio/ai-translations).
+
 ## Related
 
 - [Templates](./templates.md) — template lifecycle (create, publish, version, archive) and inline-vs-templated decisions
