@@ -336,6 +336,29 @@ Offer both options:
 - Link to preference center for more control
 - Option to resubscribe
 
+## Preference Sections (workspace-level)
+
+The topics above are **per-user** state. **Preference sections** are the workspace-level structure of
+your hosted preferences page — named groups that contain topics, shared across all users. Manage them
+with `client.workspacePreferences.*` (REST: `/preferences/sections/{section_id}`).
+
+| Operation | Node |
+|---|---|
+| Create a section | `client.workspacePreferences.create({ name, description })` |
+| List sections | `client.workspacePreferences.list()` |
+| Get a section | `client.workspacePreferences.retrieve(sectionId)` |
+| Replace a section | `client.workspacePreferences.replace(sectionId, { name, description })` |
+| Archive a section | `client.workspacePreferences.archive(sectionId)` |
+| Publish preference changes | `client.workspacePreferences.publish()` |
+
+Topics within a section live under `client.workspacePreferences.topics.*` —
+`create(sectionId, {...})`, `list(sectionId)`, and `retrieve`/`replace`/`archive(topicId, {...})`.
+
+A section carries `name` (required), an optional `description` (shown under the section on the hosted
+page), and `has_custom_routing`. Confirm topic-body shapes against the installed types under
+`resources/workspace-preferences/`. This is workspace configuration; a **user's** opt-in/out for a
+topic is `client.users.preferences.*` (above).
+
 ## Related
 
 - [Multi-Channel](./multi-channel.md) - Channel routing

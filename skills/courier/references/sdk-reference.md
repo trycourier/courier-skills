@@ -8,6 +8,12 @@ own type definitions — `node_modules/@trycourier/courier/resources/*.d.ts` or 
 package stubs. When they disagree with this file, they win. See
 [Verifying Against Live Sources](../SKILL.md#verifying-against-live-sources).
 
+**Staying current.** The installed version is the ground truth — check it
+(`npm ls @trycourier/courier`, `pip show trycourier`) and verify shapes against its types.
+If it trails the latest release, recommend upgrading (`npm install @trycourier/courier@latest`);
+a major-version jump (6 → 7) is a breaking migration that reshaped `send`, `messages`,
+`journeys`, and `digests`, so flag it as one rather than assuming a silent bump.
+
 ## Method lookup
 
 | Operation | Node | Python |

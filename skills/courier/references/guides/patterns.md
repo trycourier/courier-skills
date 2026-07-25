@@ -610,6 +610,13 @@ client.send.message(
 
 When `tenant_id` is included, Courier applies that tenant's `brand_id` (if set) to the rendered template automatically.
 
+### Per-tenant preferences, templates, and CRUD
+
+Beyond `brand_id`, a tenant carries its own preference defaults (`tenants.preferences.items`) and can
+override template content per tenant (`tenants.templates`), on top of full tenant CRUD and user
+association. The complete SDK surface — with `OPTED_IN`/`OPTED_OUT`/`REQUIRED` statuses,
+`parent_tenant_id` inheritance, and method shapes — is in [tenants.md](./tenants.md).
+
 ## Related
 
 - [CLI](./cli.md) - CLI for ad-hoc operations and debugging

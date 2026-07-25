@@ -36,7 +36,7 @@ If the project already has `@trycourier/courier` or `trycourier` installed, skip
 | `{ audience_id: "…" }` | A filter Courier evaluates and keeps current |
 | An array of the above | Multiple recipients in one call |
 
-Multi-tenant sends put the tenant in `message.context.tenant_id`, not in `to`.
+Multi-tenant sends carry the tenant as `tenant_id` — either on the recipient (`to.tenant_id`) or in `message.context.tenant_id`. Both load that tenant's brand and preference defaults; pick one and use it consistently.
 
 ## Canonical SDK Shape
 
@@ -92,7 +92,7 @@ send       tenants      translations  users    workspacePreferences
 
 Sub-namespaces: `digests.schedules`, `journeys.templates`, `notifications.checks`, `providers.catalog`, `lists.subscriptions`, `profiles.lists`, `tenants.templates`, `tenants.preferences.items`, `users.preferences`, `users.tenants`, `users.tokens`, `automations.invoke`, `workspacePreferences.topics`.
 
-`auditEvents`, `brands`, `digests`, `inbound`, `requests`, and `workspacePreferences` have no dedicated guide — use MCP or the CLI for those.
+`auditEvents`, `digests`, `inbound`, and `requests` have no dedicated guide — use MCP or the CLI for those.
 
 ### Common operations
 
@@ -145,12 +145,16 @@ Status meanings:
 | Status | Means |
 |---|---|
 | `ENQUEUED` | Accepted, not yet handed to a provider |
+| `ROUTED` | Routing decided; ready to hand to a provider (transient) |
 | `SENT` | Handed to the provider |
 | `DELIVERED` | Provider confirmed delivery |
 | `OPENED` / `CLICKED` | Engagement signals. Opens fire from image-proxy prefetch — don't build logic on them |
+| `DIGESTED` / `DELAYED` / `THROTTLED` | Held by a digest, a delay, or a throttle rather than failing |
 | `UNDELIVERABLE` | The provider rejected or bounced it. Check `reason` |
 | `UNROUTABLE` | No channel/provider could accept it — usually missing contact info or provider config |
 | `UNMAPPED` | The `event` didn't match a template in this workspace |
+
+Also on list rows: `CANCELED`, `FILTERED` (suppressed by a preference/condition), `SIMULATED` (test send). Full glossary in [reliability.md](./references/guides/reliability.md).
 
 Full triage detail in [cli.md](./references/guides/cli.md); status semantics in [reliability.md](./references/guides/reliability.md).
 
@@ -192,9 +196,12 @@ One row per file. Read the 1–2 that match the task — not the whole tree.
 | **Multi-step sequences** — delays, branches, batching, digests, A/B, cancellation. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
 | Channel routing, fallbacks, escalation, provider failover | [multi-channel.md](./references/guides/multi-channel.md) |
 | Idempotency, retries, delivery statuses, webhook verification | [reliability.md](./references/guides/reliability.md) |
-| Preference topics, opt-out, preference centers | [preferences.md](./references/guides/preferences.md) |
+| Preference topics, opt-out, preference centers, workspace preference sections | [preferences.md](./references/guides/preferences.md) |
 | **Scheduling a send** — delay, exact timestamp, delivery windows (business/quiet hours) | [scheduling.md](./references/guides/scheduling.md) |
 | Aggregation and digests (`batch`, `add-to-digest`) | [batching.md](./references/guides/batching.md) |
+| **Branding** — logo, colors, email/in-app theme, attaching a brand to sends/tenants | [brands.md](./references/guides/brands.md) |
+| **Audiences** — dynamic segments, filter rules, sending to a segment | [audiences.md](./references/guides/audiences.md) |
+| **Multi-tenant / B2B** — tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, publishing, versioning, locales | [templates.md](./references/guides/templates.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md) — or read the installed package's own types |
@@ -202,7 +209,7 @@ One row per file. Read the 1–2 that match the task — not the whole tree.
 | **Localization** — per-locale content, and AI Translation in Design Studio (add a language, AI translates every field) | [elemental.md](./references/guides/elemental.md#localization) |
 | Routing strategies (`rs_...`, provider priority) | [routing-strategies.md](./references/guides/routing-strategies.md) |
 | Configuring providers via API, catalog discovery | [providers.md](./references/guides/providers.md) |
-| Lists, audiences, tenants, bulk targeting | [patterns.md](./references/guides/patterns.md) |
+| Lists and bulk targeting (subscribe, list/pattern sends) | [patterns.md](./references/guides/patterns.md) |
 | **Debugging any delivery failure** — start here | [cli.md](./references/guides/cli.md) (`courier messages list`, then `history`, then `content`) |
 | MCP setup — API server to operate, docs server to look things up | [mcp.md](./references/guides/mcp.md) |
 | Email: deliverability, SPF/DKIM/DMARC, sender config | [email.md](./references/channels/email.md) |
@@ -218,6 +225,6 @@ Most multi-step work pairs a use-case file with **journeys.md**. Most debugging 
 
 ### Not covered here
 
-Audiences, Broadcasts, Brands, Tenants, inbound events, preference sections, Test→Production promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/) — don't reconstruct their shapes from memory.
+Broadcasts, inbound events, Test→Production promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/) — don't reconstruct their shapes from memory.
 
 For EU data residency specifically: point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.
