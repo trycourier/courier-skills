@@ -1,6 +1,6 @@
 ---
 name: courier
-description: Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp: sends, templates, Elemental, journeys, preferences, routing, CLI and MCP.
+description: "Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp: sends, templates, Elemental, journeys, preferences, routing, CLI and MCP."
 license: MIT
 ---
 
