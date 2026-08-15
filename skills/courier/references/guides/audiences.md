@@ -1,12 +1,12 @@
 # Audiences
 
-An audience is a **filter Courier evaluates and keeps current** — send to `audience_id` and Courier
+An audience is a **filter Courier evaluates and keeps current**. Send to `audience_id` and Courier
 resolves the matching users at send time and fans out. Use it for dynamic segments (trial users, a
 plan tier, an activity cohort); use a **list** when you want an explicit, managed set of subscribers.
 
 ## Create or update (upsert)
 
-There is no separate `create` — `update` upserts by the id you choose.
+There is no separate `create`, `update` upserts by the id you choose.
 
 ```ts
 // Node
@@ -37,7 +37,7 @@ client.audiences.update(
 `filter.filters` is an array of rules; each rule is a single condition (`operator` is a comparison
 like `EQ`, `NEQ`, `GT`, `LT`, `GTE`, `LTE` with a `path` + `value`) or a nested group (`operator`
 `AND`/`OR` with its own `filters`). `path` is an attribute on the user profile. Confirm the full
-operator set against the [API reference](https://www.courier.com/docs/api-reference/) — the SDK types
+operator set against the [API reference](https://www.courier.com/docs/api-reference/), the SDK types
 type `operator` as a string.
 
 ## Read, list, members, delete
@@ -49,7 +49,7 @@ type `operator` as a string.
 | List members (who currently matches) | `client.audiences.listMembers(audienceId)` | `client.audiences.list_members(audience_id)` |
 | Delete | `client.audiences.delete(audienceId)` | `client.audiences.delete(audience_id)` |
 
-`listMembers` is how you inspect who an audience resolves to right now — membership is computed from
+`listMembers` is how you inspect who an audience resolves to right now, membership is computed from
 the filter, not stored, so it reflects the latest profiles.
 
 ## Send to an audience
@@ -64,10 +64,14 @@ await client.send.message({
 });
 ```
 
-One send, Courier fans out to every current member — there is no separate bulk-job API. A recipient's
+One send, Courier fans out to every current member, with no cap on how many that is. A recipient's
 [preferences](./preferences.md) still apply, so marketing audiences only reach opted-in users. The
 `requestId` returned is a job id; resolve per-recipient message ids via
 `courier messages list --trace-id "<requestId>"` (see [cli.md](./cli.md)).
 
 Audience vs list: an **audience** is a live filter (membership recomputed each send); a **list** is an
 explicit subscriber set you add/remove from. See [patterns.md](./patterns.md) for list sends.
+
+If the recipient set isn't modeled as an audience or a list, reach for the
+[Bulk API](./bulk.md) rather than a multi-recipient send. A plain `to` array is capped
+at 500 recipients.

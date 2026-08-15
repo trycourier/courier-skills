@@ -742,36 +742,6 @@ await client.send.message({
 });
 ```
 
-## Best Practices
-
-### Message Design
-
-- **Keep it scannable** - Use headers, bullet points
-- **Be actionable** - Include clear next steps or buttons
-- **Add context** - Who, what, when, where
-- **Use Section fields** - For structured key-value data
-- **Use attachments sparingly** - Prefer Block Kit
-
-### Channel vs DM
-
-| Use DM for | Use Channel for |
-|------------|-----------------|
-| Personal notifications | Team-wide alerts |
-| Task assignments | System status updates |
-| Approval requests | Deployment notifications |
-| Direct mentions | Incident alerts |
-| Performance reviews | Standup reminders |
-
-### Rate Limits
-
-| Limit Type | Value |
-|------------|-------|
-| Messages per second per channel | 1 |
-| Burst limit | 30-50 messages |
-| Web API rate limits | Tier-based (check Slack docs) |
-
-For high volume, use Courier's built-in queuing and batching.
-
 ## Troubleshooting
 
 | Issue | Cause | Solution |

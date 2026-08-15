@@ -1,8 +1,8 @@
 # Courier Inbox Web Components
 
-Framework-agnostic custom elements — Vue, Angular, Svelte, or plain JavaScript.
+Framework-agnostic custom elements, Vue, Angular, Svelte, or plain JavaScript.
 
-Web Components work with **any framework or no framework at all** — Vue, Angular, Svelte, vanilla JS, server-rendered HTML, WordPress, etc. They use the same v8 SDK and real-time infrastructure as the React components.
+Web Components work with **any framework or no framework at all**, Vue, Angular, Svelte, vanilla JS, server-rendered HTML, WordPress, etc. They use the same v8 SDK and real-time infrastructure as the React components.
 
 ### Installation
 
@@ -19,7 +19,7 @@ npm install @trycourier/courier-ui-inbox @trycourier/courier-ui-toast
 <script type="module" src="https://unpkg.com/@trycourier/courier-ui-toast@latest/dist/index.mjs"></script>
 ```
 
-The CDN approach requires no build step — add the script tags and use the custom elements immediately.
+The CDN approach requires no build step. Add the script tags and use the custom elements immediately.
 
 ### Basic Setup
 

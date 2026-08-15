@@ -7,10 +7,9 @@
 - Android 13+: Requires explicit permission (like iOS)
 - Android 12 and below: Opt-out model (enabled by default)
 - Title: under 50 characters
-- Body: keep under ~100 characters for the lock-screen/banner preview (hard OS truncation is closer to 150 on both iOS and Android — see [Notification Design](#notification-design))
+- Body: keep under ~100 characters for the lock-screen/banner preview (hard OS truncation is closer to 150 on both iOS and Android. See [Content Guidelines](#content-guidelines))
 - Always include deep link for navigation
-- Respect quiet hours (10pm-8am local time) for non-urgent
-- Batch similar notifications ("3 new messages" not 3 separate)
+- Aggregate similar notifications with a [batch node](../guides/batching.md) rather than app-side
 - Push tokens can change - always handle token refresh
 - Store tokens with device/platform info for proper routing
 
@@ -20,8 +19,6 @@
 - Sending vague titles like "New notification"
 - Not handling token refresh (leads to invalid tokens)
 - Storing duplicate tokens for same device
-- Over-notifying (users will disable notifications)
-- Ignoring quiet hours for non-urgent notifications
 - Missing deep links (user taps and nothing happens)
 - Not creating Android notification channels (users can't control categories)
 
@@ -114,9 +111,9 @@ Best practices for sending push notifications that users actually want.
 
 ### Permission Model
 
-- **One-time prompt:** The standard `.alert` authorization prompt is shown once per app install. If denied, the app cannot re-prompt — the user must re-enable in Settings > Notifications > YourApp.
-- **Provisional authorization (iOS 12+):** Request `[.provisional]` *alone* for quiet delivery to Notification Center without a system prompt. The user sees notifications arrive silently and can tap "Keep" (promotes to full authorization) or "Turn Off" from any notification. Provisional and the standard alert prompt are mutually exclusive — mixing `.provisional` with `.alert` asks for the full prompt immediately and defeats the point of provisional.
-- **Recovering from denial:** Deep-link to `UIApplication.openSettingsURLString` in your app's in-app settings so users can flip the toggle themselves; do not assume this is rare — after any denial it's the only path.
+- **One-time prompt:** The standard `.alert` authorization prompt is shown once per app install. If denied, the app cannot re-prompt, the user must re-enable in Settings > Notifications > YourApp.
+- **Provisional authorization (iOS 12+):** Request `[.provisional]` *alone* for quiet delivery to Notification Center without a system prompt. The user sees notifications arrive silently and can tap "Keep" (promotes to full authorization) or "Turn Off" from any notification. Provisional and the standard alert prompt are mutually exclusive, mixing `.provisional` with `.alert` asks for the full prompt immediately and defeats the point of provisional.
+- **Recovering from denial:** Deep-link to `UIApplication.openSettingsURLString` in your app's in-app settings so users can flip the toggle themselves; do not assume this is rare, after any denial it's the only path.
 
 ### Notification Types
 
@@ -282,7 +279,7 @@ iOS gives you **one chance**. Don't waste it.
 
 ### Provisional Notifications (iOS)
 
-Request provisional authorization *alone* for quiet delivery — do NOT combine with `.alert`, which would request the standard prompt immediately and nullify the provisional behavior:
+Request provisional authorization *alone* for quiet delivery. Do NOT combine with `.alert`, which would request the standard prompt immediately and nullify the provisional behavior:
 
 ```swift
 UNUserNotificationCenter.current().requestAuthorization(
@@ -510,82 +507,15 @@ app.post('/webhooks/courier', async (req, res) => {
 });
 ```
 
-## Notification Design
-
 ### Content Guidelines
 
 | Element | iOS hard limit | Android hard limit | Best practice |
 |---------|----------------|--------------------|---------------|
-| Title | ~50 chars | ~65 chars | Keep under 50 — front-load the subject |
+| Title | ~50 chars | ~65 chars | Keep under 50, front-load the subject |
 | Body | ~150 chars | ~150 chars | Keep under ~100 so the lock-screen/banner preview isn't truncated |
 | Image | 1024×1024 max | 1:1 or 2:1 ratio | Add value, not decoration |
 
-> The Quick Reference "under 100 characters" target matches the **preview-safe** length on both platforms — the `~150` number here is the OS truncation ceiling, not a recommendation. If your body exceeds ~100 chars, assume the tail will be cut off on the lock screen.
-
-### Examples
-
-**Good:**
-```
-Title: Jane commented on your post
-Body: "Great point about the API design!"
-```
-
-```
-Title: Your order shipped
-Body: Arriving Thursday. Tap to track.
-```
-
-```
-Title: Security alert
-Body: New login from Chrome on Windows
-```
-
-**Bad:**
-```
-Title: New notification
-Body: Something happened in the app
-```
-
-```
-Title: Hey there!
-Body: We have some exciting news for you that we think you might like...
-```
-
-## Frequency & Timing
-
-### Don't Over-Notify
-
-| Type | Max Frequency |
-|------|---------------|
-| Activity (likes, comments) | Batch after 5min, max 10/hour |
-| Transactional | As needed (but consider batching) |
-| Marketing | 2-3 per week maximum |
-
-### Quiet Hours
-
-Don't send non-urgent push between 10 PM - 8 AM local time. See [Patterns > Quiet Hours](../guides/patterns.md#quiet-hours) for the implementation.
-
-### Batching
-
-```typescript
-// Instead of 5 separate notifications:
-// "Jane liked your post"
-// "Bob liked your post"
-// "Mike liked your post"
-// "Sarah liked your post"
-// "Tom liked your post"
-
-// Send one batched notification:
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    content: {
-      title: "Your post is popular!",
-      body: "Jane, Bob, and 3 others liked your post"
-    }
-  }
-});
-```
+> The Quick Reference "under 100 characters" target matches the **preview-safe** length on both platforms, the `~150` number here is the OS truncation ceiling, not a recommendation. If your body exceeds ~100 chars, assume the tail will be cut off on the lock screen.
 
 ## Troubleshooting
 

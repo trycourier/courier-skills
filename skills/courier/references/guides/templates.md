@@ -6,17 +6,17 @@
 - Template IDs use the `nt_` prefix (e.g., `nt_01kmrbq6ypf25tsge12qek41r0`)
 - Human-friendly aliases are optional in app code, but this skill set uses Courier-generated `nt_...` IDs as the canonical pattern for agent consistency
 - Treat template IDs as opaque, workspace-specific values (they vary by environment and should not encode business meaning)
-- Templates are created in **DRAFT** state by default — they must be published before sends will use them
-- **Canonical create flow is DRAFT → `notifications.publish`, not `state: "PUBLISHED"` on create.** When `state: "PUBLISHED"` is passed to `notifications.create`, the response body currently echoes `name: "Untitled"` and `tags: []` even though the template is stored correctly under the hood. Creating as DRAFT and calling `publish(id)` returns a response body whose `name`/`tags` match what you sent — safer for logging, validation, and lookup.
-- `PUT /notifications/{id}` is a **full replacement** — every field is required, even if unchanged; omitted fields reset to empty/null
+- Templates are created in **DRAFT** state by default. They must be published before sends will use them
+- **Canonical create flow is DRAFT → `notifications.publish`, not `state: "PUBLISHED"` on create.** When `state: "PUBLISHED"` is passed to `notifications.create`, the response body currently echoes `name: "Untitled"` and `tags: []` even though the template is stored correctly under the hood. Creating as DRAFT and calling `publish(id)` returns a response body whose `name`/`tags` match what you sent, safer for logging, validation, and lookup.
+- `PUT /notifications/{id}` is a **full replacement**, every field is required, even if unchanged; omitted fields reset to empty/null
 - Elemental version string is always `"2022-01-01"`
-- ElementalContentSugar (`title`/`body`) only works for inline sends — use the full Elemental format (`version` + `elements`) when creating templates via the API
+- ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
 - A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
-  1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })` — returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
-  2. **Reuse an existing strategy** — copy its ID from an existing template via `GET /notifications/{id}` or list them with `client.routingStrategies.list()`.
-  3. **Defer it** — set `routing: null` on create and assign a `strategy_id` later via `notifications.replace`.
-- Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404 — the archive operation uses the `DELETE` method.
+  1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
+  2. **Reuse an existing strategy:** copy its ID from an existing template via `GET /notifications/{id}` or list them with `client.routingStrategies.list()`.
+  3. **Defer it**. Set `routing: null` on create and assign a `strategy_id` later via `notifications.replace`.
+- Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404, the archive operation uses the `DELETE` method.
 
 ### Common Mistakes
 - Forgetting to publish after creating or updating (template exists but sends use the old published version, or fail silently if never published)
@@ -165,7 +165,7 @@ client.send.message(
 
 ---
 
-## Template CRUD — the Notifications API
+## Template CRUD, the Notifications API
 
 All template operations use the `/notifications` endpoints. Authenticate with `Authorization: Bearer $COURIER_API_KEY`.
 
@@ -181,13 +181,13 @@ All template operations use the `/notifications` endpoints. Authenticate with `A
 | Publish | `POST` | `/notifications/{id}/publish` | Publish the current draft |
 | Get content | `GET` | `/notifications/{id}/content` | Get published content blocks |
 | Get draft | `GET` | `/notifications/{id}/draft/content` | Get draft content blocks |
-| **Upload content** | `PUT` | `/notifications/{id}/content` | Replace a template's content only — leaves name, tags, and routing untouched |
+| **Upload content** | `PUT` | `/notifications/{id}/content` | Replace a template's content only, leaves name, tags, and routing untouched |
 | Update one element | `PUT` | `/notifications/{id}/elements/{elementId}` | Update a single element (V2/Elemental templates only) |
 | List versions | `GET` | `/notifications/{id}/versions` | Version history |
 
 ### Create a Template
 
-Templates require a `notification` object with `name`, `tags`, `brand`, `subscription`, `routing`, and `content` — all fields are required. Set `state` to `"PUBLISHED"` to skip the draft step, or omit/set to `"DRAFT"` (default).
+Templates require a `notification` object with `name`, `tags`, `brand`, `subscription`, `routing`, and `content`, all fields are required. Set `state` to `"PUBLISHED"` to skip the draft step, or omit/set to `"DRAFT"` (default).
 
 **TypeScript:**
 ```typescript
@@ -308,7 +308,7 @@ client.notifications.create(
 
 ### Replace a Template
 
-`PUT` replaces the entire template. You must send **all fields** — any field you omit resets to its default. This is not a partial update.
+`PUT` replaces the entire template. You must send **all fields**, any field you omit resets to its default. This is not a partial update.
 
 **TypeScript:**
 ```typescript
@@ -382,7 +382,7 @@ curl -X PUT "https://api.courier.com/notifications/nt_01abc123" \
 
 ### Upload Content to an Existing Template
 
-`putContent` replaces just the **content** of a template — its Elemental `elements` — without touching name, tags, brand, subscription, or routing. Reach for it when you're syncing template bodies from code (a CMS export, a generated layout) and don't want to resend the whole `notification` object as `replace` requires. It writes to the **draft** by default (`state` defaults to `"DRAFT"`), so publish afterward to go live.
+`putContent` replaces just the **content** of a template, its Elemental `elements`, without touching name, tags, brand, subscription, or routing. Reach for it when you're syncing template bodies from code (a CMS export, a generated layout) and don't want to resend the whole `notification` object as `replace` requires. It writes to the **draft** by default (`state` defaults to `"DRAFT"`), so publish afterward to go live.
 
 **TypeScript:**
 ```typescript
@@ -415,7 +415,7 @@ client.notifications.put_content(
 client.notifications.publish("nt_01abc123")
 ```
 
-To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). For per-locale content, `client.notifications.putLocale(...)` — see [Localization](./elemental.md#localization).
+To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). For per-locale content, `client.notifications.putLocale(...)`. See [Localization](./elemental.md#localization).
 
 ### Publish
 
@@ -476,7 +476,7 @@ curl -s "https://api.courier.com/notifications" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-Paginated — use `paging.cursor` for the next page.
+Paginated. Use `paging.cursor` for the next page.
 
 ### Get a Template
 
@@ -551,16 +551,16 @@ Create (DRAFT) → Edit (Replace) → Publish → Live
 ```
 
 1. **Create** with `state: "DRAFT"` (or omit `state`)
-2. **Iterate** using `PUT /notifications/{id}` — the draft updates but the published version stays unchanged
+2. **Iterate** using `PUT /notifications/{id}`, the draft updates but the published version stays unchanged
 3. **Review** the draft with `GET /notifications/{id}/draft/content`
-4. **Publish** with `POST /notifications/{id}/publish` — the draft becomes the live version
+4. **Publish** with `POST /notifications/{id}/publish`, the draft becomes the live version
 5. **Verify** with `GET /notifications/{id}/content`
 
 To skip the draft step entirely, set `state: "PUBLISHED"` on create or replace.
 
 ### Submission Checks (Approval Workflows)
 
-Templates support approval workflows via submission checks. When enabled, publishing requires external review — Courier emits webhooks on submission, locks the draft, and publishes only after checks are resolved via the checks API (`GET/PUT/DELETE /notifications/{id}/{submissionId}/checks`). See [Template Approval Workflow](https://www.courier.com/docs/platform/content/template-approval-workflow) for setup.
+Templates support approval workflows via submission checks. When enabled, publishing requires external review. Courier emits webhooks on submission, locks the draft, and publishes only after checks are resolved via the checks API (`GET/PUT/DELETE /notifications/{id}/{submissionId}/checks`). See [Template Approval Workflow](https://www.courier.com/docs/platform/content/template-approval-workflow) for setup.
 
 ---
 
@@ -568,9 +568,9 @@ Templates support approval workflows via submission checks. When enabled, publis
 
 Template `content` uses Courier's JSON-based templating language, **Elemental**. Every payload has two required fields (`version` and `elements`), plus an optional shorthand (`{ title, body }`) for inline sends only.
 
-For the full element-by-element reference — all element types, properties, control flow (`if`, `loop`, `ref`, `channels`), and localization — see **[Elemental](./elemental.md)**. The example below uses Elemental; consult the Elemental guide when you need more than `meta`, `text`, `action`, and `channel`.
+For the full element-by-element reference, all element types, properties, control flow (`if`, `loop`, `ref`, `channels`), and localization. See **[Elemental](./elemental.md)**. The example below uses Elemental; consult the Elemental guide when you need more than `meta`, `text`, `action`, and `channel`.
 
-<!-- OLD ELEMENTAL REFERENCE REMOVED — moved to elemental.md. Keep this pointer. -->
+<!-- OLD ELEMENTAL REFERENCE REMOVED, moved to elemental.md. Keep this pointer. -->
 
 <details>
 <summary>Minimal Elemental shape (for context)</summary>
@@ -586,7 +586,7 @@ For the full element-by-element reference — all element types, properties, con
 }
 ```
 
-Inline sends also accept the shorthand `{ "title": "…", "body": "…" }`. **Not** valid for template creation via `POST /notifications` — the full `version` + `elements` shape is required.
+Inline sends also accept the shorthand `{ "title": "…", "body": "…" }`. **Not** valid for template creation via `POST /notifications`, the full `version` + `elements` shape is required.
 
 </details>
 
@@ -632,12 +632,12 @@ The `locales` property on `text`, `action`, `quote`, and `meta` elements is docu
 
 End-to-end: create a multi-channel order confirmation template, publish it, then send.
 
-> **Step 0 (optional) — create a routing strategy if you don't already have one:**
+> **Step 0 (optional). Create a routing strategy if you don't already have one:**
 >
 > TypeScript:
 > ```typescript
 > const strategy = await client.routingStrategies.create({
->   name: "Orders — email + SMS fallback",
+>   name: "Orders, email + SMS fallback",
 >   routing: { method: "single", channels: ["email", "sms"] },
 >   channels: {
 >     email: { providers: ["sendgrid", "aws-ses"] },
@@ -650,7 +650,7 @@ End-to-end: create a multi-channel order confirmation template, publish it, then
 > Python:
 > ```python
 > strategy = client.routing_strategies.create(
->     name="Orders — email + SMS fallback",
+>     name="Orders, email + SMS fallback",
 >     routing={"method": "single", "channels": ["email", "sms"]},
 >     channels={
 >         "email": {"providers": ["sendgrid", "aws-ses"]},
@@ -810,7 +810,7 @@ client.send.message(
 
 ## Workspace vs Tenant Templates
 
-This guide covers **workspace templates** — the `/notifications/...` endpoints. These are the templates visible in your Courier dashboard and shared across all tenants.
+This guide covers **workspace templates**, the `/notifications/...` endpoints. These are the templates visible in your Courier dashboard and shared across all tenants.
 
 For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/templates/...` endpoints. See the [Courier Create API](https://www.courier.com/docs/platform/create/courier-create-api) and [Courier Create tutorial](https://www.courier.com/docs/tutorials/content/how-to-use-courier-create-api) for those routes.
 

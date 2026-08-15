@@ -2,22 +2,20 @@
 
 Copy-paste implementations for cross-cutting concerns that apply across notification types. Each pattern includes TypeScript, Python, CLI, and/or curl examples.
 
-> **Reading order:** This file is the copy-paste companion. For the **concepts** behind idempotency, webhook handling, retries, and failover — including when to use which pattern and what the failure modes are — read [Reliability](./reliability.md) first, then come back here for code.
+> **Reading order:** This file is the copy-paste companion. The **concepts** behind idempotency, webhooks, retries, and failover (when to use which pattern, and the failure modes) live in [Reliability](./reliability.md). Read that first, then come back here for code.
 
 ## Quick Reference
 
 ### Rules
-- **Idempotency keys are sent as an `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `{ headers: { "Idempotency-Key": "..." } }` as the second argument to `client.send.message`. In Python pass `extra_headers={"Idempotency-Key": "..."}`. On the REST API use the `Idempotency-Key` header directly. (The Node SDK's `idempotencyKey` request option may not be wired through in all SDK versions — always set the header explicitly to be safe. Verify against your installed `@trycourier/courier` version before relying on any other path. Python does not accept `idempotency_key=` at all.) The CLI does not yet have an `--idempotency-key` flag; for idempotent ad-hoc sends, use the SDK or curl. Keys are valid for 24 hours.
-- **Check consent before growth/marketing sends**, not before transactional sends. Transactional notifications (password reset, OTP, receipts, security alerts) bypass marketing consent.
-- **Quiet hours apply to non-urgent channels only.** Never delay OTP, password reset, security alerts, or critical account alerts, regardless of time.
-- **Throttle checks should be per-user × per-category.** Global throttles are usually wrong — a user's OTP budget is not the same as their marketing budget.
+- **Idempotency keys are sent as an `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `{ headers: { "Idempotency-Key": "..." } }` as the second argument to `client.send.message`. In Python pass `extra_headers={"Idempotency-Key": "..."}`. On the REST API use the `Idempotency-Key` header directly. (The Node SDK's `idempotencyKey` request option may not be wired through in all SDK versions. Always set the header explicitly to be safe. Verify against your installed `@trycourier/courier` version before relying on any other path. Python does not accept `idempotency_key=` at all.) The CLI does not yet have an `--idempotency-key` flag; for idempotent ad-hoc sends, use the SDK or curl. Keys are valid for 24 hours.
+- **Delivery windows delay a send to the next allowed hour.** Skip them for time-critical sends (OTP, password reset, security alerts), which are useless once delayed.
+- **Frequency caps live in Courier**, as a journey [`throttle` node](./throttling.md) scoped per user, globally, or by a dynamic key. Don't rebuild them app-side.
 - **Fallback routing (`method: "single"`) tries channels in order until one succeeds.** Use `method: "all"` only for genuinely multi-channel events (order shipped = email + push).
-- **Webhook handlers must respond 200 fast** (< 3s) and do work async. Always verify the `courier-signature` header — see [reliability.md](./reliability.md#verify-webhook-signatures).
-- **Retry only transient errors** (5xx, network, 429). Don't retry 4xx client errors, and don't retry indefinitely — cap attempts and use exponential backoff with jitter.
-- **Aggregate repeated actors** to avoid "Alice liked your post" × 15. Use batching with a 5–30 minute window for social-style notifications.
+- **Webhook handlers must respond 2xx within 10 seconds** (Courier's timeout) and do the work async. Always verify the `courier-signature` header. See [webhooks.md](./webhooks.md#verify-webhook-signatures).
+- **The SDK already retries transient errors** (`408`/`409`/`429`/`5xx`, with backoff and jitter). Tune `maxRetries` instead of wrapping calls in your own loop. See [Retries](#retries-the-sdk-already-does-this).
+- **Aggregate repeated actors** ("Alice liked your post" × 15) with a journey [`batch` node](./batching.md), keyed by `category_key`, not an app-side queue.
 - **Cancel scheduled messages** with `client.messages.cancel(messageId)` when the triggering condition becomes stale (e.g., cart abandonment after purchase).
-- **Mask sensitive data** (emails, phones, card last-4) in notification bodies and templates before rendering. Never pass raw PII into notification content that could be logged, rendered in Inbox, or included in email preview text.
-- **Many recipients:** send once with `to: { list_id }` or `to: { audience_id }` and Courier fans out server-side.
+- **Many recipients:** send once with `to: { list_id }` or `to: { audience_id }` and Courier fans out server-side. A plain `to` array caps at **500**; above that use a list, an audience, or a [Bulk API job](./bulk.md).
 - **Tenant-scoped sends** (B2B multi-tenant) pass `tenant_id` in `message` to pick up per-tenant brand and preference overrides.
 
 ### Pattern → when to use it
@@ -25,26 +23,19 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 | Pattern | Use when | Skip when |
 |---------|----------|-----------|
 | [Idempotency Keys](#idempotency-keys) | Transactional sends where duplicates are harmful (OTP, payment confirmations, security alerts) | Marketing blasts, where a retry should produce a fresh send |
-| [Consent Check](#consent-check) | Growth, marketing, weekly-digest sends | Transactional sends — consent is implied by the transaction |
-| [Quiet Hours](#quiet-hours) | Non-urgent push, SMS, marketing | OTP, password reset, security alerts, outage notifications |
-| [Throttle Check](#throttle-check) | You need per-user per-category frequency caps beyond Courier preferences | Global platform-level rate limiting (Courier handles provider limits) |
 | [Multi-Channel Fallback](#multi-channel-fallback) | OTP, critical transactional, anything with a hard SLA | Events where you genuinely want every channel ("order shipped" → `method: "all"`) |
 | [Webhook Handler](#webhook-handler) | You need to react to delivery events (bounces, clicks, undeliverable) | You only need to check status on demand (use `client.messages.retrieve`) |
-| [Retry with Exponential Backoff](#retry-with-exponential-backoff) | Your ingest path calls `send.message` and must survive 5xx/network errors | Courier-to-provider retries — those are Courier's job |
-| [Actor Aggregation](#actor-aggregation) | Social/activity notifications ("Alice liked", "Bob commented") | Transactional — never aggregate critical messages |
+| [Retries](#retries-the-sdk-already-does-this) | You want to know what the client retries, or need to tune `maxRetries` | Wrapping an SDK call in your own loop, which multiplies attempts |
 | [Sequence Cancellation](#sequence-cancellation) | Scheduled reminders whose triggering condition can go stale (cart, abandoned signup) | One-shot sends |
-| [Data Masking](#data-masking) | Security alerts, change confirmations, any notification with PII in the body | Sends where the PII IS the value (order confirmation needs the address) |
 | [Lists and Audience Sends](#lists-and-audience-sends) | Audience-scale delivery (newsletters, product-launch digests) | Single-recipient sends |
+| [Bulk API](./bulk.md) | A large ad-hoc recipient set, per-recipient data, or you want job-level progress | The set is already a list or audience; send to it directly |
 | [Tenants (Multi-Tenant / B2B)](#tenants-multi-tenant-b2b) | B2B apps where each customer org needs its own branding or preferences | Consumer apps with one brand |
 
 ### Common Mistakes
 - Putting `Idempotency-Key` **inside** the `message` object instead of sending it as a request header
-- Using the same idempotency key for "send OTP" across multiple attempts (a resend should have a distinct key — typically `otp-{userId}-{otpRequestId}`, keyed off the unique id of the OTP request from your own system)
-- Checking consent for transactional sends (you'll lock legitimate users out of OTP/password reset)
-- Applying quiet hours to security alerts
+- Using the same idempotency key for "send OTP" across multiple attempts (a resend should have a distinct key, typically `otp-{userId}-{otpRequestId}`, keyed off the unique id of the OTP request from your own system)
 - Retrying 4xx errors (you'll hit the same validation failure forever)
-- Aggregating OTP or security events
-- Verifying webhooks by re-hashing the parsed JSON — always hash the raw request body concatenated with the timestamp, see [reliability.md](./reliability.md#verify-webhook-signatures)
+- Verifying webhooks by re-hashing the parsed JSON. Always hash the raw request body concatenated with the timestamp, see [webhooks.md](./webhooks.md#verify-webhook-signatures)
 
 ## Idempotency Keys
 
@@ -100,140 +91,7 @@ curl -X POST https://api.courier.com/send \
   }'
 ```
 
-Key pattern: `{notification-type}-{unique-id}`. For OTP and password reset, the unique id should be the per-request id from your own system (e.g. `otp-{userId}-{otpRequestId}`) — that way a retry of the same request is deduped, but a legitimately new user-initiated request gets a fresh key. See [Reliability > Idempotency Key Patterns](./reliability.md#idempotency-key-patterns) for the full table.
-
-## Consent Check
-
-Check user consent before sending growth/marketing notifications. Courier auto-checks preferences for templates linked to topics, but verify programmatically when needed.
-
-**TypeScript:**
-```typescript
-async function hasConsent(userId: string, topic: string): Promise<boolean> {
-  try {
-    const prefs = await client.users.preferences.retrieve(userId);
-    const topicPref = prefs.items?.find((p: any) => p.topic_id === topic);
-    return topicPref?.status === "OPTED_IN";
-  } catch {
-    return false;
-  }
-}
-
-if (await hasConsent(userId, "growth-notifications")) {
-  await client.send.message({ ... });
-}
-```
-
-**Python:**
-```python
-def has_consent(user_id: str, topic: str) -> bool:
-    try:
-        prefs = client.users.preferences.retrieve(user_id)
-        topic_pref = next((t for t in prefs.items if t.topic_id == topic), None)
-        return topic_pref is not None and topic_pref.status == "OPTED_IN"
-    except Exception:
-        return False
-
-if has_consent(user_id, "growth-notifications"):
-    client.send.message(message={...})
-```
-
-### Opt-In Record Structure
-
-Store opt-in records so you can prove when and how a user consented:
-
-```typescript
-interface OptInRecord {
-  userId: string;
-  email?: string;
-  phone?: string;
-  consentedAt: Date;
-  method: "web_form" | "sms_keyword" | "verbal" | "import";
-  ipAddress?: string;
-  consentText: string;       // Exact text user agreed to
-  categories: string[];      // e.g. ["marketing", "product-updates"]
-  expiresAt?: Date;          // Optional, for time-bound opt-ins
-}
-```
-
-## Quiet Hours
-
-Never send non-critical notifications during 10pm-8am in the user's local timezone.
-
-> **Prefer the native delivery window.** Courier can enforce quiet hours on the send itself with `delay: { until: "Mo-Su 08:00-22:00", timezone }` — no app-side queue. See [Scheduling](./scheduling.md#delivery-window-business-hours-quiet-hours). Reach for the manual check below only when the decision depends on logic a delivery window can't express.
-
-**TypeScript:**
-```typescript
-function isQuietHours(timezone: string): boolean {
-  const hour = parseInt(
-    new Date().toLocaleString("en-US", {
-      timeZone: timezone,
-      hour: "numeric",
-      hour12: false,
-    })
-  );
-  return hour >= 22 || hour < 8;
-}
-
-async function sendWithQuietHours(
-  userId: string,
-  timezone: string,
-  priority: "critical" | "high" | "medium" | "low",
-  message: object
-): Promise<void> {
-  if (priority === "critical") {
-    await client.send.message({ message });
-    return;
-  }
-
-  if (isQuietHours(timezone)) {
-    await queueForLater(userId, message, { deliverAt: "08:00", timezone });
-    return;
-  }
-
-  await client.send.message({ message });
-}
-```
-
-**Python:**
-```python
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
-def is_quiet_hours(timezone: str) -> bool:
-    hour = datetime.now(ZoneInfo(timezone)).hour
-    return hour >= 22 or hour < 8
-```
-
-## Throttle Check
-
-Enforce per-user notification limits by priority level. See [Throttling](./throttling.md) for full guidance.
-
-```typescript
-async function shouldSend(
-  userId: string,
-  priority: "critical" | "high" | "medium" | "low"
-): Promise<boolean> {
-  if (priority === "critical") return true;
-
-  const count = await getNotificationCount(userId, "1h");
-  const limits: Record<string, number> = {
-    high: 20,
-    medium: 10,
-    low: 5,
-  };
-
-  return count < (limits[priority] ?? 10);
-}
-```
-
-### Recommended Limits by Channel
-
-| Channel | Limit | Window |
-|---------|-------|--------|
-| Push | 5-10 | Per hour |
-| Email | 3-5 | Per day |
-| SMS | 2-3 | Per day |
-| In-app | 20-50 | Per hour |
+Key pattern: `{notification-type}-{unique-id}`. For OTP and password reset, the unique id should be the per-request id from your own system (e.g. `otp-{userId}-{otpRequestId}`). That way a retry of the same request is deduped, but a legitimately new user-initiated request gets a fresh key. See [Reliability > Idempotency Key Patterns](./reliability.md#idempotency-key-patterns) for the full table.
 
 ## Multi-Channel Fallback
 
@@ -296,7 +154,7 @@ For critical alerts that send to all channels simultaneously, use `method: "all"
 
 ## Webhook Handler
 
-Always respond 200 immediately and process asynchronously. Handle duplicates. In production, also verify the webhook signature — see [Reliability > Verify Webhook Signatures](./reliability.md#verify-webhook-signatures) for the full pattern.
+Always respond 2xx immediately (Courier's timeout is 10 seconds) and process asynchronously. Handle duplicates by deduping on `data.id` plus status, since `data.id` is the resource id and repeats across a message's events. In production, also verify the webhook signature. See [Webhooks > Verifying Signatures](./webhooks.md#verify-webhook-signatures) for the full pattern.
 
 **TypeScript (Express):**
 ```typescript
@@ -331,87 +189,48 @@ def courier_webhook():
     return "", 200
 ```
 
-## Retry with Exponential Backoff
+## Retries (the SDK already does this)
 
-For retrying failed sends (5xx errors only, never retry 4xx). See [Reliability > Retry Logic](./reliability.md#retry-logic) for full guidance.
+**Don't hand-roll retry around a Courier SDK call.** Both SDKs retry automatically, so wrapping them
+in your own loop multiplies attempts: your 3 tries times the SDK's 3 becomes 9 requests for one send.
 
-**TypeScript:**
+What the client does out of the box:
+
+| | Behavior |
+|---|---|
+| Default attempts | `maxRetries: 2`, so up to 3 requests total |
+| Retried | `408`, `409`, `429`, any `5xx`, and connection errors |
+| Not retried | Other `4xx`. A malformed send fails immediately, as it should |
+| Backoff | Exponential from 0.5s, capped at 8s, with up to 25% jitter |
+| Server override | Honors `retry-after` / `retry-after-ms`, and an explicit `x-should-retry` header |
+
+Tune it per client or per request instead of writing your own:
+
 ```typescript
-async function sendWithRetry(
-  message: object,
-  maxAttempts: number = 3
-): Promise<void> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      await client.send.message({ message });
-      return;
-    } catch (error: any) {
-      if (error.status >= 400 && error.status < 500) {
-        throw error;
-      }
-      if (attempt === maxAttempts - 1) {
-        throw error;
-      }
-      const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
-      await new Promise((r) => setTimeout(r, delay + Math.random() * 1000));
-    }
-  }
-}
+const client = new Courier({ maxRetries: 4 });            // default 2
+
+await client.send.message({ message }, { maxRetries: 0 }); // disable for one call
 ```
 
-**Python:**
 ```python
-import time
-import random
-from courier import Courier
+client = Courier(max_retries=4)
 
-def send_with_retry(client: Courier, message: dict, max_attempts: int = 3):
-    for attempt in range(max_attempts):
-        try:
-            return client.send.message(message=message)
-        except Exception as e:
-            status = getattr(e, "status_code", 500)
-            if 400 <= status < 500:
-                raise
-            if attempt == max_attempts - 1:
-                raise
-            delay = min(2 ** attempt, 30) + random.random()
-            time.sleep(delay)
+# Per-request, via with_options (message() itself takes no max_retries kwarg)
+client.with_options(max_retries=0).send.message(message=...)
 ```
 
-## Actor Aggregation
+Your own retry logic belongs one level out: around **your** ingest path, if a send is part of a
+larger unit of work that has to survive a process crash. That is a queue or job-runner concern, not
+an SDK wrapper. Pair it with an [idempotency key](#idempotency-keys) so a replay doesn't double-send.
 
-Format actor names for batched notifications ("Jane and 5 others").
-
-**TypeScript:**
-```typescript
-function formatActors(names: string[]): string {
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  const remaining = names.length - 2;
-  return `${names[0]}, ${names[1]}, and ${remaining} ${remaining === 1 ? "other" : "others"}`;
-}
-```
-
-**Python:**
-```python
-def format_actors(names: list[str]) -> str:
-    if len(names) == 1:
-        return names[0]
-    if len(names) == 2:
-        return f"{names[0]} and {names[1]}"
-    remaining = len(names) - 2
-    noun = "other" if remaining == 1 else "others"
-    return f"{names[0]}, {names[1]}, and {remaining} {noun}"
-```
 
 ## Sequence Cancellation
 
-End a multi-step sequence when the user takes the desired action. With [Journeys](./journeys.md), build exit logic directly into the DAG using branch nodes and exit nodes — the journey checks a condition before each step and exits early when the goal is met.
+End a multi-step sequence when the user takes the desired action. With [Journeys](./journeys.md), build exit logic directly into the DAG using branch nodes and exit nodes, the journey checks a condition before each step and exits early when the goal is met.
 
 **Journeys approach (recommended):**
 
-Design the journey with a branch node that checks whether the user has activated before continuing. This makes cancellation part of the flow itself — no external cancel call needed.
+Design the journey with a branch node that checks whether the user has activated before continuing. This makes cancellation part of the flow itself, no external cancel call needed.
 
 ```json
 {
@@ -443,50 +262,17 @@ Design the journey with a branch node that checks whether the user has activated
 
 See [Journeys](./journeys.md) for the full workflow (create → template → wire → publish → invoke).
 
-Cancel the sequence when the user activates — set a cancelation token on the journey and call `POST /journeys/cancel`:
+Cancel the sequence when the user activates. Set a cancelation token on the journey and call `POST /journeys/cancel`:
 
 ```typescript
 await client.journeys.cancel({ cancelation_token: `onboarding-${userId}` });
 ```
 
-See [Journeys — Cancelling Runs](./journeys.md#cancelling-runs).
-
-## Data Masking
-
-Mask sensitive data in notification content. Required for security change notifications.
-
-**TypeScript:**
-```typescript
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  return `${local[0]}${"*".repeat(Math.max(local.length - 2, 1))}${local.slice(-1)}@${domain}`;
-}
-
-function maskPhone(phone: string): string {
-  return `***-***-${phone.slice(-4)}`;
-}
-
-function maskCard(last4: string): string {
-  return `****-****-****-${last4}`;
-}
-```
-
-**Python:**
-```python
-def mask_email(email: str) -> str:
-    local, domain = email.split("@")
-    return f"{local[0]}{'*' * max(len(local) - 2, 1)}{local[-1]}@{domain}"
-
-def mask_phone(phone: str) -> str:
-    return f"***-***-{phone[-4:]}"
-
-def mask_card(last4: str) -> str:
-    return f"****-****-****-{last4}"
-```
+See [Journeys, Cancelling Runs](./journeys.md#cancelling-runs).
 
 ## Lists and Audience Sends
 
-Send to a group with one call — Courier fans out to every recipient.
+Send to a group with one call. Courier fans out to every recipient.
 
 ### Lists
 
@@ -548,7 +334,15 @@ await client.send.message({
 
 ### Many recipients
 
-Send once to a list or audience and let Courier fan out — there is no separate bulk-job API.
+Three ways to reach a lot of people. Pick by whether the recipient set is already modeled in Courier.
+
+| Approach | Use when | Ceiling |
+|---|---|---|
+| `to: { list_id }` / `to: { audience_id }` | The set is already a list or audience | None; Courier fans out server-side |
+| `to: [ ... ]` (multi-recipient send) | A handful of ad-hoc recipients | **500 recipients**, hard cap |
+| [Bulk API](./bulk.md) | A large ad-hoc set, or you want per-recipient data and job-level progress | Ingest in batches of ≤1000 per call |
+
+Send once to a list or audience and let Courier fan out:
 
 ```typescript
 await client.send.message({
@@ -556,6 +350,10 @@ await client.send.message({
 });
 // or: to: { audience_id: "trial-users-no-integration" }
 ```
+
+The `to` array on a single send is capped at 500. At 501 the send fails with
+`400 message.to has 501 recipients. Max is 500`. Above that, use a list, an audience, or a
+[Bulk API job](./bulk.md).
 
 To upsert many profiles first, call `client.profiles.create` per user with a bounded worker pool.
 
@@ -614,8 +412,8 @@ When `tenant_id` is included, Courier applies that tenant's `brand_id` (if set) 
 
 Beyond `brand_id`, a tenant carries its own preference defaults (`tenants.preferences.items`) and can
 override template content per tenant (`tenants.templates`), on top of full tenant CRUD and user
-association. The complete SDK surface — with `OPTED_IN`/`OPTED_OUT`/`REQUIRED` statuses,
-`parent_tenant_id` inheritance, and method shapes — is in [tenants.md](./tenants.md).
+association. The complete SDK surface, with `OPTED_IN`/`OPTED_OUT`/`REQUIRED` statuses,
+`parent_tenant_id` inheritance, and method shapes, is in [tenants.md](./tenants.md).
 
 ## Related
 

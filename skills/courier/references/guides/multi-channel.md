@@ -17,11 +17,11 @@
 | Password reset | single | [email] |
 | Order confirmation | single | [email] |
 | Order shipped | all | [email, push] |
-| Security alert | all | Tiered by severity — see [authentication.md#security-alert-channels](../transactional.md#security-alert-channels). Lowest tier: `[email, push]`; highest tier: `[email, push, sms, inbox]` |
+| Security alert | all | Tiered by severity, see [authentication.md#security-alert-channels](../transactional.md#security-alert-channels). Lowest tier: `[email, push]`; highest tier: `[email, push, sms, inbox]` |
 | Activity mention | all | [push, inbox] |
 | Weekly digest | single | [email] |
 
-Rationale for "order shipped": email is the durable record; push is the awareness nudge. `method: "all"` automatically skips channels where the user has no contact info (no push token = push silently dropped, email still sent). Inbox is intentionally omitted — a shipping notification doesn't need in-app persistence.
+Rationale for "order shipped": email is the durable record; push is the awareness nudge. `method: "all"` automatically skips channels where the user has no contact info (no push token = push silently dropped, email still sent). Inbox is intentionally omitted, a shipping notification doesn't need in-app persistence.
 
 ### Routing Edge Cases
 | Situation | Behavior |
@@ -53,7 +53,7 @@ Courier provides two core routing methods:
 
 Try channels in priority order until one succeeds. Best for most notifications where you want exactly one delivery.
 
-Pick the priority order based on the use case — OTP/2FA should be `["sms", "email"]` (speed matters more than durability), password reset should be `["email"]` (the secure link is the point), general fallback can be `["email", "sms"]` (email is the default record, SMS is the backstop).
+Pick the priority order based on the use case, OTP/2FA should be `["sms", "email"]` (speed matters more than durability), password reset should be `["email"]` (the secure link is the point), general fallback can be `["email", "sms"]` (email is the default record, SMS is the backstop).
 
 **TypeScript (generic fallback, email first):**
 ```typescript
@@ -85,7 +85,7 @@ client.send.message(
 2. If it fails (no contact info, provider error), try the next
 3. Stop after first successful delivery
 
-> For OTP specifically, swap the channel order to `["sms", "email"]` — the Quick Reference and By-Urgency tables above are the source of truth for per-use-case ordering.
+> For OTP specifically, swap the channel order to `["sms", "email"]`, the Quick Reference and By-Urgency tables above are the source of truth for per-use-case ordering.
 
 ### All Channels (`method: "all"`)
 
@@ -121,38 +121,11 @@ client.send.message(
 - Each channel is independent (one failure doesn't affect others)
 - User receives on all channels where they have valid contact info
 
-## Channel Priority Matrix
-
-### By Urgency
-
-| Urgency | Strategy | Channels | Example |
-|---------|----------|----------|---------|
-| Critical | All channels | Email + Push + SMS + In-app | Account compromised |
-| High | Primary + aggressive fallback | SMS → Email (canonical OTP order: the Quick Reference is the source of truth) | OTP code |
-| Medium | Record + awareness nudge | Email + Push (`method: "all"`) | Order shipped |
-| Low | Least intrusive | In-app only | Weekly digest available |
-
-### By Notification Type
-
-| Notification | Primary | Secondary | Rationale |
-|--------------|---------|-----------|-----------|
-| **OTP/2FA** | SMS | Email | Speed, visibility, works offline |
-| **Password reset** | Email | - | Secure link delivery |
-| **Order confirmed** | Email | In-app | Receipt for records |
-| **Order shipped** | Email + Push (`method: "all"`, channels `[email, push]`) | - | Email is the record, push the awareness nudge |
-| **Out for delivery** | Push + SMS | - | Real-time, actionable |
-| **Security alert** | Tiered (see [authentication.md](../transactional.md#security-alert-channels)) | - | Fan-out scales with event severity |
-| **Direct message** | Push | In-app | Immediate, conversational |
-| **Comment/mention** | Push | In-app | Immediate, contextual |
-| **Likes (batched)** | In-app | - | Low priority, batch |
-| **Weekly digest** | Email | - | Long-form content |
-| **Appointment reminder** | SMS + Push | Email | Time-sensitive |
-
 ## Channel Selection Examples
 
-### Security Alert (Highest Tier — Suspicious Activity)
+### Security Alert (Highest Tier, Suspicious Activity)
 
-Security alerts fan out by severity (see [Security Alert Channels](../transactional.md#security-alert-channels)). The example below is for a **high-severity** event like suspicious activity, 2FA disabled, or a password change — which earns the full channel set. For a lower-severity event like a new device login, drop SMS and Inbox and use `channels: ["email", "push"]`.
+Security alerts fan out by severity (see [Security Alert Channels](../transactional.md#security-alert-channels)). The example below is for a **high-severity** event like suspicious activity, 2FA disabled, or a password change, which earns the full channel set. For a lower-severity event like a new device login, drop SMS and Inbox and use `channels: ["email", "push"]`.
 
 ```typescript
 await client.send.message({
@@ -458,7 +431,7 @@ await client.send.message({
 
 Mark notification as read across channels when user engages with one.
 
-> ⚠️ **Do not treat an email open as engagement.** Apple Mail Privacy Protection and Gmail's image proxy prefetch tracking pixels on the recipient's behalf, so `OPENED` fires for a large share of recipients who never saw the message. Escalation, suppression, and read-state logic keyed on opens will silently misfire. Key on **clicks** (`CLICKED`), in-app read state, or an action inside your own product instead. The example below uses opens only to illustrate the cancel mechanics — swap the trigger for a click or in-app read event in production.
+> ⚠️ **Do not treat an email open as engagement.** Apple Mail Privacy Protection and Gmail's image proxy prefetch tracking pixels on the recipient's behalf, so `OPENED` fires for a large share of recipients who never saw the message. Escalation, suppression, and read-state logic keyed on opens will silently misfire. Key on **clicks** (`CLICKED`), in-app read state, or an action inside your own product instead. The example below uses opens only to illustrate the cancel mechanics, swap the trigger for a click or in-app read event in production.
 
 ```typescript
 // Prefer a click or in-app read event over an open — see the caveat above
@@ -474,7 +447,7 @@ app.post('/webhooks/email-clicked', async (req, res) => {
 
 ### Cancellation
 
-With [Journeys](./journeys.md), build exit logic directly into the DAG using branch nodes and exit nodes — the journey checks conditions before each step and exits early when appropriate. See [Patterns — Sequence Cancellation](./patterns.md#sequence-cancellation) for details.
+With [Journeys](./journeys.md), build exit logic directly into the DAG using branch nodes and exit nodes, the journey checks conditions before each step and exits early when appropriate. See [Patterns, Sequence Cancellation](./patterns.md#sequence-cancellation) for details.
 
 ## Provider Failover
 
@@ -482,7 +455,7 @@ With [Journeys](./journeys.md), build exit logic directly into the DAG using bra
 
 1. Go to **Channels** in the [Courier dashboard](https://app.courier.com/channels)
 2. Add multiple providers for the same channel type (e.g., two email providers)
-3. Drag to set priority order — Courier tries top-to-bottom
+3. Drag to set priority order. Courier tries top-to-bottom
 4. Each provider needs its own credentials (API key, etc.)
 
 ```
@@ -498,7 +471,7 @@ SMS Providers:
 
 ### Setup (API)
 
-The same setup can be done over the API — configure the provider integrations via `/providers`, then define priority order per channel via a routing strategy's `channels.{channel}.providers` array. The position of a provider key in that array is the drag-to-reorder equivalent.
+The same setup can be done over the API, configure the provider integrations via `/providers`, then define priority order per channel via a routing strategy's `channels.{channel}.providers` array. The position of a provider key in that array is the drag-to-reorder equivalent.
 
 ```typescript
 // 1. Configure the provider integrations (one-time, usually from an IaC script).
@@ -606,23 +579,6 @@ const analytics = {
 // Push has highest engagement for this notification type
 // Consider making push primary
 ```
-
-## Best Practices
-
-### Do
-
-- **Match channel to content:** Long content → email, urgent → push/SMS
-- **Respect preferences:** Let users choose their channels
-- **Use fallbacks:** Have backup channels for critical notifications
-- **Adapt content:** Optimize message for each channel's constraints
-- **Track performance:** Monitor per-channel metrics
-
-### Don't
-
-- **Spam all channels:** Sending same notification everywhere annoys users
-- **Ignore context:** User active in app? Don't also send email
-- **Over-escalate:** Not everything needs SMS
-- **Forget mobile:** 60%+ of notifications read on mobile
 
 ## Related
 

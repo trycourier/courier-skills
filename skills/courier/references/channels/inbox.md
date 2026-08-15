@@ -1,8 +1,8 @@
 # Inbox Channel
 
-Sending to Courier's in-app inbox. The inbox is a delivery channel like email or SMS — you address it the same way, and Courier stores the message for the user to read in your app.
+Sending to Courier's in-app inbox. The inbox is a delivery channel like email or SMS. You address it the same way, and Courier stores the message for the user to read in your app.
 
-**Rendering the inbox in your app is a separate concern** — JWT auth, the React / Web Component / React Native / iOS / Android / Flutter SDKs, read state, and real-time updates all live in [inbox/rendering.md](../inbox/rendering.md).
+**Rendering the inbox in your app is a separate concern**, JWT auth, the React / Web Component / React Native / iOS / Android / Flutter SDKs, read state, and real-time updates all live in [inbox/rendering.md](../inbox/rendering.md).
 
 ## Quick Reference
 
@@ -10,9 +10,9 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 
 - Title under 50 characters; body under 150
 - 1–2 actions maximum
-- Always include deep-link data in `data` — a click with nowhere to go is a dead end
+- Always include deep-link data in `data`, a click with nowhere to go is a dead end
 - Batch similar events rather than sending ten "liked your post" messages
-- No OS permission needed, so the inbox reaches every user — it is the safe default channel
+- No OS permission needed, so the inbox reaches every user. It is the safe default channel
 
 ### Common mistakes
 
@@ -104,7 +104,7 @@ await client.send.message({
 
 ## Read State
 
-Read and unread state is managed client-side by the Inbox SDK. From the server you archive — which removes the message from the user's inbox.
+Read and unread state is managed client-side by the Inbox SDK. From the server you archive, which removes the message from the user's inbox.
 
 Archive an inbox message from the server with `client.requests.archive(requestId)`:
 
@@ -149,8 +149,8 @@ app.post('/email-clicked', async (req, res) => {
 
 ## Related
 
-- [Push](./push.md) — pair inbox with push so the message reaches users who aren't in the app
-- [Multi-Channel](../guides/multi-channel.md) — inbox in routing strategies
-- [Batching](../guides/batching.md) — aggregating events into one inbox message
-- [Preferences](../guides/preferences.md) — letting users turn inbox categories off
-- [Elemental](../guides/elemental.md) — content that renders in the inbox
+- [Push](./push.md), pair inbox with push so the message reaches users who aren't in the app
+- [Multi-Channel](../guides/multi-channel.md), inbox in routing strategies
+- [Batching](../guides/batching.md), aggregating events into one inbox message
+- [Preferences](../guides/preferences.md), letting users turn inbox categories off
+- [Elemental](../guides/elemental.md), content that renders in the inbox

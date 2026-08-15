@@ -12,7 +12,7 @@ npm install @trycourier/courier-react-17
 
 ### Basic Setup (v8)
 
-v8 uses `useCourier()` hook + `courier.shared.signIn()` — no provider wrapper needed:
+v8 uses `useCourier()` hook + `courier.shared.signIn()`, no provider wrapper needed:
 
 ```tsx
 import { useEffect } from "react";
@@ -86,7 +86,7 @@ Filter options per tab:
 
 ### Customized Inbox (v8)
 
-v8 uses native theming via `lightTheme`/`darkTheme` props — no styled-components dependency:
+v8 uses native theming via `lightTheme`/`darkTheme` props, no styled-components dependency:
 
 ```tsx
 import { CourierInbox, type CourierInboxTheme } from "@trycourier/courier-react";

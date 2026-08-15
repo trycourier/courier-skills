@@ -14,7 +14,7 @@ Courier uses three types of credentials in different contexts:
 
 The API Key is the same key regardless of which env var you store it in. The SDK and CLI just look for different variable names by convention.
 
-JWT is required for Inbox. Generate tokens server-side using your API key. The SDKs expose the issue-token endpoint directly — prefer that over raw HTTP.
+JWT is required for Inbox. Generate tokens server-side using your API key. The SDKs expose the issue-token endpoint directly. Prefer that over raw HTTP.
 
 **TypeScript (`@trycourier/courier`):**
 

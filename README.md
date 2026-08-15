@@ -73,11 +73,11 @@ The same shape sends email, SMS, push, Slack, Teams, WhatsApp, or in-app. The ch
 
 ## What the skill covers
 
-**Channels.** Email (deliverability, SPF/DKIM/DMARC), SMS (10DLC, opt-in and opt-out), push (APNs and FCM, device tokens), in-app inbox (JWT auth, plus React, Web Components, React Native, iOS, Android, and Flutter rendering), Slack (Block Kit, OAuth), Microsoft Teams (Adaptive Cards), and WhatsApp (approved templates, the 24-hour window).
+**Channels.** Email (deliverability, SPF/DKIM/DMARC), SMS (10DLC registration, segment math, deliverability), push (APNs and FCM, device tokens), in-app inbox (JWT auth, plus React, Web Components, React Native, iOS, Android, and Flutter rendering), Slack (Block Kit, OAuth), Microsoft Teams (Adaptive Cards), and WhatsApp (approved templates, the 24-hour window).
 
-**Notification types.** [Transactional](./skills/courier/references/transactional.md) (password reset, OTP, orders, receipts, dunning, security alerts) and [lifecycle marketing](./skills/courier/references/lifecycle-marketing.md) (onboarding, adoption, digests, win-back, campaigns). Each is mapped to the Courier primitive that implements it, with the safety rules stated inline: transactional sends are never batched or delayed and mask PII, and marketing sends require recorded opt-in and one-click unsubscribe.
+**Notification types.** [Transactional](./skills/courier/references/transactional.md) (password reset, OTP, orders, receipts, dunning, security alerts) and [lifecycle marketing](./skills/courier/references/lifecycle-marketing.md) (onboarding, adoption, digests, win-back, campaigns). Each is mapped to the Courier primitive that implements it.
 
-**Core platform.** Quickstart, journeys (delays, branches, batching, digests, throttling, A/B experiments, cancellation), templates and Elemental, multi-channel routing, preferences and preference sections, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses, webhooks), routing strategies, and provider configuration.
+**Core platform.** Quickstart, journeys (delays, branches, batching, digests, throttling, A/B experiments, cancellation), templates and Elemental, multi-channel routing, preferences and preference sections, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses), webhooks in both directions (outbound events and signature verification, inbound webhooks and journey triggers), sending to many recipients (list and audience fan-out, the Bulk API), routing strategies, and provider configuration.
 
 **Tooling.** The CLI for ad-hoc operations and delivery debugging, and MCP: the [API server](https://mcp.courier.com) to operate a workspace and the [docs server](https://www.courier.com/docs/mcp) to look things up.
 
@@ -126,7 +126,8 @@ courier-skills/
         ├── inbox/     (rendering, auth, react, web-components, react-native, legacy-v7)
         └── guides/    (quickstart, journeys, templates, elemental, multi-channel,
                         preferences, batching, throttling, brands, audiences, tenants,
-                        patterns, routing-strategies, providers, reliability, cli, mcp)
+                        patterns, routing-strategies, providers, reliability, webhooks,
+                        bulk, scheduling, cli, mcp)
 ```
 
 Open `skills/courier/SKILL.md`. Its **Where to Look** table routes you to the one or two references that match your task.

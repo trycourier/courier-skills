@@ -8,7 +8,6 @@
 - 24-hour session window: after user messages, can send free-form for 24hrs
 - After 24hrs with no user message: MUST use template
 - Phone numbers MUST be E.164 format: +15551234567
-- Explicit opt-in required before messaging users
 - Template categories: UTILITY (fastest approval), AUTHENTICATION, MARKETING (strictest)
 - Variables use positional format: `{{1}}`, `{{2}}`, `{{3}}`
 - Quick reply buttons: maximum 3
@@ -18,7 +17,6 @@
 - Sending without approved template (outside 24hr window)
 - Variable count mismatch (template has 3, you send 2)
 - Phone number not in E.164 format
-- Not recording opt-in consent
 - Using MARKETING category for transactional messages (slower approval)
 - Too many template variables (looks spammy, may be rejected)
 - Promotional content in UTILITY templates (will be rejected)
@@ -443,50 +441,6 @@ await client.send.message({
 });
 ```
 
-## Opt-In Requirements
-
-### User Consent Required
-
-WhatsApp requires explicit opt-in before messaging users:
-
-| Requirement | Details |
-|-------------|---------|
-| Clear disclosure | What messages they'll receive |
-| Active opt-in | User must take action (not pre-checked) |
-| Easy opt-out | Reply STOP or similar |
-
-### Valid Opt-In Methods
-
-```html
-<!-- Web form -->
-<label>
-  <input type="checkbox" name="whatsapp_consent">
-  Receive order updates via WhatsApp to {{phone_number}}
-</label>
-```
-
-- SMS keyword: "Text START to receive WhatsApp updates"
-- Click-to-chat: `https://wa.me/15551234567?text=Subscribe`
-- In-app toggle with clear description
-
-### Record Consent
-
-```typescript
-interface WhatsAppConsent {
-  phoneNumber: string;
-  consentedAt: Date;
-  method: 'web_form' | 'sms_keyword' | 'click_to_chat';
-  categories: string[]; // ['orders', 'appointments']
-}
-
-await storeConsent({
-  phoneNumber: "+15551234567",
-  consentedAt: new Date(),
-  method: 'web_form',
-  categories: ['orders']
-});
-```
-
 ## Template Best Practices
 
 ### Approval Tips
@@ -523,7 +477,7 @@ Hi {{1}}, {{2}} {{3}} {{4}} {{5}} {{6}}...
 
 WhatsApp charges per conversation (24-hour window from first message).
 
-> **Last verified: 2026-04.** Meta updates WhatsApp Business pricing and free-tier rules frequently. If this file is older than **3 months**, re-verify against https://developers.facebook.com/docs/whatsapp/pricing before quoting these numbers to a user. Do **not** reason from memory — fetch the live page.
+> **Last verified: 2026-04.** Meta updates WhatsApp Business pricing and free-tier rules frequently. If this file is older than **3 months**, re-verify against https://developers.facebook.com/docs/whatsapp/pricing before quoting these numbers to a user. Do **not** reason from memory, fetch the live page.
 
 | Category | Cost Range (varies by country, as of 2026-04) |
 |----------|-----------------------------------------------|

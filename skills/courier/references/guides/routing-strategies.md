@@ -9,18 +9,18 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 - `name` and `routing` are the only required fields on create; both `channels` and `providers` are top-level optional fields that default to empty when omitted
 - **Channel-level vs provider-level config:** `channels.{channel}.providers` is the **ordered failover list** for a channel (position = priority). The **top-level** `providers` map carries **per-provider** settings (`override`, `if`, `timeouts`, `metadata`) keyed by provider name. You typically use both: `channels.email.providers: ["sendgrid","aws-ses"]` for order, and `providers.sendgrid.override: {...}` for SendGrid-specific config
 - `routing.method` is `"single"` (try channels in order until one succeeds) or `"all"` (send to all channels in parallel)
-- `channels.{channel}.providers` is an **ordered** array — position = failover priority (same as dragging providers in the dashboard)
-- `PUT /routing-strategies/{id}` is a **full replacement** — any field you omit is reset to its default
+- `channels.{channel}.providers` is an **ordered** array, position = failover priority (same as dragging providers in the dashboard)
+- `PUT /routing-strategies/{id}` is a **full replacement**, any field you omit is reset to its default
 - `DELETE /routing-strategies/{id}` archives; it returns **409 Conflict** if any notification template still references the strategy. Unlink templates first (replace their `routing` with a different strategy or `null`)
-- `GET /routing-strategies` returns metadata only (no `routing`/`channels`/`providers` content) — use `GET /routing-strategies/{id}` for the full document
+- `GET /routing-strategies` returns metadata only (no `routing`/`channels`/`providers` content). Use `GET /routing-strategies/{id}` for the full document
 - Templates and routing strategies are decoupled: one strategy can back many templates, and swapping a strategy's providers reroutes every template pointing at it without republishing
 
 ### Common Mistakes
 - Omitting fields on `PUT` and losing `tags`/`description`/`providers` config silently (it's a replace, not a merge)
-- Trying to archive a strategy that's still linked to templates (returns 409 — repoint templates first)
+- Trying to archive a strategy that's still linked to templates (returns 409, repoint templates first)
 - Confusing the **message-level** `routing` on `send.message` (per-send override) with the **workspace-level** routing strategy (stored object with an `rs_...` ID and referenced by templates)
-- Forgetting that provider order in `channels.{channel}.providers` determines failover — reordering the array changes which provider gets tried first
-- Creating a strategy that references a provider key you haven't configured yet via `/providers` — the strategy will save, but sends will skip that provider silently
+- Forgetting that provider order in `channels.{channel}.providers` determines failover, reordering the array changes which provider gets tried first
+- Creating a strategy that references a provider key you haven't configured yet via `/providers`, the strategy will save, but sends will skip that provider silently
 
 ### SDK shape
 
@@ -77,7 +77,7 @@ curl -X POST "https://api.courier.com/routing-strategies" \
   }'
 ```
 
-### Full — provider priority + per-provider override
+### Full, provider priority + per-provider override
 
 **TypeScript:**
 ```typescript
@@ -299,7 +299,7 @@ client.send.message(
 ## List, Retrieve, Replace, Archive
 
 ### List
-Metadata only — no `routing`/`channels`/`providers` payload. Paginated.
+Metadata only, no `routing`/`channels`/`providers` payload. Paginated.
 
 **TypeScript:**
 ```typescript
@@ -402,7 +402,7 @@ curl -X DELETE "https://api.courier.com/routing-strategies/rs_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-Returns `204`. Returns `409` if any template still references the strategy — repoint those templates first (set their `routing.strategy_id` to a different strategy or set `routing: null`).
+Returns `204`. Returns `409` if any template still references the strategy, repoint those templates first (set their `routing.strategy_id` to a different strategy or set `routing: null`).
 
 ---
 
@@ -422,12 +422,12 @@ Rule of thumb: if you're reaching for `routing` in a `send.message` call repeate
 
 ## Related
 
-- [Templates](./templates.md) — `routing.strategy_id` on notification templates
-- [Providers](./providers.md) — configure the provider integrations referenced by `channels.{channel}.providers`
-- [Multi-Channel](./multi-channel.md) — routing methods (`single` vs `all`), per-use-case channel priority, failover semantics
-- [Create Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/create-routing-strategy) — official endpoint reference
+- [Templates](./templates.md), `routing.strategy_id` on notification templates
+- [Providers](./providers.md), configure the provider integrations referenced by `channels.{channel}.providers`
+- [Multi-Channel](./multi-channel.md), routing methods (`single` vs `all`), per-use-case channel priority, failover semantics
+- [Create Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/create-routing-strategy), official endpoint reference
 - [Replace Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/replace-routing-strategy)
 - [Archive Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/archive-routing-strategy)
-- [Routing Configuration (Design Studio)](https://www.courier.com/docs/platform/content/template-designer/routing-configuration) — dashboard equivalent
+- [Routing Configuration (Design Studio)](https://www.courier.com/docs/platform/content/template-designer/routing-configuration), dashboard equivalent
 
 <!-- Target line budget: <= 500 lines. -->

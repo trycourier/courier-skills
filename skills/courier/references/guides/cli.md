@@ -155,9 +155,36 @@ courier send message \
   --message.template "engineering-update"
 ```
 
-Audiences work the same way — `--message.to '{"audience_id":"trial-users"}'`.
+Audiences work the same way, `--message.to '{"audience_id":"trial-users"}'`.
 
 A single list, list-pattern, or audience send reaches the whole group; Courier fans out server-side.
+
+**Bulk jobs** for a large recipient set that isn't a list or audience:
+
+```bash
+# 1. Create the job. --message.event is required.
+courier bulk create-job \
+  --message.event "monthly-digest" \
+  --message.data '{"month":"August"}'
+
+# 2. Ingest users. --user is singular and repeatable; batch at 1000 or fewer per call.
+courier bulk add-users --job-id "1-6a7e474b-..." \
+  --user '{"profile":{"email":"jane@example.com"},"to":{"user_id":"user-1"},"data":{"highlights":12}}' \
+  --user '{"profile":{"email":"sam@example.com"},"to":{"user_id":"user-2"},"data":{"highlights":4}}'
+
+# 3. Run it. One-way door: a job runs once.
+courier bulk run-job --job-id "1-6a7e474b-..."
+
+# 4. Follow it.
+courier bulk retrieve-job --job-id "1-6a7e474b-..."   # status + received/enqueued/failures
+courier bulk list-users --job-id "1-6a7e474b-..."     # per-recipient status and message id
+```
+
+> `--message.event` is required on `create-job` (a 400 otherwise); `--message.template` and
+> `--message.content` are optional overrides on top of it. Each `--user` value is a full
+> `InboundBulkMessageUser` object, not a bare `{"user_id": ...}`. **Email jobs need `profile.email`
+> per user**, since `to.email` alone won't route. Bulk commands were absent from CLI 3.12.x and returned
+> in **3.13.0**. See [bulk.md](./bulk.md) for the SDK equivalents and the full gotcha list.
 
 ## Tenants, Journeys, and Preferences
 
@@ -176,9 +203,9 @@ courier send message \
   --message.template "welcome-email"
 ```
 
-> `courier tenants update` is an **upsert** — use it to both create and update a tenant. There is no separate `courier tenants create` command.
+> `courier tenants update` is an **upsert**. Use it to both create and update a tenant. There is no separate `courier tenants create` command.
 
-**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI supports the full journey lifecycle. **Journey-scoped templates** (the templates referenced inside `send` nodes) are not yet in the CLI — use curl/REST for those. See [Journeys](./journeys.md) for the full workflow.
+**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI supports the full journey lifecycle. **Journey-scoped templates** (the templates referenced inside `send` nodes) are not yet in the CLI. Use curl/REST for those. See [Journeys](./journeys.md) for the full workflow.
 
 ```bash
 # Create a journey shell (node ids are server-generated — don't supply your own)
@@ -196,7 +223,7 @@ courier journeys invoke \
   --data '{"user_id":"user-123","plan":"pro"}'
 ```
 
-**Preferences** — check what a user has opted into or out of:
+**Preferences**. Check what a user has opted into or out of:
 
 ```bash
 courier users:preferences retrieve --user-id "user-123" --format pretty
@@ -246,7 +273,7 @@ Shows the final content sent to the provider, after template variables and routi
 
 <a id="debugging-list-bulk-sends-requestid-vs-message-id"></a>
 
-For a single send (`to: { email }` / `to: { user_id }`), the `requestId` returned by `client.send.message` *is* the message ID — pass it straight to `courier messages retrieve --message-id "<requestId>"` and `client.messages.retrieve(requestId)`.
+For a single send (`to: { email }` / `to: { user_id }`), the `requestId` returned by `client.send.message` *is* the message ID. Pass it straight to `courier messages retrieve --message-id "<requestId>"` and `client.messages.retrieve(requestId)`.
 
 For **list**, **list-pattern**, **audience**, or **bulk** sends, the `requestId` is the *job* ID, which fans out to one message per recipient. Passing the job's requestId to `messages retrieve` returns `404 Message not found`. Instead:
 

@@ -1,18 +1,23 @@
 # SDK Method Reference
 
 Method-name lookup for the Node (`@trycourier/courier`) and Python (`trycourier`) SDKs.
-Both follow the same structure — Node is camelCase, Python is snake_case.
+Both follow the same structure, Node is camelCase, Python is snake_case.
 
-**This is a snapshot of v7.21.0.** The authoritative source is the installed package's
-own type definitions — `node_modules/@trycourier/courier/resources/*.d.ts` or the Python
+**This is a snapshot of Node v7.25.2 / Python v7.26.2.** The authoritative source is the installed package's
+own type definitions, `node_modules/@trycourier/courier/resources/*.d.ts` or the Python
 package stubs. When they disagree with this file, they win. See
 [Verifying Against Live Sources](../SKILL.md#verifying-against-live-sources).
 
-**Staying current.** The installed version is the ground truth — check it
+**Staying current.** The installed version is the ground truth. Check it
 (`npm ls @trycourier/courier`, `pip show trycourier`) and verify shapes against its types.
 If it trails the latest release, recommend upgrading (`npm install @trycourier/courier@latest`);
 a major-version jump (6 → 7) is a breaking migration that reshaped `send`, `messages`,
 `journeys`, and `digests`, so flag it as one rather than assuming a silent bump.
+
+Minor versions have also moved whole namespaces. `client.bulk` was absent from Node 7.21.0–7.25.0
+and Python ≤7.26.0, and returned in Node **7.25.1** / Python **7.26.1**. If a namespace in this
+table is `undefined` on the installed client, check the version before concluding the method
+doesn't exist.
 
 ## Method lookup
 
@@ -27,7 +32,12 @@ a major-version jump (6 → 7) is a breaking migration that reshaped `send`, `me
 | Replace a list's subscribers | `client.lists.subscriptions.subscribe(listId, { recipients })` | `client.lists.subscriptions.subscribe(list_id, recipients=...)` |
 | Create/replace a tenant | `client.tenants.update(tenantId, body)` | `client.tenants.update(tenant_id, ...)` |
 | Add a user to a tenant | `client.users.tenants.addSingle(tenantId, { user_id })` | `client.users.tenants.add_single(tenant_id, user_id=...)` |
-| Send to many recipients | `client.send.message({ message: { to: { list_id } } })` — or `{ audience_id }` | `client.send.message(message={"to": {"list_id": ...}})` |
+| Send to many recipients | `client.send.message({ message: { to: { list_id } } })`, or `{ audience_id }` | `client.send.message(message={"to": {"list_id": ...}})` |
+| Create a bulk job | `client.bulk.createJob({ message: { event } })` → `{ jobId }` (`event` required) | `client.bulk.create_job(message={"event": ...})` → `.job_id` |
+| Ingest users into a bulk job | `client.bulk.addUsers(jobId, { users })` | `client.bulk.add_users(job_id, users=[...])` |
+| Run a bulk job | `client.bulk.runJob(jobId)` | `client.bulk.run_job(job_id)` |
+| Bulk job status and counts | `client.bulk.retrieveJob(jobId)` → `{ job }` | `client.bulk.retrieve_job(job_id)` |
+| Per-recipient bulk outcomes | `client.bulk.listUsers(jobId)` → `{ items, paging }` | `client.bulk.list_users(job_id)` |
 | Archive a sent message | `client.requests.archive(requestId)` | `client.requests.archive(request_id)` |
 | Resend a message | `client.messages.resend(messageId)` | `client.messages.resend(message_id)` |
 | Rendered content of a sent message | `client.messages.content(messageId)` | `client.messages.content(message_id)` |
@@ -43,7 +53,7 @@ a major-version jump (6 → 7) is a breaking migration that reshaped `send`, `me
 | Replace a journey (draft) | `client.journeys.replace(id, { name, nodes, enabled })` | `client.journeys.replace(id, name=..., nodes=..., enabled=...)` |
 | Publish a journey | `client.journeys.publish(id)` | `client.journeys.publish(id)` |
 | Invoke a journey (start a run) | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` | `client.journeys.invoke(template_id=id, user_id=..., data=..., profile=...)` → `.run_id` |
-| Cancel a journey run | `client.journeys.cancel({ cancelation_token })` — or `{ run_id }`, exactly one | `client.journeys.cancel(cancelation_token=...)` |
+| Cancel a journey run | `client.journeys.cancel({ cancelation_token })`, or `{ run_id }`, exactly one | `client.journeys.cancel(cancelation_token=...)` |
 | Create a journey-scoped template | `client.journeys.templates.create(journeyId, { ... })` | `client.journeys.templates.create(journey_id, ...)` |
 | Publish a journey-scoped template | `client.journeys.templates.publish(notificationId, { templateId: journeyId })` | `client.journeys.templates.publish(journey_id, template_id)` |
 | Create a routing strategy | `client.routingStrategies.create({ name, routing, channels?, providers? })` → returns `{ id: "rs_...", ... }` | `client.routing_strategies.create(name=..., routing=..., ...)` |
@@ -57,4 +67,4 @@ a major-version jump (6 → 7) is a breaking migration that reshaped `send`, `me
 | Archive a template | `client.notifications.archive(templateId)` | `client.notifications.archive(template_id)` |
 | Get published template content | `client.notifications.retrieveContent(templateId)` | `client.notifications.retrieve_content(template_id)` |
 
-> The table above covers the most common operations. [journeys.md](./guides/journeys.md), [templates.md](./guides/templates.md), [routing-strategies.md](./guides/routing-strategies.md), and [providers.md](./guides/providers.md) each contain their own complete SDK shape tables for CRUD on their respective resources (including `list`, `retrieve`, `replace`, `archive`). **Journeys are Courier's orchestration primitive — use them for every multi-step flow** (delays, branches, batching, digests, throttling, A/B experiments). See [Journeys](./guides/journeys.md).
+> The table above covers the most common operations. [journeys.md](./guides/journeys.md), [templates.md](./guides/templates.md), [routing-strategies.md](./guides/routing-strategies.md), and [providers.md](./guides/providers.md) each contain their own complete SDK shape tables for CRUD on their respective resources (including `list`, `retrieve`, `replace`, `archive`). **Journeys are Courier's orchestration primitive. Use them for every multi-step flow** (delays, branches, batching, digests, throttling, A/B experiments). See [Journeys](./guides/journeys.md).

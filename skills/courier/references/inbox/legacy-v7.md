@@ -1,4 +1,4 @@
-# In-App Inbox — v7 Legacy Reference
+# In-App Inbox, v7 Legacy Reference
 
 > **For new projects: use v8.** See [rendering.md](./rendering.md). Only read this file when you are confirming that existing code is on v7 **and** the user has an explicit blocker preventing upgrade (e.g., v7-only Tags or Pins that haven't landed in v8 yet).
 
@@ -10,14 +10,14 @@
 - The user has asked about maintaining that code, **and**
 - They cannot upgrade yet.
 
-For every other case — including new inboxes, new features on existing inboxes, or any refactor — write v8 code per [react.md](./react.md) and help the user migrate.
+For every other case, including new inboxes, new features on existing inboxes, or any refactor. Write v8 code per [react.md](./react.md) and help the user migrate.
 
 ### Rules for v7 work
 
 - Avoid using v7 for new projects; default to v8 unless there's a concrete blocker.
 - For net-new inbox features, prefer a v8 migration first. If migration is temporarily blocked, keep v7 changes as small and local as possible.
 - Client Keys are still accepted by v7 but JWT is strongly preferred. If a codebase passes a `clientKey` prop, recommend moving to JWT as part of the next meaningful touch.
-- If staying on v7, leave a migration follow-up note (issue or TODO) so the codebase does not get stuck in legacy mode.
+- If staying on v7, leave a migration follow-up note (an issue or tracked ticket) so the codebase does not get stuck in legacy mode.
 
 ### Quick validation checklist (before shipping a v7 change)
 
@@ -70,7 +70,7 @@ Contrast with the v8 shape in [react.md](./react.md): a single package (`@trycou
 | Auth | `clientKey` prop accepted (JWT preferred) | JWT required |
 | Sign in | Implicit via provider props | Explicit: `courier.shared.signIn({ userId, jwt })` |
 | Real-time | Auto | Explicit: `inbox.listenForUpdates()` |
-| Tags / Pins | Supported | **Not yet** — only blocker where v7 is still needed |
+| Tags / Pins | Supported | **Not yet**, only blocker where v7 is still needed |
 
 ## Migration Path
 
@@ -83,12 +83,12 @@ High-level steps:
 3. Replace `<Inbox />` with `<CourierInbox />`.
 4. Wire a server endpoint that issues a JWT (example in [auth.md](./auth.md)).
 5. After sign-in, call `inbox.registerFeeds(defaultFeeds())` and `inbox.listenForUpdates()`.
-6. Migrate custom styling — v8 uses a different theming API.
+6. Migrate custom styling, v8 uses a different theming API.
 
 ## Related
 
-- [React (v8)](./react.md) — primary, authoritative guide
-- [Authentication](./auth.md) — JWT generation and refresh
-- [v8 Migration Guide](https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide) — official step-by-step
+- [React (v8)](./react.md), primary, authoritative guide
+- [Authentication](./auth.md), JWT generation and refresh
+- [v8 Migration Guide](https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide), official step-by-step
 
 <!-- Target line budget: <= 200 lines. This file exists to recognize v7 and route to migration; detailed v8 content lives in react.md, web-components.md, and auth.md. -->

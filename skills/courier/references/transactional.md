@@ -1,39 +1,35 @@
 # Transactional Notifications
 
-Notifications triggered by a user action, expected by the recipient, and required to deliver the service — password resets, OTPs, order updates, receipts, appointment reminders, security alerts.
+Notifications triggered by a user action, expected by the recipient, and required to deliver the service, password resets, OTPs, order updates, receipts, appointment reminders, security alerts.
 
-**Courier does all of these.** This file maps each use case to the Courier primitive that implements it, and carries the rules you cannot get wrong. It deliberately does **not** prescribe cadence, copy, or subject lines — those are product decisions, not integration ones.
+**Courier does all of these.** This file maps each use case to the Courier primitive that implements it. It deliberately does **not** prescribe cadence, copy, or subject lines, those are product decisions, not integration ones.
 
 ## Quick Reference
 
 ### Rules
 
-- **NEVER batch, digest, delay, or quiet-hour** an OTP, password reset, or security alert. Send immediately and bypass every throttle.
-- **Use an idempotency key** where a duplicate would be harmful — payments, OTPs, security alerts. Pass it as a header (see [Reliability](./guides/reliability.md)).
-- **Mask PII** in security notifications: `j***@example.com`, `•••• 4567`. Never echo a full address or number back.
-- **Email-change alerts go to BOTH addresses** — old and new. The old address is the only channel the legitimate owner still controls.
-- **Always include an "I didn't request this" link** in security email, and log the clicks.
-- **No promotional content in transactional messages.** One upsell reclassifies the message as marketing and drags it under opt-in and unsubscribe requirements.
+- **Use an idempotency key** where a duplicate would be harmful, payments, OTPs, security alerts. Pass it as a header (see [Reliability](./guides/reliability.md)).
+- **Email-change alerts go to BOTH addresses**: old and new. The old address is the only channel the legitimate owner still controls.
 - **Render times in the recipient's timezone** with the abbreviation (`2:00 PM PST`), never in server time.
-- Transactional sends **do not require opt-in** — but they still respect a user's channel-level preferences unless you explicitly override.
+- Transactional sends still respect a user's channel-level preferences unless you explicitly override them.
 
 ### Use case → Courier primitive
 
 | Use case | Build it with |
 |---|---|
 | Password reset, magic link, email verification | Single send + [template](./guides/templates.md). Token lifecycle is yours; Courier delivers. |
-| OTP / 2FA code | Single send, SMS-first with email fallback — [multi-channel](./guides/multi-channel.md) `routing.method: "single"` |
+| OTP / 2FA code | Single send, SMS-first with email fallback, [multi-channel](./guides/multi-channel.md) `routing.method: "single"` |
 | Order confirmation, shipping, delivery | Single send per state change, or a [journey](./guides/journeys.md) when a delay or branch is involved |
 | Receipt / invoice | Single send + template; [attach the PDF](./channels/email.md#attachments) or link it |
 | Dunning (payment failed) | [Journey](./guides/journeys.md): `send` → `delay` → `branch` on paid? → escalate channels → `exit` |
 | Appointment reminder ladder | [Journey](./guides/journeys.md) with `delay` nodes (`mode: "until"`), cancelled via `POST /journeys/cancel` when the appointment moves |
 | Trial ending / renewal notice | [Journey](./guides/journeys.md) with `delay` + `branch` on converted? |
-| Security alert | Single send, fanned across channels by severity — see [Security Alert Channels](#security-alert-channels) |
+| Security alert | Single send, fanned across channels by severity, see [Security Alert Channels](#security-alert-channels) |
 | Account / settings change | Single send; mask the changed value |
 | Usage or quota threshold | Single send from your metering system; use a [throttle](./guides/journeys.md) node if the threshold can flap |
 | Back in stock, waitlist opening | Send to a [list or audience](./guides/patterns.md) |
 
-**Cancelling a ladder is the part people miss.** If an appointment is rescheduled or an invoice is paid, the pending reminders must stop. Set a cancelation token on the journey and call `POST /journeys/cancel` — see [Cancelling Runs](./guides/journeys.md#cancelling-runs).
+**Cancelling a ladder is the part people miss.** If an appointment is rescheduled or an invoice is paid, the pending reminders must stop. Set a cancelation token on the journey and call `POST /journeys/cancel`. See [Cancelling Runs](./guides/journeys.md#cancelling-runs).
 
 ### Rate limits worth enforcing on your side
 
@@ -100,7 +96,7 @@ client.send.message(
 )
 ```
 
-`routing.method: "single"` delivers to the **first** channel that works — the fallback semantics you want. `"all"` would send the code twice. See [Multi-Channel](./guides/multi-channel.md).
+`routing.method: "single"` delivers to the **first** channel that works, the fallback semantics you want. `"all"` would send the code twice. See [Multi-Channel](./guides/multi-channel.md).
 
 ## A security alert with masked values
 
@@ -128,7 +124,7 @@ await client.send.message({
 });
 ```
 
-Note `routing.method: "all"` here — for a security alert you *want* every channel, unlike the OTP above.
+Note `routing.method: "all"` here, for a security alert you *want* every channel, unlike the OTP above.
 
 ## A dunning sequence
 
@@ -146,9 +142,9 @@ Set a cancelation token like `dunning-{{data.invoice_id}}` on the journey, then 
 
 ## Related
 
-- [Journeys](./guides/journeys.md) — delays, branches, cancellation for any multi-step sequence
-- [Multi-Channel](./guides/multi-channel.md) — `routing.method`, fallback vs fan-out, provider failover
-- [Reliability](./guides/reliability.md) — idempotency keys, retries, delivery statuses, webhook verification
-- [Templates](./guides/templates.md) — creating and publishing the templates these sends reference
-- [Preferences](./guides/preferences.md) — how user preferences interact with transactional sends
-- [Lifecycle Marketing](./lifecycle-marketing.md) — the opt-in side, and why mixing the two is a problem
+- [Journeys](./guides/journeys.md), delays, branches, cancellation for any multi-step sequence
+- [Multi-Channel](./guides/multi-channel.md), `routing.method`, fallback vs fan-out, provider failover
+- [Reliability](./guides/reliability.md), idempotency keys, retries, delivery statuses, webhook verification
+- [Templates](./guides/templates.md), creating and publishing the templates these sends reference
+- [Preferences](./guides/preferences.md), how user preferences interact with transactional sends
+- [Lifecycle Marketing](./lifecycle-marketing.md), proactive sends: onboarding, adoption, win-back, campaigns

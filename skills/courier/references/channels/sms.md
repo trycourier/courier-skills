@@ -4,26 +4,19 @@
 
 ### Rules
 - Message length: 160 chars (GSM-7) or 70 chars (Unicode/emoji)
-- MUST include sender ID at start: "Acme: Your message..."
-- Phone numbers MUST be E.164 format: +15551234567
-- US A2P messaging REQUIRES 10DLC registration (allow 2-4 weeks)
-- Marketing SMS requires explicit opt-in
-- MUST support STOP keyword for opt-out
-- Honor opt-outs immediately - no exceptions
-- Transactional SMS (no explicit opt-in needed): OTP, order updates, appointments
-- Marketing SMS (explicit opt-in required): promotions, sales, re-engagement
-- SMS requires a configured provider — add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not)
+- Include a sender ID at the start: "Acme: Your message..."
+- Phone numbers need E.164 format: +15551234567
+- US A2P messaging needs 10DLC registration (allow 2-4 weeks)
+- Carriers handle STOP themselves and suppress the number at the carrier level, so your app sees the traffic stop rather than an error
+- SMS requires a configured provider. Add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not)
 
 ### Common Mistakes
 - Using emojis without accounting for 70-char Unicode limit
 - Forgetting sender identification at start of message
 - Not validating phone numbers before storing
 - Storing phone numbers without E.164 format
-- Sending marketing SMS without consent record
 - Missing 10DLC registration (messages filtered/blocked, <10% delivery)
 - Including URL shorteners like bit.ly (triggers carrier spam filters)
-- Sending during quiet hours (10pm-8am local time)
-- Not including opt-out instructions in marketing messages
 
 ### Templates
 
@@ -103,14 +96,6 @@ Best practices for sending SMS that delivers and engages users.
 - Delivery Notifications
 - Marketing (requires additional vetting)
 
-### Opt-In and Opt-Out
-
-- Marketing SMS should be opt-in only — record when and how the user opted in
-- Every marketing message should include `Reply STOP to unsubscribe`
-- STOP / STOPALL / UNSUBSCRIBE / CANCEL / END / QUIT must all suppress future sends immediately
-- HELP / INFO should return sender identification and support contact
-- Transactional SMS (OTP, order updates, appointment reminders) does not require opt-in if the user provided the number for that purpose
-
 ## Message Design
 
 ### Character Limits
@@ -144,7 +129,7 @@ Acme: Your order #12345 shipped! Track: acme.co/t/12345. Reply STOP to unsubscri
 | Brand identifier | Required for recognition |
 | Core message | What you're telling them |
 | CTA/Link | What they should do (use branded short domain, not bit.ly) |
-| Opt-out | Required for marketing, good practice for all |
+| Opt-out | `Reply STOP to unsubscribe` |
 
 ### Examples
 
@@ -290,42 +275,6 @@ await client.profiles.create("user-123", {
 });
 ```
 
-## Opt-In Collection
-
-### Consent Language Example
-
-```html
-<label>
-  <input type="checkbox" name="sms_consent" required>
-  I agree to receive order updates and notifications via SMS to the phone number 
-  provided. Message frequency varies. Message and data rates may apply. 
-  Reply STOP to unsubscribe, HELP for help. 
-  <a href="/privacy">Privacy Policy</a> | <a href="/sms-terms">SMS Terms</a>
-</label>
-```
-
-### Store Consent Record
-
-```typescript
-interface SMSConsent {
-  phoneNumber: string;
-  consentedAt: Date;
-  method: 'web_form' | 'sms_keyword' | 'verbal';
-  ipAddress?: string;
-  consentText: string;
-  categories: string[]; // ['transactional', 'marketing']
-}
-
-await storeConsent({
-  phoneNumber: "+15551234567",
-  consentedAt: new Date(),
-  method: 'web_form',
-  ipAddress: req.ip,
-  consentText: "I agree to receive order updates via SMS...",
-  categories: ['transactional']
-});
-```
-
 ## Opt-Out Handling
 
 ### Standard Keywords
@@ -367,7 +316,7 @@ app.post('/webhooks/sms-optout', async (req, res) => {
 ### When to Use Short Codes
 
 - Volume exceeds 100,000 messages/day
-- Marketing campaigns with opt-in
+- High-volume marketing campaigns
 - Time-sensitive mass notifications
 - Need vanity number (e.g., 12345, ACME)
 
@@ -380,7 +329,7 @@ app.post('/webhooks/sms-optout', async (req, res) => {
 | Messages blocked | No 10DLC registration | Complete registration |
 | Low delivery rate | Carrier filtering | Review content, avoid spam patterns |
 | Delayed delivery | Carrier congestion | Use short code for time-sensitive |
-| Number blacklisted | Complaints | Review consent practices |
+| Number blacklisted | Complaints | Check what traffic the number is sending |
 
 ### Carrier Filtering Triggers
 
@@ -414,7 +363,7 @@ app.post('/webhooks/courier', async (req, res) => {
 
 ### Quiet Hours
 
-Don't send SMS between 10 PM - 8 AM local time (unless urgent/transactional). See [Patterns > Quiet Hours](../guides/patterns.md#quiet-hours) for the implementation.
+To hold non-urgent SMS outside a window, use a [delivery window](../guides/scheduling.md#delivery-window-business-hours-quiet-hours).
 
 ## Related
 

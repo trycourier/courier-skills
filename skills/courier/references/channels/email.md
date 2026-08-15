@@ -8,7 +8,6 @@
 - DMARC progression: start with `p=none`, then `p=quarantine`, finally `p=reject`
 - Keep bounce rate under 2% (under 1% is good)
 - Keep complaint rate under 0.1%
-- Marketing emails MUST include a physical address and unsubscribe link
 - Use subdomains to separate transactional (`t.acme.com`) from marketing (`m.acme.com`)
 - Avoid `noreply@` addresses - use monitored inboxes
 - Subject lines: under 50 characters for mobile
@@ -19,11 +18,9 @@
 - Having multiple SPF records (only one allowed per domain)
 - Rushing IP warming (causes reputation damage)
 - Sending to purchased lists (destroys sender reputation)
-- Adding promotional content to transactional emails (reclassifies as marketing)
 - Ignoring bounces and complaints (reputation damage)
 - Sudden volume spikes (triggers spam filters)
 - Using URL shorteners like bit.ly (spam trigger)
-- Missing unsubscribe link in marketing emails
 
 ### Templates
 
@@ -183,63 +180,6 @@ async function cleanEmailList() {
 }
 ```
 
-## Email Design
-
-### Mobile-First (60%+ opens on mobile)
-
-| Element | Specification |
-|---------|---------------|
-| Layout | Single column, max 600px |
-| Body text | 16px minimum |
-| Headings | 20-24px |
-| CTA buttons | 44x44px minimum tap target |
-| Line height | 1.5 for readability |
-
-### Email Structure
-
-```
-┌─────────────────────────────────────┐
-│           Logo / Header             │
-├─────────────────────────────────────┤
-│                                     │
-│       Primary Message               │
-│       (Above the fold)              │
-│                                     │
-│         [ CTA Button ]              │
-│                                     │
-├─────────────────────────────────────┤
-│       Supporting Details            │
-│       • Item 1                      │
-│       • Item 2                      │
-├─────────────────────────────────────┤
-│   Footer: Unsubscribe | Address     │
-└─────────────────────────────────────┘
-```
-
-### Subject Lines
-
-| Do | Don't |
-|----|-------|
-| "Your order #12345 shipped" | "Order update" |
-| "Reset your Acme password" | "Important: Action Required!!!" |
-| "Jane commented on your post" | "New notification" |
-| Keep under 50 characters | ALL CAPS or excessive punctuation |
-
-### Pre-header Text
-
-The preview text shown after the subject line:
-
-```html
-<!-- Visible pre-header -->
-<span style="display:block;max-width:0;overflow:hidden;">
-  Your order arrives Thursday. Track your package →
-</span>
-```
-
-- Reinforce or complement the subject
-- Keep under 90 characters
-- Don't repeat the subject line
-
 ## Courier Integration
 
 For the basic email send pattern, see the [Quick Reference templates](#templates) above. The examples below show additional options.
@@ -287,7 +227,7 @@ await client.send.message({
 
 ### Attachments
 
-Courier attaches files through a **provider override** — you pass the file on the send, in the shape the underlying provider expects. File content is base64-encoded. This is how you deliver the PDF for a receipt or invoice.
+Courier attaches files through a **provider override**. You pass the file on the send, in the shape the underlying provider expects. File content is base64-encoded. This is how you deliver the PDF for a receipt or invoice.
 
 ```typescript
 await client.send.message({
@@ -314,7 +254,7 @@ await client.send.message({
 });
 ```
 
-The **override nesting is provider-specific** — it mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/external-integrations/email/intro-to-email) for the exact field. Attachments aren't part of the template — they're per-send data you supply at call time.
+The **override nesting is provider-specific**. It mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/external-integrations/email/intro-to-email) for the exact field. Attachments aren't part of the template. They're per-send data you supply at call time.
 
 ### Provider Failover
 
@@ -374,56 +314,6 @@ app.post('/webhooks/courier', async (req, res) => {
 });
 ```
 
-## Common Templates
-
-### Password Reset
-
-```jsonc
-// Template: PASSWORD_RESET
-// Subject: Reset your Acme password
-// Body:    Click to reset. Expires in 1 hour. Didn't request this? Ignore or contact support.
-{
-  "resetUrl": "https://acme.com/reset?token=abc123",
-  "expiresIn": "1 hour",
-  "userEmail": "jane@example.com"
-}
-```
-
-### Order Confirmation
-
-```jsonc
-// Template: ORDER_CONFIRMATION (data passed to message.data)
-{
-  "orderNumber": "12345",
-  "items": [
-    { "name": "Widget", "quantity": 2, "price": 29.99 },
-    { "name": "Gadget", "quantity": 1, "price": 49.99 }
-  ],
-  "subtotal": 109.97,
-  "shipping": 5.99,
-  "total": 115.96,
-  "shippingAddress": { "line1": "1 Market St", "city": "San Francisco", "state": "CA", "postal_code": "94105" },
-  "estimatedDelivery": "January 30-31"
-}
-```
-
-### Weekly Digest
-
-```jsonc
-// Template: WEEKLY_DIGEST (data passed to message.data)
-{
-  "userName": "Jane",
-  "weekRange": "Jan 20-26",
-  "stats": {
-    "views": 1234,
-    "likes": 56,
-    "comments": 12
-  },
-  "topContent": [{ "id": "post-1", "title": "Intro to Courier", "url": "https://acme.com/post-1" }],
-  "recommendations": [{ "id": "post-2", "title": "Deep dive: idempotency", "url": "https://acme.com/post-2" }]
-}
-```
-
 ## Troubleshooting
 
 ### Emails Going to Spam?
@@ -447,7 +337,7 @@ app.post('/webhooks/courier', async (req, res) => {
 To land in Primary (not Promotions):
 - Avoid heavy images and marketing language
 - Include personalization
-- Prefer a person-in-brand sender (e.g., `Jane at Acme`) for marketing mail — raw brand senders (`Acme`) are fine for transactional but tend to get sorted into Promotions for promotional copy
+- Prefer a person-in-brand sender (e.g., `Jane at Acme`) for marketing mail, raw brand senders (`Acme`) are fine for transactional but tend to get sorted into Promotions for promotional copy
 - Keep content relevant and expected
 
 ## Testing
