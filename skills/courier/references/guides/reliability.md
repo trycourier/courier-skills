@@ -1,14 +1,14 @@
 # Reliability
 
-> **Reading order:** This file covers **concepts and failure modes** (idempotency semantics, retry strategy, webhook delivery guarantees, provider failover). For **copy-paste code** implementing these patterns in TypeScript, Python, CLI, and curl, see [Patterns](./patterns.md).
+> **Reading order:** This file covers **concepts and failure modes** (idempotency semantics, retry strategy, delivery statuses, provider failover). For **copy-paste code** implementing these patterns in TypeScript, Python, CLI, and curl, see [Patterns](./patterns.md). For webhooks in either direction, see [Webhooks](./webhooks.md).
 
 ## Quick Reference
 
 ### Rules
 - ALWAYS use idempotency keys for transactional notifications
 - Courier stores idempotency keys for 24 hours
-- Don't retry 4xx errors (client errors) - fix the issue instead
-- DO retry 5xx errors with exponential backoff
+- The SDK client already retries `408`, `409`, `429`, `5xx`, and connection errors (`maxRetries` defaults to 2). Tune it rather than wrapping calls in your own loop
+- Other `4xx` are not retried by anyone. Fix the request instead
 - Respond to webhooks with 200 immediately, process async
 - Handle webhook duplicates (they can be delivered multiple times)
 - Configure multiple providers per channel for failover
@@ -23,12 +23,12 @@
 | OTP code | `otp-{userId}-{otpRequestId}` |
 | Welcome email | `welcome-{userId}` |
 
-Use a **request id** (the unique id of the OTP/reset attempt from your own system) rather than a timestamp — it's deterministic on retry, so the second attempt of the *same* OTP request gets deduped while a legitimate *new* OTP request gets a fresh key.
+Use a **request id** (the unique id of the OTP/reset attempt from your own system) rather than a timestamp. It's deterministic on retry, so the second attempt of the *same* OTP request gets deduped while a legitimate *new* OTP request gets a fresh key.
 
 ### Common Mistakes
 - Missing idempotency keys (causes duplicate notifications)
 - Static idempotency keys for notifications that should repeat (OTP needs a unique per-request ID, not a fixed key)
-- Retrying 4xx errors (they won't succeed, fix the issue)
+- Adding a retry loop around an SDK call, which multiplies attempts (the SDK already retries transient failures)
 - Blocking on webhook processing (should be async)
 - Not handling webhook duplicates
 - No fallback providers configured
@@ -36,7 +36,7 @@ Use a **request id** (the unique id of the OTP/reset attempt from your own syste
 
 ### Templates
 
-See [Patterns](./patterns.md) for full copy-paste implementations: [Idempotency Keys](./patterns.md#idempotency-keys), [Webhook Handler](./patterns.md#webhook-handler), [Retry with Backoff](./patterns.md#retry-with-exponential-backoff).
+See [Patterns](./patterns.md) for full copy-paste implementations: [Idempotency Keys](./patterns.md#idempotency-keys) and [Webhook Handler](./patterns.md#webhook-handler).
 
 ### Message Status Glossary
 
@@ -44,21 +44,21 @@ The value returned as `message.status` from `client.messages.retrieve` (and the 
 
 | Status | Meaning | Typical cause / next step |
 |--------|---------|---------------------------|
-| `ENQUEUED` | Courier has accepted the request and queued it for routing. | Transient — re-check in a few seconds. |
+| `ENQUEUED` | Courier has accepted the request and queued it for routing. | Transient, re-check in a few seconds. |
 | `ROUTED` | Routing decision made; message is ready to hand to a provider. | Transient. |
 | `SENT` | At least one provider accepted the payload for delivery. For email this means the provider returned 2xx; for Inbox it means the message is visible in the feed. | Transient on the way to `DELIVERED`, or terminal for Inbox/webhook channels. |
 | `DELIVERED` | Provider confirmed the message reached the recipient (e.g. email DSN, SMS carrier report). | Terminal success. |
-| `OPENED` / `CLICKED` | Engagement signals for email (requires open/click tracking). **`OPENED` is not a reliable signal of human engagement** — Apple Mail Privacy Protection and Gmail image proxying prefetch the tracking pixel, so it fires without the recipient reading anything. Build logic on `CLICKED` or in-app read state. | Terminal success with engagement. |
+| `OPENED` / `CLICKED` | Engagement signals for email (requires open/click tracking). **`OPENED` is not a reliable signal of human engagement**, Apple Mail Privacy Protection and Gmail image proxying prefetch the tracking pixel, so it fires without the recipient reading anything. Build logic on `CLICKED` or in-app read state. | Terminal success with engagement. |
 | `UNMAPPED` | The `event` on the send didn't map to any notification/template in this workspace. Common for bulk sends with a typo'd `event` value. | Fix the event ID or create an event mapping in Settings. |
-| `UNROUTABLE` | Routing failed — no channel/provider combination could accept the send. Check `reason` and `error` for detail (e.g. `reason: "PROVIDER_ERROR"` with message `"No provider(s) resend in the list of message channel provider(s): postmark."` means the channel's routing list references a provider that isn't installed). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
+| `UNROUTABLE` | Routing failed, no channel/provider combination could accept the send. Check `reason` and `error` for detail (e.g. `reason: "PROVIDER_ERROR"` with message `"No provider(s) resend in the list of message channel provider(s): postmark."` means the channel's routing list references a provider that isn't installed). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
 | `UNDELIVERABLE` | All providers attempted returned a terminal failure (bounce, invalid number, suppressed). | Verify the recipient's contact info; inspect `providers[].providerResponse` for the specific error. |
-| `CANCELED` | The send was canceled before delivery — via `client.messages.cancel`, a journey Cancel node, or a canceled journey run. | Expected when you cancel; otherwise check what issued the cancel. |
+| `CANCELED` | The send was canceled before delivery, via `client.messages.cancel`, a journey Cancel node, or a canceled journey run. | Expected when you cancel; otherwise check what issued the cancel. |
 | `THROTTLED` | Dropped by a `throttle` node that had reached its cap. | Expected under frequency caps; raise the cap or widen the window if unintended. |
-| `DIGESTED` / `DELAYED` | Held rather than sent now — rolled into a digest, or waiting out a `delay`. | Transient; the message sends when the digest releases or the delay elapses. |
+| `DIGESTED` / `DELAYED` | Held rather than sent now, rolled into a digest, or waiting out a `delay`. | Transient; the message sends when the digest releases or the delay elapses. |
 
-Other statuses you may see on list rows — `FILTERED` (suppressed by a preference or condition) and `SIMULATED` (a test send that was never dispatched) — are terminal and need no action.
+Other statuses you may see on list rows, `FILTERED` (suppressed by a preference or condition) and `SIMULATED` (a test send that was never dispatched), are terminal and need no action.
 
-Statuses are returned verbatim on webhooks and on `GET /messages/{id}`. For list/bulk sends, a single `requestId` can fan out to many per-recipient `message_id`s, each with its own status — look them up via `courier messages list --trace-id "<requestId>"` (see [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id)).
+Statuses are returned verbatim on webhooks and on `GET /messages/{id}`. For list/bulk sends, a single `requestId` can fan out to many per-recipient `message_id`s, each with its own status, look them up via `courier messages list --trace-id "<requestId>"` (see [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id)).
 
 ---
 
@@ -90,28 +90,39 @@ Some notifications should be sent multiple times:
 
 ## Retry Logic
 
-### Courier's Built-In Retry
+Three layers retry independently. Know which one you're looking at before adding your own.
 
-Courier automatically retries failed sends. You can configure:
-- Number of retries
-- Retry intervals
-- Which errors to retry
+### 1. The SDK client, for your call to Courier
 
-### Custom Retry for Your Backend
+Both SDKs retry automatically: `maxRetries` defaults to **2** (3 requests total), covering `408`,
+`409`, `429`, `5xx`, and connection errors, with exponential backoff from 0.5s capped at 8s plus
+jitter. Other `4xx` are not retried. `retry-after` is honored when the server sends it.
 
-If your call to Courier fails, implement retry with exponential backoff:
+**Don't wrap an SDK call in your own retry loop**, or the attempts multiply. Configure it instead:
+`new Courier({ maxRetries: 4 })`, or per request `{ maxRetries: 0 }`. See
+[Patterns](./patterns.md#retries-the-sdk-already-does-this).
 
-1. Don't retry client errors (4xx) - fix the issue instead
-2. Retry server errors (5xx) and network errors
-3. Use exponential backoff: 2s, 4s, 8s...
-4. Add jitter to prevent thundering herd
-5. Set a maximum retry count
+### 2. Courier, for its delivery to the provider
 
-### Exponential Backoff
+Once Courier accepts a send, it owns delivery. It retries provider outages, timeouts, rate limits,
+and transient errors on its side:
 
-Calculate delay as: `min(baseDelay * 2^(attempt-1), maxDelay) + random jitter`
+| Layer | Timeline |
+|---|---|
+| Message delivery | First 10 attempts exponential (5s to 15 min), then every 15 min, up to **24 hours** and ~104 attempts |
+| Status tracking | Delivery/open/click tracking continues for up to **72 hours** |
+| Webhook delivery | Retried for about **24 hours** (see [webhooks.md](./webhooks.md#responding)) |
 
-Example: 1s base, 30s max → delays of ~1s, ~2s, ~4s, ~8s, ~16s, ~30s
+This is not configurable, and it is not something to reimplement. Watch it in
+[Message Logs](https://www.courier.com/docs/platform/analytics/message-logs) or via
+`courier messages history`.
+
+### 3. Your ingest path
+
+The layer that is genuinely yours. If a send is part of a larger unit of work that must survive a
+process crash, that belongs in your queue or job runner, not in a wrapper around the SDK. Pair it
+with an [idempotency key](#idempotency) so a replay doesn't double-send.
+
 
 ## Error Handling
 
@@ -133,180 +144,34 @@ Example: 1s base, 30s max → delays of ~1s, ~2s, ~4s, ~8s, ~16s, ~30s
 
 ## Webhooks
 
-### Setup
+Courier `POST`s workspace events to your endpoint: message status changes, template publishes,
+audience membership changes. Setup, the full event-type list, payload shapes, signature
+verification in TypeScript and Python, and **inbound** webhooks all live in
+[webhooks.md](./webhooks.md).
 
-1. Go to **Settings > Webhooks** in the [Courier dashboard](https://app.courier.com/settings/webhooks)
-2. Add your endpoint URL (e.g., `https://api.acme.com/webhooks/courier`)
-3. Copy the **signing secret** — you'll use it to verify payloads
-4. Select which events to subscribe to (or receive all)
+The parts that matter for reliability:
 
-Courier retries failed webhook deliveries (non-2xx response) with exponential backoff for up to 24 hours.
+- **Acknowledge with a 2xx inside 10 seconds**, then process asynchronously. A slow handler becomes
+  a delivery failure.
+- **Retries** cover network errors, timeouts, `408`, `429`, and any `5xx`, for roughly a day. Any
+  other `4xx` is not retried.
+- **Redelivery is expected**, so handlers must be idempotent. `data.id` identifies the *resource*, not
+  the event, so a single message emits several events sharing it. Dedupe on `data.id` **plus**
+  status, never `data.id` alone.
+- **Verify the `courier-signature` HMAC against the raw request bytes**, in constant time, with a
+  timestamp tolerance. See [Verifying Signatures](./webhooks.md#verify-webhook-signatures).
+- **Webhooks only fire in the environment they were created in.** A test-environment destination
+  never sees production events.
+- Engagement statuses (`OPENED`, `CLICKED`) can arrive **before** `DELIVERED`, or without it ever
+  arriving. Don't assume ordering.
 
-### Verify Webhook Signatures
-
-Courier signs every webhook payload with an HMAC-SHA256 signature in the `courier-signature` header. The header value has the form:
-
-```
-t=<unix_timestamp_ms>,signature=<hex_hmac_sha256>
-```
-
-The signed payload is `${timestamp}.${raw_request_body}`. Always verify in production — and also reject old timestamps (default tolerance 5 minutes) to prevent replay attacks.
-
-**TypeScript (Express):**
-
-Use `express.raw()` on the webhook route so you verify against the exact bytes Courier sent, not a re-serialized version:
-
-```typescript
-import crypto from "crypto";
-import express from "express";
-
-function parseCourierSignature(header: string | undefined) {
-  if (!header) return null;
-  const parts = header.split(",").reduce<Record<string, string>>((acc, part) => {
-    const [k, v] = part.split("=");
-    if (k && v) acc[k.trim()] = v.trim();
-    return acc;
-  }, {});
-  if (!parts.t || !parts.signature) return null;
-  return { timestamp: parts.t, signature: parts.signature };
-}
-
-function verifyWebhookSignature(
-  rawBody: Buffer,
-  header: string | undefined,
-  secret: string,
-  toleranceMs = 5 * 60 * 1000
-): boolean {
-  const parsed = parseCourierSignature(header);
-  if (!parsed) return false;
-
-  const ts = Number(parsed.timestamp);
-  if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > toleranceMs) {
-    return false;
-  }
-
-  const expectedHex = crypto
-    .createHmac("sha256", secret)
-    .update(`${parsed.timestamp}.${rawBody.toString("utf8")}`, "utf8")
-    .digest("hex");
-
-  const a = Buffer.from(parsed.signature, "hex");
-  const b = Buffer.from(expectedHex, "hex");
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
-app.post(
-  "/webhooks/courier",
-  express.raw({ type: "application/json" }),
-  (req, res) => {
-    const signature = req.headers["courier-signature"] as string | undefined;
-    if (
-      !verifyWebhookSignature(
-        req.body,
-        signature,
-        process.env.COURIER_WEBHOOK_SECRET!
-      )
-    ) {
-      return res.sendStatus(401);
-    }
-
-    const payload = JSON.parse(req.body.toString("utf8"));
-    res.sendStatus(200);
-    queue.add("process-webhook", payload);
-  }
-);
-```
-
-**Python (Flask):**
-
-Use `request.get_data()` to get the raw bytes before Flask parses JSON:
-
-```python
-import hmac
-import hashlib
-import os
-import time
-
-
-def parse_courier_signature(header: str | None):
-    if not header:
-        return None
-    parts = {}
-    for chunk in header.split(","):
-        if "=" in chunk:
-            k, v = chunk.split("=", 1)
-            parts[k.strip()] = v.strip()
-    if "t" not in parts or "signature" not in parts:
-        return None
-    return parts["t"], parts["signature"]
-
-
-def verify_webhook_signature(
-    raw_body: bytes,
-    header: str | None,
-    secret: str,
-    tolerance_ms: int = 5 * 60 * 1000,
-) -> bool:
-    parsed = parse_courier_signature(header)
-    if not parsed:
-        return False
-    timestamp, signature = parsed
-
-    try:
-        ts = int(timestamp)
-    except ValueError:
-        return False
-    if abs(int(time.time() * 1000) - ts) > tolerance_ms:
-        return False
-
-    signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
-    expected = hmac.new(
-        secret.encode(), signed_payload.encode(), hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(signature, expected)
-
-
-@app.route("/webhooks/courier", methods=["POST"])
-def courier_webhook():
-    raw_body = request.get_data()
-    signature = request.headers.get("courier-signature")
-    if not verify_webhook_signature(
-        raw_body, signature, os.environ["COURIER_WEBHOOK_SECRET"]
-    ):
-        return "", 401
-
-    queue.enqueue("process_webhook", request.get_json())
-    return "", 200
-```
-
-### Common Webhook Events
-
-Courier webhook events use **colon notation** in the `type` field and carry event-specific data under `data`. For `message:updated`, the delivery stage is in `data.status` (one of `ENQUEUED`, `SENT`, `DELIVERED`, `OPENED`, `CLICKED`, `UNDELIVERABLE`, `UNROUTABLE`).
-
-| `type` | `data.status` / trigger | Useful for |
-|--------|-------------------------|------------|
-| `message:updated` | `DELIVERED` — message reached recipient | Delivery tracking |
-| `message:updated` | `UNDELIVERABLE` — all channels/providers failed (check `data.reason`) | Alerting, fallback logic |
-| `message:updated` | `UNROUTABLE` — no eligible channel/provider for recipient | Data quality, profile fixes |
-| `message:updated` | `OPENED` — email open pixel tracked | Engagement metrics |
-| `message:updated` | `CLICKED` — tracked link clicked | Conversion tracking |
-| `notification:submitted` | Template submitted for review | Approval workflows |
-| `notification:published` | Template published | Cache invalidation, audit logging |
-| `audiences:user:matched` / `audiences:user:unmatched` | User entered/left an audience | Sync downstream systems |
-
-> **Note on bounces/complaints:** Courier does not emit dedicated `message:bounced` or `message:complained` events. Hard bounces and spam complaints typically surface as `UNDELIVERABLE` `message:updated` events with the provider-specific reason in `data.providers[].error` and the aggregated reason in `data.reason`. Inspect those fields to drive list-hygiene logic.
-
-### Webhook Best Practices
-
-1. Respond immediately with 200 OK
-2. Process in background queue
-3. Use idempotent processing (check if already handled)
-4. Verify webhook signatures
-5. Store the signing secret in environment variables, never in code
+Bounces and spam complaints have no dedicated event type. They arrive as `message:updated` with
+`data.status` of `UNDELIVERABLE`, the aggregate cause in `data.reason`, and the provider's message
+in `data.providers[].error`.
 
 ## Related
 
+- [Webhooks](./webhooks.md) - Outbound event handling and inbound webhooks
 - [Multi-Channel](./multi-channel.md) - Fallback routing
 - [Throttling](./throttling.md) - Rate limiting and frequency control
 - [Batching](./batching.md) - Combining notifications

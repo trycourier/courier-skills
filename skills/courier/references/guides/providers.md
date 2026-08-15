@@ -1,17 +1,17 @@
 # Providers
 
-Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `/providers` API. A "provider" here is an instance of a Courier integration in your workspace — i.e. the thing that holds the API key, `from_address`, `messaging_service_sid`, and so on, that Courier uses when delivering a message through that channel.
+Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `/providers` API. A "provider" here is an instance of a Courier integration in your workspace, i.e. the thing that holds the API key, `from_address`, `messaging_service_sid`, and so on, that Courier uses when delivering a message through that channel.
 
 ## Quick Reference
 
 ### Rules
-- The `provider` field on create must be a **catalog key** (e.g. `"sendgrid"`, `"twilio"`, `"apn"`, `"firebase-fcm"`, `"slack"`). Fetch `/providers/catalog` for the canonical list — do not guess
+- The `provider` field on create must be a **catalog key** (e.g. `"sendgrid"`, `"twilio"`, `"apn"`, `"firebase-fcm"`, `"slack"`). Fetch `/providers/catalog` for the canonical list. Do not guess
 - `settings` keys are **snake_case on the wire** (e.g. `api_key`, `from_address`, `ip_pool_name`). Each provider's required `settings` schema comes from `/providers/catalog`
 - `settings` holds **secrets**. Read them from environment variables; never hardcode in committed code
-- `PUT /providers/{id}` is a **full replacement** — always read the current settings, merge, and write back, or you will drop fields
+- `PUT /providers/{id}` is a **full replacement**. Always read the current settings, merge, and write back, or you will drop fields
 - Provider IDs are opaque workspace-scoped values returned on create (distinct from the catalog `provider` key)
 - `title` defaults to `"Default Configuration"` when omitted. For multiple configs of the same provider (e.g. two SendGrid sub-accounts), set a unique `title` and `alias`
-- Routing strategies reference providers by their **catalog key** (e.g. `"sendgrid"`) in `channels.{channel}.providers`. If you need multiple configs for the same provider key (two SendGrid sub-accounts, etc.), set distinct `title`/`alias` values and disambiguate in the dashboard — the docs don't yet spec an API-only way to target a specific configuration from a routing strategy
+- Routing strategies reference providers by their **catalog key** (e.g. `"sendgrid"`) in `channels.{channel}.providers`. If you need multiple configs for the same provider key (two SendGrid sub-accounts, etc.), set distinct `title`/`alias` values and disambiguate in the dashboard, the docs don't yet spec an API-only way to target a specific configuration from a routing strategy
 
 ### API vs Dashboard
 Prefer the API for:
@@ -22,15 +22,15 @@ Prefer the API for:
 
 Prefer the dashboard for:
 - Day-to-day human credential management (encrypted at rest, team-audited, OAuth flows where available)
-- First-time setup of a provider you haven't configured before — the dashboard surfaces required fields interactively
-- Providers that use OAuth-based setup (Slack, Gmail, MS Teams, Discord) — these generally still require dashboard-initiated auth
+- First-time setup of a provider you haven't configured before, the dashboard surfaces required fields interactively
+- Providers that use OAuth-based setup (Slack, Gmail, MS Teams, Discord), these generally still require dashboard-initiated auth
 
 ### Common Mistakes
-- Guessing `settings` keys instead of reading them from `/providers/catalog` — hallucinated keys are silently ignored and the provider will fail at send time
+- Guessing `settings` keys instead of reading them from `/providers/catalog`, hallucinated keys are silently ignored and the provider will fail at send time
 - Using `provider` values from documentation prose that don't match the catalog (e.g. `"aws_ses"` vs the real `"aws-ses"`, or `"fcm"` vs `"firebase-fcm"`)
-- Using `PUT` with only the fields you want to change — it's a full replacement, so any omitted `settings` are wiped
+- Using `PUT` with only the fields you want to change. It's a full replacement, so any omitted `settings` are wiped
 - Committing an `api_key` directly in a `providers.create` call instead of reading `process.env.SENDGRID_API_KEY`
-- Creating a provider config via API for a catalog entry that requires OAuth — those need to be initiated from the dashboard
+- Creating a provider config via API for a catalog entry that requires OAuth, those need to be initiated from the dashboard
 
 ### SDK shape
 
@@ -166,7 +166,7 @@ await client.providers.create({
 });
 ```
 
-After creating the provider, reference it by catalog key in a routing strategy — see [routing-strategies.md](./routing-strategies.md):
+After creating the provider, reference it by catalog key in a routing strategy. See [routing-strategies.md](./routing-strategies.md):
 
 ```typescript
 await client.routingStrategies.create({
@@ -218,7 +218,7 @@ provider = client.providers.retrieve("provider_01abc123")
 
 ### Replace (rotate an API key safely)
 
-Replace is full-document — read, modify, write back.
+Replace is full-document. Read, modify, write back.
 
 **TypeScript:**
 ```typescript
@@ -293,11 +293,11 @@ See [multi-channel.md](./multi-channel.md#provider-failover) for failover semant
 
 ## Related
 
-- [Routing Strategies](./routing-strategies.md) — reference providers in `channels.{channel}.providers`
-- [Multi-Channel](./multi-channel.md) — failover semantics, per-send `providers.{key}.override`
-- [Email](../channels/email.md), [SMS](../channels/sms.md), [Push](../channels/push.md) — channel-specific deliverability considerations
-- [Create a provider](https://www.courier.com/docs/api-reference/providers/create-a-provider) — official endpoint reference
-- [List available provider types](https://www.courier.com/docs/api-reference/providers/list-available-provider-types) — `/providers/catalog` reference
-- [Integrations Overview](https://www.courier.com/docs/external-integrations/integrations-overview) — human-facing integration docs
+- [Routing Strategies](./routing-strategies.md), reference providers in `channels.{channel}.providers`
+- [Multi-Channel](./multi-channel.md), failover semantics, per-send `providers.{key}.override`
+- [Email](../channels/email.md), [SMS](../channels/sms.md), [Push](../channels/push.md), channel-specific deliverability considerations
+- [Create a provider](https://www.courier.com/docs/api-reference/providers/create-a-provider), official endpoint reference
+- [List available provider types](https://www.courier.com/docs/api-reference/providers/list-available-provider-types), `/providers/catalog` reference
+- [Integrations Overview](https://www.courier.com/docs/external-integrations/integrations-overview), human-facing integration docs
 
 <!-- Target line budget: <= 500 lines. -->

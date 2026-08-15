@@ -6,10 +6,10 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 
 ### Rules
 - You need a Courier API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- Use a test environment key for development — copy the "Test" key from Settings
-- Inbox works out of the box with no provider setup. Email works out of the box in **fresh** test workspaces (Courier provisions a built-in email provider), but if the workspace's email routing list references providers that aren't currently installed you'll see `status: UNROUTABLE` with `reason: PROVIDER_ERROR` — add or remove the referenced providers in [Integrations](https://app.courier.com/integrations). SMS, push, and other channels always require adding a provider first.
+- Use a test environment key for development, copy the "Test" key from Settings
+- Inbox works out of the box with no provider setup. Email works out of the box in **fresh** test workspaces (Courier provisions a built-in email provider), but if the workspace's email routing list references providers that aren't currently installed you'll see `status: UNROUTABLE` with `reason: PROVIDER_ERROR`. Add or remove the referenced providers in [Integrations](https://app.courier.com/integrations). SMS, push, and other channels always require adding a provider first.
 - All tools read `COURIER_API_KEY` from the environment (SDK, CLI, curl)
-- Both `import Courier from "@trycourier/courier"` (default export) and `import { Courier } from "@trycourier/courier"` (named export) work — the named export is `Courier`, not `CourierClient`
+- Both `import Courier from "@trycourier/courier"` (default export) and `import { Courier } from "@trycourier/courier"` (named export) work, the named export is `Courier`, not `CourierClient`
 - Always use idempotency keys for transactional sends in production
 - Check delivery status via the Messages API or Courier dashboard
 
@@ -146,9 +146,9 @@ curl -X POST https://api.courier.com/send \
 
 Use the `requestId` from the send response to check delivery status.
 
-The `requestId` returned by `send.message` doubles as the message ID for single sends, so you can pass it directly to `messages.retrieve` (and to the CLI's `--message-id` flag). For list and bulk sends this is not true — see the [CLI debugging note](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id).
+The `requestId` returned by `send.message` doubles as the message ID for single sends, so you can pass it directly to `messages.retrieve` (and to the CLI's `--message-id` flag). For list and bulk sends this is not true. See the [CLI debugging note](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id).
 
-Common values you'll see in `message.status`: `ENQUEUED` → `ROUTED` → `SENT` → `DELIVERED` on the happy path; `UNROUTABLE` (routing failed — no channel/provider) and `UNDELIVERABLE` (every provider attempt failed) are the terminal failures. Final states can take seconds after send. Full glossary in [reliability.md](./reliability.md#message-status-glossary).
+Common values you'll see in `message.status`: `ENQUEUED` → `ROUTED` → `SENT` → `DELIVERED` on the happy path; `UNROUTABLE` (routing failed, no channel/provider) and `UNDELIVERABLE` (every provider attempt failed) are the terminal failures. Final states can take seconds after send. Full glossary in [reliability.md](./reliability.md#message-status-glossary).
 
 ### TypeScript
 
@@ -168,7 +168,7 @@ print(message.status)
 
 ### CLI
 
-For single sends, the `requestId` from `courier send message` is also the message ID — pass it to `--message-id`:
+For single sends, the `requestId` from `courier send message` is also the message ID. Pass it to `--message-id`:
 
 ```bash
 courier messages retrieve --message-id "REQUEST_ID" --format json
@@ -183,7 +183,7 @@ curl https://api.courier.com/messages/REQUEST_ID \
 
 ## 5. Send with a Template
 
-Templates are designed in the [Courier Designer](https://app.courier.com/designer). Reference them by template ID (`nt_...`).
+Templates are designed in [Design Studio](https://app.courier.com/designer). Reference them by template ID (`nt_...`).
 Use your own workspace template IDs in production; IDs shown below are examples.
 
 ### TypeScript
@@ -225,7 +225,7 @@ courier send message \
 |-------|-------|-----|
 | 401 Unauthorized | Missing or invalid API key | Check `COURIER_API_KEY` env var; verify key in [Settings](https://app.courier.com/settings/api-keys) |
 | 400 Bad Request | Malformed message payload | Verify `to`, `content`/`template` structure; check required fields |
-| 404 Not Found | Template ID doesn't exist | Use the correct `nt_...` template ID from the Designer/API; check environment (test vs production) |
+| 404 Not Found | Template ID doesn't exist | Use the correct `nt_...` template ID from Design Studio or the API; check environment (test vs production) |
 | Message sent but not delivered | No provider configured for channel | Email works in fresh test workspaces without setup; otherwise, add a provider in [Integrations](https://app.courier.com/integrations) |
 | Sent to `user_id` but nothing happened | User profile missing contact info | Create profile with `email`/`phone_number` first, or send directly with `to: { email: "..." }` |
 | `status: UNROUTABLE`, `reason: PROVIDER_ERROR` | Routing list references a provider that isn't installed. Error string like `"No provider(s) resend in the list of message channel provider(s): postmark."` means the routing has `resend` listed but only `postmark` is installed (or vice versa). | Install the referenced provider in [Integrations](https://app.courier.com/integrations), or edit the channel's routing list to remove it. |

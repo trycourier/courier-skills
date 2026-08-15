@@ -1,6 +1,6 @@
 # Tenants
 
-A tenant is a workspace/account in a B2B app — a customer of your customer. Attach users to a tenant,
+A tenant is a workspace/account in a B2B app, a customer of your customer. Attach users to a tenant,
 and one template renders per-tenant: the tenant's brand, preference defaults, and context apply
 automatically when a send carries its `tenant_id`.
 
@@ -12,7 +12,7 @@ automatically when a send carries its `tenant_id`.
 // Node
 await client.tenants.update("acme-corp", {
   name: "Acme Corp",
-  brand_id: "brand_acme",                 // optional — per-tenant branding (see brands.md)
+  brand_id: "brand_acme",                 // optional, per-tenant branding (see brands.md)
   properties: { plan: "enterprise" },     // arbitrary metadata, available in templates as context
   // default_preferences, parent_tenant_id, user_profile also accepted
 });
@@ -26,6 +26,34 @@ client.tenants.update("acme-corp", name="Acme Corp", brand_id="brand_acme",
 
 A tenant carries `name`, `brand_id`, `default_preferences`, `properties`, `parent_tenant_id`, and
 `user_profile`. A **child** tenant (`parent_tenant_id` set) inherits the parent's brand and defaults.
+
+### Hierarchy and merging
+
+- **Four layers load per send, as a sliding window.** In a deeper tree, loading a tenant's context
+  starts at most three ancestors up, not at the root. A five-deep hierarchy silently drops the
+  topmost tenant's settings for leaf sends
+- **Merging is parent first, child overwrites per key.** `brand_id` and `user_profile` keys from a
+  child win over the parent's
+- **Profile precedence at send time:** tenant-hierarchy `user_profile` merge, then the user's stored
+  Courier profile, then the send call's own `profile`, which wins
+
+**Per-tenant provider credentials** are the reason `user_profile` exists on a tenant: store each
+customer org's own Slack `access_token` or Teams webhook there, and every send carrying that
+`tenant_id` routes through that org's workspace with no per-user token management:
+
+```json
+{ "user_profile": { "slack": { "access_token": "xoxb-..." } } }
+```
+
+### Auto-infer, and two silent gotchas
+
+- **Auto-infer tenant context:** when a user belongs to exactly one tenant and the send names none,
+  Courier loads that tenant's context automatically (toggle in workspace settings). Useful for
+  Studio, list, and audience sends; surprising when you didn't expect tenant branding to apply
+- **Tenant-scoped Inbox messages are invisible outside their tenant.** A send with `tenant_id:
+  "acme"` only appears when the client signed in with that same `tenantId`. Sign in without it and
+  the message simply never shows, with nothing failing. See
+  [inbox/rendering.md](../inbox/rendering.md)
 
 | Operation | Node |
 |---|---|
@@ -50,7 +78,7 @@ await client.send.message({
 
 When the send carries `tenant_id`, Courier applies that tenant's `brand_id` and preference defaults to
 the rendered template automatically. `tenant_id` is valid on the recipient (`to.tenant_id`) or in
-`message.context.tenant_id` — pick one and use it consistently.
+`message.context.tenant_id`. Pick one and use it consistently.
 
 ## Per-tenant preference overrides
 
@@ -61,7 +89,7 @@ await client.tenants.preferences.items.update("topic-abc", {
   tenant_id: "acme-corp",
   status: "OPTED_OUT",                    // 'OPTED_IN' | 'OPTED_OUT' | 'REQUIRED'
   has_custom_routing: true,               // optional
-  custom_routing: ["inbox", "email"],     // optional — channels for this topic
+  custom_routing: ["inbox", "email"],     // optional, channels for this topic
 });
 await client.tenants.preferences.items.delete("topic-abc", { tenant_id: "acme-corp" });
 ```

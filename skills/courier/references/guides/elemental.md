@@ -9,7 +9,7 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 ### Rules
 - Every Elemental payload has exactly two required top-level fields: `version` and `elements`.
 - `version` is always `"2022-01-01"` (the only supported version).
-- The shorthand `{ title, body }` (ElementalContentSugar) only works for **inline sends** — never for template creation via the API.
+- The shorthand `{ title, body }` (ElementalContentSugar) only works for **inline sends**. Never for template creation via the API.
 - When `channel` elements appear at the top level, **every** top-level sibling must also be a `channel` element.
 - Control flow (`if`, `loop`, `ref`, `channels`) works on any element type.
 
@@ -33,8 +33,8 @@ Every Elemental template has two required fields:
 }
 ```
 
-- `version` — always `"2022-01-01"` (the only supported version)
-- `elements` — array of element objects
+- `version`. Always `"2022-01-01"` (the only supported version)
+- `elements`, array of element objects
 
 ### ElementalContentSugar (Inline Sends Only)
 
@@ -47,7 +47,7 @@ For simple inline sends, use the shorthand:
 }
 ```
 
-Courier auto-converts this to a `meta` element (title) and a `text` element (body). This format does **not** work when creating templates via `POST /notifications` — use the full `version` + `elements` structure.
+Courier auto-converts this to a `meta` element (title) and a `text` element (body). This format does **not** work when creating templates via `POST /notifications`. Use the full `version` + `elements` structure.
 
 ### Base Element Properties
 
@@ -57,8 +57,8 @@ All element types share these optional properties:
 |----------|------|-------------|
 | `channels` | `string[]` | Restrict this element to specific channels (e.g., `["email", "push"]`) |
 | `ref` | `string` | Tag the element with a name for cross-element references |
-| `if` | `string` | Conditional expression — element renders only when truthy |
-| `loop` | `string` | Path to an array — element renders once per item |
+| `if` | `string` | Conditional expression, element renders only when truthy |
+| `loop` | `string` | Path to an array, element renders once per item |
 
 ---
 
@@ -344,7 +344,7 @@ Control flow properties work on any element type, including `group` containers.
 
 ### Conditional Rendering (`if`)
 
-The `if` expression is evaluated as **Jsonnet** against the send `data` object (not JavaScript). Use Jsonnet equality (`==`, `!=`), logical operators (`&&`, `||`, `!`), and string literals in single quotes. The other common pitfall is triple-equals (`===`) — that's JavaScript-only and will fail to parse.
+The `if` expression is evaluated as **Jsonnet** against the send `data` object (not JavaScript). Use Jsonnet equality (`==`, `!=`), logical operators (`&&`, `||`, `!`), and string literals in single quotes. The other common pitfall is triple-equals (`===`). That's JavaScript-only and will fail to parse.
 
 ```json
 {
@@ -439,7 +439,7 @@ Elements that support text content (`text`, `action`, `quote`, `meta`) accept a 
 }
 ```
 
-The `meta` element carries `title` (used as the email subject and push/chat title), so its `locales` entries override `title` — not `content`:
+The `meta` element carries `title` (used as the email subject and push/chat title), so its `locales` entries override `title`, not `content`:
 
 ```json
 {
@@ -456,19 +456,19 @@ For full localization setup, see the official [Locales](https://www.courier.com/
 
 ### AI Translation (Design Studio)
 
-For templates built in Design Studio, you don't have to write the `locales` blocks above by hand. Open a template, click the globe icon, pick a language, and Courier translates every string — subject lines, headings, body copy, button text — into that locale automatically. This is the fastest way to localize and the one to reach for first.
+For templates built in Design Studio, you don't have to write the `locales` blocks above by hand. Open a template, click the globe icon, pick a language, and Courier translates every string, subject lines, headings, body copy, button text, into that locale automatically. This is the fastest way to localize and the one to reach for first.
 
 - **Variables are preserved.** Placeholders like `{user.name}` or `{order.total}` are repositioned for the target language's grammar, not dropped.
 - **Manual edits stick.** Override any translated string by typing your own; the override survives future re-translations of that locale.
 - **Outdated strings are flagged.** When you change the default-locale template, Courier marks which translations are now stale; re-translate only those with **Translate all**, leaving unchanged strings and overrides intact.
-- **Not used for model training** — templates, customer data, and variables stay within Courier's infrastructure.
+- **Not used for model training**: templates, customer data, and variables stay within Courier's infrastructure.
 
 Reach for hand-written `locales` (or the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation)) when a template is defined in code rather than Design Studio, or when you localize as part of a deploy pipeline. Docs: [AI Translation](https://www.courier.com/docs/platform/content/design-studio/ai-translations).
 
 ## Related
 
-- [Templates](./templates.md) — template lifecycle (create, publish, version, archive) and inline-vs-templated decisions
-- [Multi-Channel](./multi-channel.md) — routing strategies for the top-level `channel` elements
-- [Quickstart](./quickstart.md) — send your first notification
-- [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview) — official reference
-- [Elements Reference](https://www.courier.com/docs/platform/content/elemental/elements/index) — complete element type reference
+- [Templates](./templates.md), template lifecycle (create, publish, version, archive) and inline-vs-templated decisions
+- [Multi-Channel](./multi-channel.md), routing strategies for the top-level `channel` elements
+- [Quickstart](./quickstart.md). Send your first notification
+- [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview), official reference
+- [Elements Reference](https://www.courier.com/docs/platform/content/elemental/elements/index), complete element type reference

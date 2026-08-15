@@ -1,6 +1,6 @@
 # Brands
 
-A brand is reusable visual styling — colors, logo, email header/footer, in-app widget theme —
+A brand is reusable visual styling (colors, logo, email header/footer, in-app widget theme)
 that Courier applies when rendering a template. Define it once, attach it, and every send
 picks it up without touching message content.
 
@@ -41,7 +41,7 @@ picks it up without touching message content.
 | List | `client.brands.list()` | `client.brands.list()` |
 | Delete | `client.brands.delete(brandId)` | `client.brands.delete(brand_id)` |
 
-`update` replaces `settings` — send the full object, not a partial, or you drop the omitted keys.
+`update` replaces `settings`. Send the full object, not a partial, or you drop the omitted keys.
 
 ```ts
 const brand = await client.brands.create({
@@ -54,17 +54,17 @@ const brand = await client.brands.create({
 
 Three ways, most specific first:
 
-1. **Per send** — `message.brand_id` overrides everything for that one message.
+1. **Per send:** `message.brand_id` overrides everything for that one message.
    ```ts
    await client.send.message({
      message: { to: { user_id: "user-123" }, template: "welcome", brand_id: brand.id },
    });
    ```
-2. **Per tenant** — set `brand_id` on the tenant; any send that carries that tenant
+2. **Per tenant:** set `brand_id` on the tenant; any send that carries that tenant
    (`to.tenant_id` or `message.context.tenant_id`) renders with it automatically. This is the
-   B2B pattern — one template, per-customer branding. See [patterns.md](./patterns.md).
-3. **Per template** — associate a brand with a stored template in the dashboard; it applies
+   B2B pattern, one template, per-customer branding. See [patterns.md](./patterns.md).
+3. **Per template:** associate a brand with a stored template in the dashboard; it applies
    whenever that template sends without a more specific override.
 
-Verify field shapes against the installed SDK types (`resources/brands.d.ts`) — brand settings
+Verify field shapes against the installed SDK types (`resources/brands.d.ts`), brand settings
 carry more nested keys (email head/header/footer, in-app icons) than shown here.

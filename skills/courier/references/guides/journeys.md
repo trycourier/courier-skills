@@ -1,34 +1,34 @@
 # Journeys
 
-Build multi-step notification workflows as code using directed acyclic graphs (DAGs). A journey is a sequence of nodes — send, delay, branch, fetch, throttle, batch, add-to-digest, AI, and exit — that Courier executes asynchronously when you invoke the journey via API or a Segment event.
+Build multi-step notification workflows as code using directed acyclic graphs (DAGs). A journey is a sequence of nodes. Send, delay, branch, fetch, throttle, batch, add-to-digest, AI, and exit. That Courier executes asynchronously when you invoke the journey via API or a Segment event.
 
-> **Journeys is Courier's orchestration product — use it for every multi-step flow.** If you have existing Automations, see [Coming from Automations](#coming-from-automations).
+> **Journeys is Courier's orchestration product. Use it for every multi-step flow.** If you have existing Automations, see [Coming from Automations](#coming-from-automations).
 
 ## Quick Reference
 
 ### Rules
-- A journey must have at least one `trigger` node — it is the entry point for all runs
-- Journey-scoped templates are **not** workspace templates — they live under `POST /journeys/{id}/templates` and cannot be referenced from the Send API or shared across journeys
-- Journeys must be **published** before they can be invoked — draft changes are not executed
-- `PUT /journeys/{id}` is a **full replacement** of the draft — include all nodes, not just the ones you changed
-- `POST /journeys/{id}/invoke` returns `202` with a `runId` — processing is asynchronous
-- **Node `id`s are server-generated.** Do **not** send client-supplied node `id`s on `POST /journeys` — they're rejected with `400` (`client-supplied node ids are not allowed`). On `PUT /journeys/{id}` (replace) `id`s are accepted and preserved, but they're optional. Branch paths nest their child nodes inline, so you don't need `id`s to wire the graph at all.
-- Elemental version string for journey-scoped templates is always `"2022-01-01"` — see [Elemental](./elemental.md)
+- A journey must have at least one `trigger` node. It is the entry point for all runs
+- Journey-scoped templates are **not** workspace templates. They live under `POST /journeys/{id}/templates` and cannot be referenced from the Send API or shared across journeys
+- Journeys must be **published** before they can be invoked, draft changes are not executed
+- `PUT /journeys/{id}` is a **full replacement** of the draft, include all nodes, not just the ones you changed
+- `POST /journeys/{id}/invoke` returns `202` with a `runId`, processing is asynchronous
+- **Node `id`s are server-generated.** Do **not** send client-supplied node `id`s on `POST /journeys`. They're rejected with `400` (`client-supplied node ids are not allowed`). On `PUT /journeys/{id}` (replace) `id`s are accepted and preserved, but they're optional. Branch paths nest their child nodes inline, so you don't need `id`s to wire the graph at all.
+- Elemental version string for journey-scoped templates is always `"2022-01-01"`. See [Elemental](./elemental.md)
 - Delay durations use ISO 8601 format (e.g., `"PT1H"` for one hour, `"PT30M"` for 30 minutes, `"P1D"` for one day)
-- Conditions use **string** tuples: `[path, operator, value]` for binary, `[path, operator]` for unary. A single condition is the bare tuple; multiple conditions use an `{ "AND": [...] }` / `{ "OR": [...] }` object. Comparison values are always strings (`"true"`, `"50"`), not native booleans/numbers — see [Conditions](#conditions)
-- Header/value interpolation differs by context: templates and fetch URLs use `{{field}}` (no prefix); branch/trigger conditions use `data.field`; fetch **header values** use the `$ref` object form `{ "$ref": "data.token" }` — see [Variable Interpolation](#variable-interpolation)
+- Conditions use **string** tuples: `[path, operator, value]` for binary, `[path, operator]` for unary. A single condition is the bare tuple; multiple conditions use an `{ "AND": [...] }` / `{ "OR": [...] }` object. Comparison values are always strings (`"true"`, `"50"`), not native booleans/numbers. See [Conditions](#conditions)
+- Header/value interpolation differs by context: templates and fetch URLs use `{{field}}` (no prefix); branch/trigger conditions use `data.field`; fetch **header values** use the `$ref` object form `{ "$ref": "data.token" }`. See [Variable Interpolation](#variable-interpolation)
 
 ### Common Mistakes
 - Forgetting to publish after creating or updating the journey (invoke uses the last published version, not the draft)
-- Referencing workspace template IDs (`nt_...`) in send nodes — send nodes require journey-scoped template IDs created under `POST /journeys/{id}/templates`
+- Referencing workspace template IDs (`nt_...`) in send nodes. Send nodes require journey-scoped template IDs created under `POST /journeys/{id}/templates`
 - Creating send nodes before creating the journey-scoped templates they reference (the template must exist to wire its ID)
 - Omitting the trigger node when replacing a journey via `PUT` (every journey needs at least one trigger)
-- Using `POST /journeys/{id}/invoke` on an unpublished journey — returns an error; publish first
-- Assuming the trigger `schema` rejects bad payloads at invoke — it does **not**. The `schema` powers editor autofill and variable hints only; missing fields are not rejected at invocation. A run proceeds until it reaches a node that references a missing field, then fails there. Use **trigger `conditions`** to gate invocation (a failed trigger condition returns `422`)
-- Including `send` nodes in the `POST /journeys` body — send nodes are **not allowed on create**. Create the shell (trigger only), add templates, then add send nodes via `PUT /journeys/{id}`
-- Wrapping a single condition in an extra array (`[[...]]`) or using non-string values — a single condition is a bare tuple of strings (`["data.plan", "is equal", "pro"]`); use an `{ "AND": [...] }` / `{ "OR": [...] }` object for multiple conditions
+- Using `POST /journeys/{id}/invoke` on an unpublished journey, returns an error; publish first
+- Assuming the trigger `schema` rejects bad payloads at invoke. It does **not**. The `schema` powers editor autofill and variable hints only; missing fields are not rejected at invocation. A run proceeds until it reaches a node that references a missing field, then fails there. Use **trigger `conditions`** to gate invocation (a failed trigger condition returns `422`)
+- Including `send` nodes in the `POST /journeys` body. Send nodes are **not allowed on create**. Create the shell (trigger only), add templates, then add send nodes via `PUT /journeys/{id}`
+- Wrapping a single condition in an extra array (`[[...]]`) or using non-string values, a single condition is a bare tuple of strings (`["data.plan", "is equal", "pro"]`); use an `{ "AND": [...] }` / `{ "OR": [...] }` object for multiple conditions
 
-### SDK shape — Journey management
+### SDK shape, Journey management
 
 > **Note:** The API reference uses `{templateId}` as the path parameter name for the journey ID. This is the journey's own ID (returned from `client.journeys.create`), not a notification template ID. This guide uses `{id}` for clarity.
 
@@ -45,7 +45,7 @@ Journey management is supported by the Node and Python SDKs and the CLI. Use the
 | Publish | `client.journeys.publish(id)` | `client.journeys.publish(id)` | `courier journeys publish --template-id ID` |
 | Invoke | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` | `client.journeys.invoke(template_id=id, user_id=..., data=..., profile=...)` → `.run_id` | `courier journeys invoke --template-id ID --user-id user-123 --data '{...}'` |
 
-### SDK shape — Journey-scoped templates
+### SDK shape, Journey-scoped templates
 
 Journey-scoped template CRUD is available in the SDK under `client.journeys.templates.*`, in MCP, and over REST.
 
@@ -64,7 +64,7 @@ Argument order differs by method: `create` and `list` take the **journey** id fi
 | Put locale | `client.journeys.templates.putLocale(localeId, { ... })` | `PUT .../locales/{localeId}` | `put_journey_template_locale` |
 | List versions | `client.journeys.templates.listVersions(templateId, { ... })` | `GET /journeys/{id}/templates/{templateId}/versions` | `list_journey_template_versions` |
 
-Workspace templates under `/notifications` are a separate namespace with their own full SDK support — see [templates.md](./templates.md).
+Workspace templates under `/notifications` are a separate namespace with their own full SDK support. See [templates.md](./templates.md).
 
 ---
 
@@ -82,12 +82,20 @@ A journey is a directed acyclic graph (DAG) of nodes. Each node performs one act
 
 ### Triggers
 
-Every journey starts with a trigger node. Two types:
+Every journey starts with a trigger node. The API accepts two `trigger_type` values:
 
 | Trigger type | How runs begin | Required fields |
 |-------------|----------------|-----------------|
-| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema for editor autofill/variable hints — **not** invoke-time validation), `conditions` (gate invocation; failed condition → `422`). |
+| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema for editor autofill/variable hints, **not** invoke-time validation), `conditions` (gate invocation; failed condition → `422`). |
 | `segment` | A matching Segment event arrives | `request_type` (`identify`, `group`, or `track`). Optional: `event_id`, `conditions`. For `track` events, the event `userId` must be a valid Courier Profile ID or the journey won't start. |
+
+Design Studio offers two more that the API cannot express. There is no `trigger_type` for either,
+so journeys using them have to be built in the UI:
+
+| Trigger | How runs begin | Notes |
+|---|---|---|
+| **Webhook** | An event arrives on one of your [inbound webhooks](./webhooks.md#inbound-webhooks) | Selected by webhook name, optionally narrowed to one `event` name. No schema; the editor infers fields from payloads already received, so send real traffic first. Every payload needs a `userId` matching a Courier user. |
+| **Audience** | A user joins the selected [audience](./audiences.md) | No schema; exposes the audience ID. Backed by the same `audiences:user:matched` event you can receive as an [outbound webhook](./webhooks.md#event-types). |
 
 ### Journey-Scoped vs Workspace Templates
 
@@ -95,7 +103,7 @@ Every journey starts with a trigger node. Two types:
 |--|----------------|-----------|
 | Created via | `POST /journeys/{id}/templates` | `POST /notifications` or Design Studio |
 | Used from | Send nodes within the journey | Send API (`client.send.message`) |
-| Shareable | No — exclusive to one journey | Yes — any send can reference them |
+| Shareable | No, exclusive to one journey | Yes, any send can reference them |
 | Content format | [Elemental](./elemental.md) (`version` + `elements`) | Elemental or Design Studio |
 | Publishable | Independently or with journey publish | Via `notifications.publish` |
 
@@ -138,9 +146,9 @@ curl -sS -X POST "https://api.courier.com/journeys" \
   }'
 ```
 
-> Do **not** include client-supplied node `id`s on create — the server generates them (and returns `400` if you send your own). `send` nodes are not allowed on `POST /journeys` either. Create the shell with the trigger (and other non-send nodes) only; add send nodes later via `PUT` once their templates exist. To publish immediately on create, pass `"state": "PUBLISHED"` (defaults to `"DRAFT"`).
+> Do **not** include client-supplied node `id`s on create, the server generates them (and returns `400` if you send your own). `send` nodes are not allowed on `POST /journeys` either. Create the shell with the trigger (and other non-send nodes) only; add send nodes later via `PUT` once their templates exist. To publish immediately on create, pass `"state": "PUBLISHED"` (defaults to `"DRAFT"`).
 
-Create returns `201` with the journey. The response echoes back **server-generated** node `id`s (e.g. `"PK5BA6NV424BAYN58R6CVM2GTH10"`). Save the top-level journey `id` — you'll use it in every subsequent request:
+Create returns `201` with the journey. The response echoes back **server-generated** node `id`s (e.g. `"PK5BA6NV424BAYN58R6CVM2GTH10"`). Save the top-level journey `id`. You'll use it in every subsequent request:
 
 ```json
 {
@@ -246,7 +254,7 @@ Start a run. The journey must be **published** first. You can invoke by journey 
 { "runId": "1-65f240a0-47a6a120c8374de9bcf9f22c" }
 ```
 
-> **Tip:** If any downstream `fetch` node references `{{user_id}}` in its URL, also include `user_id` inside `data` — the top-level `user_id` is used for recipient resolution, but Courier does not guarantee it is projected into `data` for variable interpolation. Passing it both places is the safe default.
+> **Tip:** If any downstream `fetch` node references `{{user_id}}` in its URL, also include `user_id` inside `data`, the top-level `user_id` is used for recipient resolution, but Courier does not guarantee it is projected into `data` for variable interpolation. Passing it both places is the safe default.
 
 **Recipient resolution & profiles:**
 - **Profile-only** (no stored Courier user): pass `profile` with contact info and omit `user_id`.
@@ -326,7 +334,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 | `add-to-digest` | Add the event to a digest keyed by a subscription topic; the digest releases on the topic's configured schedule. |
 | `ai` | Run an LLM prompt with optional web search. Returns structured output per `output_schema`. |
 | `exit` | End the run immediately. |
-| Cancel *(builder only)* | Cancels every **other** active run sharing a cancelation token — not its own run. Not in the API journey schema; from code, call `POST /journeys/cancel`. See [Cancelling Runs](#cancelling-runs). |
+| Cancel *(builder only)* | Cancels every **other** active run sharing a cancelation token, not its own run. Not in the API journey schema; from code, call `POST /journeys/cancel`. See [Cancelling Runs](#cancelling-runs). |
 
 ### Detailed Reference
 
@@ -351,7 +359,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 
 ## Conditions
 
-Several node types (`branch` paths, `send`, `delay`, `fetch`, `throttle`, triggers, …) support a `conditions` field. A condition's elements are **always strings** — compare against `"true"`/`"false"` and `"50"`, never native booleans or numbers.
+Several node types (`branch` paths, `send`, `delay`, `fetch`, `throttle`, triggers, …) support a `conditions` field. A condition's elements are **always strings**, compare against `"true"`/`"false"` and `"50"`, never native booleans or numbers.
 
 The `conditions` field accepts one of three shapes:
 
@@ -365,7 +373,7 @@ The `conditions` field accepts one of three shapes:
 "conditions": ["data.email", "exists"]
 ```
 
-> Do **not** wrap a single condition in an extra array (`[[...]]`) — that is not a valid shape.
+> Do **not** wrap a single condition in an extra array (`[[...]]`). That is not a valid shape.
 
 **2. A group (AND/OR).** An object with exactly one of `AND` or `OR`, each a list of 2+ condition tuples:
 
@@ -378,7 +386,7 @@ The `conditions` field accepts one of three shapes:
 }
 ```
 
-**3. A nested group.** An object with `AND`/`OR` whose entries are themselves groups — e.g. "first-time buyer over $50 **OR** returning buyer over $200":
+**3. A nested group.** An object with `AND`/`OR` whose entries are themselves groups, e.g. "first-time buyer over $50 **OR** returning buyer over $200":
 
 ```json
 "conditions": {
@@ -406,7 +414,7 @@ How you reference a context value depends on **where** you use it. Getting this 
 
 | Context | Syntax | Example |
 |---------|--------|---------|
-| Template content (Elemental) | `{{field}}` — **no** `data.` prefix | `"Welcome, {{first_name}}!"` |
+| Template content (Elemental) | `{{field}}`, **no** `data.` prefix | `"Welcome, {{first_name}}!"` |
 | Fetch node `url` | `{{field}}` | `"https://api.app.com/users/{{user_id}}/status"` |
 | Branch / trigger `conditions` | `data.field` (string tuples) | `["data.completed", "is equal", "true"]` |
 | Fetch / send **header & override values** | `$ref` object | `{ "Authorization": { "$ref": "data.api_token" } }` |
@@ -420,7 +428,7 @@ Notes:
 
 ## Merge Strategies (Fetch Nodes)
 
-When a fetch node receives a response, `merge_strategy` determines how the response is incorporated into run state. **`soft-merge` is the safest default** — it never overwrites trigger schema or profile fields.
+When a fetch node receives a response, `merge_strategy` determines how the response is incorporated into run state. **`soft-merge` is the safest default**. It never overwrites trigger schema or profile fields.
 
 | Strategy | Behavior |
 |----------|----------|
@@ -429,7 +437,7 @@ When a fetch node receives a response, `merge_strategy` determines how the respo
 | `replace` | Replaces the entire run state with the response. |
 | `none` | Discards the response body. Useful for fire-and-forget requests. |
 
-Fetch nodes require **HTTPS** URLs. If a fetch fails (network error or non-2xx), the journey **continues** and no data is merged — guard downstream nodes with conditions like `["data.expected_field", "exists"]`.
+Fetch nodes require **HTTPS** URLs. If a fetch fails (network error or non-2xx), the journey **continues** and no data is merged, guard downstream nodes with conditions like `["data.expected_field", "exists"]`.
 
 ---
 
@@ -439,7 +447,7 @@ Fetch nodes require **HTTPS** URLs. If a fetch fails (network error or non-2xx),
 
 A multi-day onboarding sequence that checks whether the user completed setup and branches accordingly.
 
-**Step 1 — Create the journey shell:**
+**Step 1. Create the journey shell:**
 
 ```bash
 curl -sS -X POST "https://api.courier.com/journeys" \
@@ -465,7 +473,7 @@ curl -sS -X POST "https://api.courier.com/journeys" \
   }'
 ```
 
-**Step 2 — Create journey-scoped templates** (one per send node — welcome, setup reminder, core nudge, success):
+**Step 2. Create journey-scoped templates** (one per send node, welcome, setup reminder, core nudge, success):
 
 ```bash
 # Create welcome email template
@@ -493,7 +501,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/templates" \
 # Repeat for: setup-reminder, core-nudge, success templates
 ```
 
-**Step 3 — Wire the full DAG:**
+**Step 3, Wire the full DAG:**
 
 ```bash
 curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
@@ -579,7 +587,7 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
   }'
 ```
 
-**Steps 4 & 5 — Publish and invoke** (same as the standard workflow above).
+**Steps 4 & 5, Publish and invoke** (same as the standard workflow above).
 
 ### Escalation Journey (Time-Based)
 
@@ -695,13 +703,13 @@ A send node's `message` can do more than reference a template:
 }
 ```
 
-- `to` — override the resolved recipient: `email_override`, `phone_number_override`, `user_id_override`.
-- `delay` — schedule this individual send: `until` (required, ISO 8601 timestamp or context reference) plus optional `timezone`. (For pausing the whole run, use a `delay` node instead.)
-- `data` — extra merge data scoped to this send.
+- `to`, override the resolved recipient: `email_override`, `phone_number_override`, `user_id_override`.
+- `delay`, schedule this individual send: `until` (required, ISO 8601 timestamp or context reference) plus optional `timezone`. (For pausing the whole run, use a `delay` node instead.)
+- `data`, extra merge data scoped to this send.
 
 ### A/B Experiments on a Send Node
 
-A/B testing is a field on the send node — **not** a separate node type. Supply `experiment` **instead of** `message.template`; the recipient is deterministically bucketed by `bucketingKey` and routed to one variant in proportion to its `weight`.
+A/B testing is a field on the send node, **not** a separate node type. Supply `experiment` **instead of** `message.template`; the recipient is deterministically bucketed by `bucketingKey` and routed to one variant in proportion to its `weight`.
 
 ```json
 {
@@ -719,14 +727,14 @@ A/B testing is a field on the send node — **not** a separate node type. Supply
 }
 ```
 
-- **`bucketingKey`** (required) — the value that determines assignment. Must be non-empty with no leading or trailing whitespace. Bucketing is deterministic, so the same key always lands in the same variant across runs.
-- **`variants`** (required) — between 2 and 10. Variant `id`s must be unique within the experiment; weights are **relative** (no sum-to-100 requirement) and their total must be greater than 0 — routing normalizes proportionally.
-- **`id`** (optional) — an `exp_`-prefixed experiment id. Omit to have one generated; if you supply it, it must be a valid `exp_` id.
+- **`bucketingKey`** (required), the value that determines assignment. Must be non-empty with no leading or trailing whitespace. Bucketing is deterministic, so the same key always lands in the same variant across runs.
+- **`variants`** (required), between 2 and 10. Variant `id`s must be unique within the experiment; weights are **relative** (no sum-to-100 requirement) and their total must be greater than 0, routing normalizes proportionally.
+- **`id`** (optional), an `exp_`-prefixed experiment id. Omit to have one generated; if you supply it, it must be a valid `exp_` id.
 - ⚠️ **`bucketingKey` is camelCase**, unlike the snake_case used elsewhere in the Journeys API. Copy it exactly.
 
 ### Dynamic Delay
 
-A `delay` node's interval can come from the journey context instead of a hardcoded value — pass a context reference in `duration` (an ISO 8601 duration like `PT2H`) or `until` (a timestamp):
+A `delay` node's interval can come from the journey context instead of a hardcoded value. Pass a context reference in `duration` (an ISO 8601 duration like `PT2H`) or `until` (a timestamp):
 
 ```json
 { "type": "delay", "mode": "duration", "duration": "{{follow_up_delay}}" }
@@ -748,8 +756,8 @@ Collect multiple invocations for the same user into one aggregated payload, then
 }
 ```
 
-- `retain.type` — which collected events to keep: `first`, `last`, `highest`, or `lowest` (the latter two require `sort_key`). `count` is 0–25.
-- `category_key` — events sharing this value batch together; different values batch separately.
+- `retain.type`, which collected events to keep: `first`, `last`, `highest`, or `lowest` (the latter two require `sort_key`). `count` is 0–25.
+- `category_key`, events sharing this value batch together; different values batch separately.
 
 ### Add to Digest Node
 
@@ -802,7 +810,7 @@ Instead of `api-invoke`, start runs from your Segment event stream. Filter which
 }
 ```
 
-For `track` events, the event's `userId` must be a valid Courier Profile ID or the journey won't start. Segment journeys have no `schema` — Courier receives whatever Segment sends.
+For `track` events, the event's `userId` must be a valid Courier Profile ID or the journey won't start. Segment journeys have no `schema`. Courier receives whatever Segment sends.
 
 ---
 
@@ -818,7 +826,7 @@ Error bodies have the shape `{ "type": "...", "message": "..." }`. Common **crea
 | Status | `type` | Cause / message |
 |--------|--------|-----------------|
 | `400` | `invalid_request_error` | Client-supplied node `id`s (`client-supplied node ids are not allowed; ids are server-generated`) |
-| `400` | `invalid_request_error` | Malformed condition (`nodes.N.paths.M.conditions: Invalid input`) — e.g. `[[...]]` wrapping or non-string values |
+| `400` | `invalid_request_error` | Malformed condition (`nodes.N.paths.M.conditions: Invalid input`), e.g. `[[...]]` wrapping or non-string values |
 | `422` | `validation_error` | `send` node in the create body (`send nodes are not allowed at journey creation; create the journey, then create notification templates scoped to it, then PUT to wire the send nodes`) |
 
 Common **invoke** (`POST /journeys/{id}/invoke`) errors:
@@ -833,17 +841,17 @@ Common **invoke** (`POST /journeys/{id}/invoke`) errors:
 
 ## Cancelling Runs
 
-Journeys support cancellation two ways: **externally** via the API, and **from inside a flow** via the Cancel node. Both work off the same concept — a **cancelation token** shared by a family of runs.
+Journeys support cancellation two ways: **externally** via the API, and **from inside a flow** via the Cancel node. Both work off the same concept, a **cancelation token** shared by a family of runs.
 
 ### The cancelation token
 
-The token is configured in the **journey's settings** and is templated from run data — `{{data.…}}`, `{{profile.…}}`, or `{{recipient}}`. A token like `order-{{data.order_id}}` gives every run for one order a shared handle.
+The token is configured in the **journey's settings** and is templated from run data, `{{data.…}}`, `{{profile.…}}`, or `{{recipient}}`. A token like `order-{{data.order_id}}` gives every run for one order a shared handle.
 
-> ⚠️ **If the referenced variable doesn't resolve when the run starts, the run is created with no token — and can never be cancelled by token.** Only `run_id` cancellation will reach it. Make sure the fields your token references are always present in the invoke payload.
+> ⚠️ **If the referenced variable doesn't resolve when the run starts, the run is created with no token, and can never be cancelled by token.** Only `run_id` cancellation will reach it. Make sure the fields your token references are always present in the invoke payload.
 
 ### Externally: `POST /journeys/cancel`
 
-Provide **exactly one** of `cancelation_token` or `run_id` — both, or neither, is rejected.
+Provide **exactly one** of `cancelation_token` or `run_id`, both, or neither, is rejected.
 
 | Body | Cancels | Returns (`202`) |
 |------|---------|-----------------|
@@ -868,11 +876,11 @@ Use the **token** when one real-world event should stop a whole family of runs (
 
 A **Cancel** node stops in-flight runs from within a journey. Its one setting is a Cancelation Token.
 
-> ⚠️ **A Cancel node does not cancel its own run.** When a run reaches the node, Courier cancels **every *other* active run sharing that token** — the run containing the node continues to the next node. Use an `exit` node to end the current run.
+> ⚠️ **A Cancel node does not cancel its own run.** When a run reaches the node, Courier cancels **every *other* active run sharing that token**, the run containing the node continues to the next node. Use an `exit` node to end the current run.
 
 This is the pattern for "the newest run wins": a re-engagement journey whose first node cancels any earlier run for the same user, so a returning user doesn't receive two overlapping sequences.
 
-The Cancel node is configured in the journey builder. It is **not currently part of the API journey definition** — there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead — it has the same token semantics. Re-check the API reference before assuming this is still true.
+The Cancel node is configured in the journey builder. It is **not currently part of the API journey definition**, there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead. It has the same token semantics. Re-check the API reference before assuming this is still true.
 
 ## Debugging Runs
 
@@ -882,17 +890,17 @@ Every invoke returns a `runId`. Use **[Run Inspection](https://www.courier.com/d
 
 ## Coming from Automations
 
-**Journeys is Courier's orchestration product and where the investment goes.** If you're building multi-step flows on Automations today, build new ones as Journeys — existing Automations keep running, so there's no forced cutover.
+**Journeys is Courier's orchestration product and where the investment goes.** If you're building multi-step flows on Automations today, build new ones as Journeys, existing Automations keep running, so there's no forced cutover.
 
-The models are near-identical: a flow a user enters, moves through step by step, and exits. Every Automations step has a direct node equivalent — delay, if/switch, send, batch, digest, throttle, fetch, and cancellation by token. What Journeys adds is that the definition is code: a JSON DAG you create, version, publish, and invoke over REST, with immutable published versions, journey-scoped templates, A/B experiments on send nodes, a typed trigger contract, and run inspection that shows you exactly which branch a run took and why.
+The models are near-identical: a flow a user enters, moves through step by step, and exits. Every Automations step has a direct node equivalent, delay, if/switch, send, batch, digest, throttle, fetch, and cancellation by token. What Journeys adds is that the definition is code: a JSON DAG you create, version, publish, and invoke over REST, with immutable published versions, journey-scoped templates, A/B experiments on send nodes, a typed trigger contract, and run inspection that shows you exactly which branch a run took and why.
 
 ## Related
 
-- [Elemental](./elemental.md) — content format for journey-scoped templates
-- [Templates](./templates.md) — workspace-level template CRUD (for templates outside of journeys)
-- [Multi-Channel](./multi-channel.md) — channel routing and escalation patterns
-- [Patterns](./patterns.md) — reusable code patterns (idempotency, consent, cancellation)
-- [Reliability](./reliability.md) — retries, idempotency, webhook handling
-- [Building Journeys via API](https://www.courier.com/docs/platform/journeys/building-journeys-via-api) — official Courier documentation
-- [Journeys API Reference](https://www.courier.com/docs/api-reference/journeys/create-a-journey) — endpoint reference
-- [Run Inspection](https://www.courier.com/docs/platform/journeys/run-inspection) — step through runs to debug
+- [Elemental](./elemental.md), content format for journey-scoped templates
+- [Templates](./templates.md), workspace-level template CRUD (for templates outside of journeys)
+- [Multi-Channel](./multi-channel.md), channel routing and escalation patterns
+- [Patterns](./patterns.md), reusable code patterns (idempotency, cancellation, masking)
+- [Reliability](./reliability.md), retries, idempotency, webhook handling
+- [Building Journeys via API](https://www.courier.com/docs/platform/journeys/building-journeys-via-api), official Courier documentation
+- [Journeys API Reference](https://www.courier.com/docs/api-reference/journeys/create-a-journey), endpoint reference
+- [Run Inspection](https://www.courier.com/docs/platform/journeys/run-inspection), step through runs to debug

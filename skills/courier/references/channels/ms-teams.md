@@ -5,7 +5,7 @@
 ### Rules
 - Incoming Webhook (via Workflows): simplest setup, channel-only, no interaction
 - Bot Framework: required for DMs and interactive messages
-- Office 365 Connector webhooks are deprecated — use Workflows webhooks instead
+- Office 365 Connector webhooks are deprecated. Use Workflows webhooks instead
 - Adaptive Card version: use 1.4 or lower for compatibility
 - Card JSON must be valid - test in Adaptive Card Designer first
 - Required Azure AD permissions: `User.Read.All`, `Chat.Create`, `ChatMessage.Send`
@@ -46,7 +46,7 @@ client.send.message(
 )
 ```
 
-**With Adaptive Card** (fragment — pass as `message.channels` on `client.send.message`):
+**With Adaptive Card** (fragment. Pass as `message.channels` on `client.send.message`):
 ```jsonc
 {
   "ms_teams": {
@@ -80,7 +80,7 @@ Best practices for sending Microsoft Teams notifications with Adaptive Cards.
 
 Best for: Channel notifications, alerts, no user interaction needed.
 
-> **Note:** Microsoft has retired Office 365 connectors (the old "Incoming Webhook" integration inside a Teams channel). Creation of new connectors has been disabled since early 2025, and Microsoft has been pushing a final cutoff for existing connector URLs through multiple extensions in 2025–2026 — treat any existing connector URL as **unreliable** and migrate now. The supported replacement is the **Workflows** app in Teams (Power Automate) with the "Post to a channel when a webhook request is received" template, which produces a new webhook URL. For net-new integrations, use Workflows webhooks or the Bot Framework; do not create new connectors. Check Microsoft's current Teams connectors retirement doc for the latest exact dates before architecting anything long-lived.
+> **Note:** Microsoft has retired Office 365 connectors (the old "Incoming Webhook" integration inside a Teams channel). Creation of new connectors has been disabled since early 2025, and Microsoft has been pushing a final cutoff for existing connector URLs through multiple extensions in 2025–2026. Treat any existing connector URL as **unreliable** and migrate now. The supported replacement is the **Workflows** app in Teams (Power Automate) with the "Post to a channel when a webhook request is received" template, which produces a new webhook URL. For net-new integrations, use Workflows webhooks or the Bot Framework; do not create new connectors. Check Microsoft's current Teams connectors retirement doc for the latest exact dates before architecting anything long-lived.
 
 **Setup:**
 1. In Teams, go to channel → Manage channel → Workflows → "Post to a channel when a webhook request is received"
@@ -602,7 +602,7 @@ def messages():
 
 ### Bot Registration for Action.Submit
 
-`Action.Submit` requires a Bot Framework bot — webhooks cannot receive interactive responses. Ensure:
+`Action.Submit` requires a Bot Framework bot, webhooks cannot receive interactive responses. Ensure:
 
 1. Bot is registered in Azure Bot Service
 2. Messaging endpoint is set to your server URL (e.g., `https://api.acme.com/api/messages`)
@@ -639,34 +639,6 @@ await client.send.message({
   }
 });
 ```
-
-## Best Practices
-
-### Card Design
-
-- **Keep it scannable** - Use FactSets for key data
-- **Limit actions** - 2-3 buttons maximum
-- **Use color sparingly** - Rely on Teams theme
-- **Test on mobile** - Cards render differently
-- **Use icons/emoji** - Help visual scanning
-
-### Content Guidelines
-
-- **Be concise** - Teams is fast-paced
-- **Include context** - Who, what, when
-- **Make actionable** - Clear next steps
-- **Respect focus time** - Don't over-notify
-- **Consider Do Not Disturb** - Teams honors user status
-
-### Channel vs Chat
-
-| Use Channel for | Use Chat (DM) for |
-|-----------------|-------------------|
-| Team announcements | Personal notifications |
-| System alerts | Task assignments |
-| Deployment updates | Approval requests |
-| Incident notifications | Direct mentions |
-| Standup reminders | Performance feedback |
 
 ## Adaptive Card Designer
 

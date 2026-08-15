@@ -2,7 +2,7 @@
 
 The in-app notification center. Unlike every other Courier channel, the inbox renders **in your application**, so this is client-side work: authenticating a browser or device, mounting a component, and keeping read state in sync.
 
-Sending a message *to* the inbox is server-side — see [inbox.md](../channels/inbox.md).
+Sending a message *to* the inbox is server-side. See [inbox.md](../channels/inbox.md).
 
 ## The Model
 
@@ -15,7 +15,7 @@ your server ──generates JWT──▶ your client ──signIn(jwt)──▶ 
                                     └── listenForUpdates()    WebSocket, live arrivals
 ```
 
-Three things always happen, in this order. Skipping the third is the most common integration bug — messages arrive but the UI never changes until reload.
+Three things always happen, in this order. Skipping the third is the most common integration bug, messages arrive but the UI never changes until reload.
 
 1. `shared.signIn({ userId, jwt })`
 2. `inbox.registerFeeds(defaultFeeds())`
@@ -41,11 +41,11 @@ This documents **v8**. Check what the project is on before adding anything.
 | `@trycourier/courier-react`, `<CourierInbox />`, `useCourier()` | **v8** | Continue here |
 | `@trycourier/react-provider`, `@trycourier/react-inbox`, `<CourierProvider>`, `<Inbox />`, a `clientKey` prop | **v7 (legacy)** | Read [legacy-v7.md](./legacy-v7.md) first |
 
-Do not write new v7 code. If the project is on v7, propose migrating before adding features — the [migration guide](https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide) is step-by-step.
+Do not write new v7 code. If the project is on v7, propose migrating before adding features, the [migration guide](https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide) is step-by-step.
 
 ## Universal Rules
 
-- **JWT only.** v8 requires it. Generate it server-side from your API key — an API key in client code grants full workspace access to anyone who opens devtools.
+- **JWT only.** v8 requires it. Generate it server-side from your API key, an API key in client code grants full workspace access to anyone who opens devtools.
 - **Scopes:** `user_id:{id} inbox:read:messages inbox:write:events read:preferences`
 - **JWTs expire.** Refresh before expiry rather than letting the socket drop. See [auth.md](./auth.md).
 - **Call `listenForUpdates()` after `signIn()`**, or nothing updates in real time.
@@ -70,7 +70,7 @@ function NotificationBell() {
 }
 ```
 
-From your backend you can only **archive** (`client.requests.archive(requestId)`) — useful for clearing the inbox copy once the user acts on the email or push version of the same notification.
+From your backend you can only **archive** (`client.requests.archive(requestId)`), useful for clearing the inbox copy once the user acts on the email or push version of the same notification.
 
 ## Organizing the Feed
 
@@ -90,7 +90,8 @@ See [Feeds and Tabs](./react.md) for wiring tabs to those fields.
 | Messages appear only after reload | `listenForUpdates()` was never called |
 | Works, then silently stops | JWT expired; no refresh in place |
 | 401 from the SDK | JWT minted with missing scopes, or generated client-side |
-| Message sent but never arrives | Server-side — the send never reached the `inbox` channel. Work the [delivery-failure ladder](../../SKILL.md#debugging-a-delivery-failure); check the [inbox channel](../channels/inbox.md) and preferences |
+| Message sent but never arrives | Server-side, the send never reached the `inbox` channel. Work the [delivery-failure ladder](../../SKILL.md#debugging-a-delivery-failure); check the [inbox channel](../channels/inbox.md) and preferences |
+| Send succeeded, message invisible in a multi-tenant app | The send carried a `tenant_id` but `signIn` didn't (or vice versa). Tenant-scoped messages only show when the signed-in `tenantId` matches. See [tenants.md](../guides/tenants.md#auto-infer-and-two-silent-gotchas) |
 
 ## Where to Look
 

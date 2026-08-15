@@ -1,11 +1,11 @@
 # Courier MCP Servers
 
-## Two servers — pick by what you need
+## Two servers. Pick by what you need
 
 | | **API MCP** | **Docs MCP** |
 |---|---|---|
 | URL | `https://mcp.courier.com` | `https://www.courier.com/docs/mcp` |
-| Auth | `api_key` header (required) | **None** — public docs |
+| Auth | `api_key` header (required) | **None**, public docs |
 | Purpose | **Do things**: send, manage templates, journeys, profiles, preferences | **Look things up**: search docs, read pages, read the OpenAPI specs |
 | Tools | ~144 (see inventory below) | `search_courier`, `query_docs_filesystem_courier`, `submit_feedback` |
 | Reach for it when | You're operating on a workspace | You need semantics, a parameter shape, or a page you can't name |
@@ -14,32 +14,32 @@ Most agent sessions want **both**: the docs MCP to learn the correct shape, the 
 
 ### Docs MCP
 
-Auto-provisioned by Mintlify for the docs site — nothing to configure. Install:
+Auto-provisioned by Mintlify for the docs site, nothing to configure. Install:
 
 ```bash
 claude mcp add --transport http courier-docs https://www.courier.com/docs/mcp
 ```
 
-- **`search_courier`** — semantic search across every docs page and the OpenAPI specs. Returns titles, paths, and content. Costs ~20k tokens per call, so use it when you don't know where to look.
-- **`query_docs_filesystem_courier`** — read-only virtual filesystem of the whole docs site. Shell-style: `head -200 /platform/journeys/nodes/batch.mdx`, `grep`, `ls`, `tree`. **Prefer this once you know the path** — a single page read is ~2k tokens instead of ~20k.
-- **`submit_feedback`** — report an incorrect, outdated, or confusing page back to Courier's docs team. Use it when you find a genuine documentation defect; it closes the loop rather than silently working around the error.
+- **`search_courier`**: semantic search across every docs page and the OpenAPI specs. Returns titles, paths, and content. Costs ~20k tokens per call, so use it when you don't know where to look.
+- **`query_docs_filesystem_courier`**. Read-only virtual filesystem of the whole docs site. Shell-style, `head -200 /platform/journeys/nodes/batch.mdx`, `grep`, `ls`, `tree`. **Prefer this once you know the path**, a single page read is ~2k tokens instead of ~20k.
+- **`submit_feedback`**: report an incorrect, outdated, or confusing page back to Courier's docs team. Use it when you find a genuine documentation defect; it closes the loop rather than silently working around the error.
 
-The server indexes from docs navigation, so newly shipped pages appear immediately — it is more current than any snapshot in this skill. When it disagrees with this file about a doc page, it wins.
+The server indexes from docs navigation, so newly shipped pages appear immediately. It is more current than any snapshot in this skill. When it disagrees with this file about a doc page, it wins.
 
-Cheaper still, when you already know the exact page: append `.md` to any docs URL (`https://www.courier.com/docs/platform/journeys/nodes/batch.md`) — plain HTTP, ~1–2k tokens, no MCP connection needed. Bad paths return a real `404`.
+Cheaper still, when you already know the exact page: append `.md` to any docs URL (`https://www.courier.com/docs/platform/journeys/nodes/batch.md`), plain HTTP, ~1–2k tokens, no MCP connection needed. Bad paths return a real `404`.
 
 ---
 
 ## API MCP Server
 
-> **Last verified: 2026-07.** The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file.** If this file is older than **3 months**, re-verify against https://www.courier.com/docs/tools/mcp before quoting specifics — and note that a tool being advertised does not guarantee the endpoint behind it still exists.
+> **Last verified: 2026-07.** The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file.** If this file is older than **3 months**, re-verify against https://www.courier.com/docs/tools/mcp before quoting specifics, and note that a tool being advertised does not guarantee the endpoint behind it still exists.
 
 ## Quick Reference
 
 ### Rules
 - MCP provides structured tool access; agents discover tools automatically and call them with typed parameters
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- Tools cover essentially the whole Courier API — send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, inbound, audit. The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
+- Tools cover essentially the whole Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, inbound, audit. The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
 - Journey management and notification-template writes are both available via MCP
 - Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
@@ -49,7 +49,7 @@ Cheaper still, when you already know the exact page: append `.md` to any docs UR
 ### Practical setup guardrails
 
 - Treat tool count as informative, not absolute: if the number changed, proceed as long as the tools you need are present.
-- If a tool you expect is missing, check the live tool list before routing around it — this guide's inventory is a snapshot, the server is the truth.
+- If a tool you expect is missing, check the live tool list before routing around it. This guide's inventory is a snapshot, the server is the truth.
 - For production or CI usage, prefer a dedicated API key per environment/workspace.
 - Validate auth and basic tool calls immediately after setup before relying on the integration for larger tasks.
 
@@ -95,7 +95,7 @@ In Cursor, go to **Cursor > Cursor Settings > Tools & Integrations > MCP Tools >
 }
 ```
 
-Or use the one-click install: [Install MCP Server](https://cursor.com/en/install-mcp?name=courier&config=eyJ1cmwiOiJodHRwczovL21jcC5jb3VyaWVyLmNvbSIsImhlYWRlcnMiOnsiYXBpX2tleSI6IlhYWFgifX0%3D) — after installing, open **Cursor Settings > MCP** and replace `XXXX` with your actual Courier API key.
+Or use the one-click install: [Install MCP Server](https://cursor.com/en/install-mcp?name=courier&config=eyJ1cmwiOiJodHRwczovL21jcC5jb3VyaWVyLmNvbSIsImhlYWRlcnMiOnsiYXBpX2tleSI6IlhYWFgifX0%3D), after installing, open **Cursor Settings > MCP** and replace `XXXX` with your actual Courier API key.
 
 Works best with Agent mode enabled (in the Cursor chat input, select "Agent" instead of "Ask" or "Edit").
 
@@ -169,9 +169,9 @@ Open the chat window, click the Gear icon, then MCP Servers, and start the "cour
 
 ### Calling Courier MCP from your own agent
 
-The editor configs above are the tested path — they let you set an arbitrary `api_key` header, which is what Courier's hosted server expects. If you are driving MCP from your own code instead, note the auth difference below.
+The editor configs above are the tested path. They let you set an arbitrary `api_key` header, which is what Courier's hosted server expects. If you are driving MCP from your own code instead, note the auth difference below.
 
-**Claude Messages API** (`@anthropic-ai/sdk`). Two parameters are required together: `mcp_servers` declares the connection, and `tools` must contain a matching `mcp_toolset` entry — omitting the toolset is a validation error.
+**Claude Messages API** (`@anthropic-ai/sdk`). Two parameters are required together: `mcp_servers` declares the connection, and `tools` must contain a matching `mcp_toolset` entry, omitting the toolset is a validation error.
 
 ```typescript
 import Anthropic from "@anthropic-ai/sdk";
@@ -197,13 +197,13 @@ const response = await client.beta.messages.create({
 });
 ```
 
-> **Auth caveat — verify before relying on this.** The Messages API connector sends `authorization_token` as an HTTP **bearer** token, whereas Courier's hosted server documents an `api_key` header. If the connector returns an auth error, the server does not accept bearer auth — fall back to a local stdio bridge (`npx -y mcp-remote https://mcp.courier.com --header api_key:$COURIER_API_KEY`), which can set arbitrary headers, or use the [CLI](./cli.md) / SDK directly.
+> **Auth caveat. Verify before relying on this.** The Messages API connector sends `authorization_token` as an HTTP **bearer** token, whereas Courier's hosted server documents an `api_key` header. If the connector returns an auth error, the server does not accept bearer auth, fall back to a local stdio bridge (`npx -y mcp-remote https://mcp.courier.com --header api_key:$COURIER_API_KEY`), which can set arbitrary headers, or use the [CLI](./cli.md) / SDK directly.
 
-**Other agent frameworks.** Any MCP client that can set a custom request header works — point it at `https://mcp.courier.com` with `api_key: $COURIER_API_KEY`. Clients that only support bearer auth need the `mcp-remote` bridge above.
+**Other agent frameworks.** Any MCP client that can set a custom request header works, point it at `https://mcp.courier.com` with `api_key: $COURIER_API_KEY`. Clients that only support bearer auth need the `mcp-remote` bridge above.
 
 ## Available Tools
 
-Tools cover essentially the whole Courier API, all backed by the official `@trycourier/courier` Node SDK with typed error handling — including notification template writes (create/replace/publish/archive/versions/checks) and the full journey lifecycle.
+Tools cover essentially the whole Courier API, all backed by the official `@trycourier/courier` Node SDK with typed error handling, including notification template writes (create/replace/publish/archive/versions/checks) and the full journey lifecycle.
 
 > The inventory below is a **snapshot for orientation, not a contract.** Call the MCP server's tool-list endpoint for the authoritative names and coverage. Where this file and the live server disagree, the server is right.
 
@@ -259,6 +259,19 @@ Tools cover essentially the whole Courier API, all backed by the official `@tryc
 | `update_audience` | Create or update an audience with a filter definition |
 | `delete_audience` | Delete an audience |
 
+### Bulk
+
+| Tool | Description |
+|------|-------------|
+| `create_bulk_job` | Create a bulk job (`message.event` is required) |
+| `add_bulk_users` | Ingest users into an existing bulk job |
+| `run_bulk_job` | Trigger delivery for a bulk job |
+| `get_bulk_job` | Get a job's status and counts |
+| `list_bulk_users` | List the users ingested into a job, with their per-recipient status |
+
+Workflow order matters: `create_bulk_job` → `add_bulk_users` → `run_bulk_job`. See
+[bulk.md](./bulk.md) for the payload shapes and gotchas.
+
 ### Notifications
 
 | Tool | Description |
@@ -291,7 +304,7 @@ MCP has full journey coverage, including writes. Prefer these over hand-rolled R
 | Tool | Description |
 |------|-------------|
 | `create_journey` | Create a journey (DRAFT by default; send nodes are not allowed on create) |
-| `replace_journey` | Replace a journey — this is how you add send nodes after templates exist |
+| `replace_journey` | Replace a journey, this is how you add send nodes after templates exist |
 | `publish_journey` | Publish a draft journey, making it live |
 | `invoke_journey` | Start a journey run for a user |
 | `cancel_journey` | Cancel an in-flight run |
