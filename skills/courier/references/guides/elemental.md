@@ -303,7 +303,7 @@ Multi-column layouts for email and other rich channels.
 
 `columns` contains `column` children. Each `column` has a `width` (CSS percentage or pixel value) and its own `elements` array.
 
-Columns are also Elemental's design surface: `column` accepts `background_color`, `padding`, and `border_radius`, and `columns` accepts `gap` — so colored cards, card grids with gutters, and full-width section panels are all buildable in native blocks.
+Columns are also Elemental's design surface: `column` accepts background, padding, and border styling, and `columns` accepts `gap` — so colored cards, card grids with gutters, and full-width section panels are all buildable in native blocks.
 
 | Property | On | Type | Description |
 |----------|----|------|-------------|
