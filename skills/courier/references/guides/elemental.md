@@ -86,15 +86,31 @@ Body text content with optional formatting.
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `content` | `string` | Yes | Text content (supports `{{variables}}`) |
-| `align` | `"left"` \| `"center"` \| `"right"` | Yes | Text alignment |
+| `content` | `string` | Yes* | Text content (supports `{{variables}}`). *Either `content` or `elements` |
+| `align` | `"left"` \| `"center"` \| `"right"` | No | Text alignment. Defaults to `"left"`; include it explicitly to avoid ambiguity across renderers |
 | `text_style` | `"text"` \| `"h1"` \| `"h2"` \| `"subtext"` | No | Heading level or subtext |
 | `format` | `"markdown"` | No | Enable markdown rendering (`**bold**`, `*italic*`, links) |
-| `color` | `string` | No | CSS color value |
-| `bold` | `string` | No | Apply bold |
-| `italic` | `string` | No | Apply italic |
-| `strikethrough` | `string` | No | Apply strikethrough |
-| `underline` | `string` | No | Apply underline |
+
+**Styled text:** for color, bold, and other rich styling, `text` takes nested children via `elements` (instead of `content`), with the styling carried on the `string`/`link` children. This form works everywhere — inline sends and stored templates.
+
+```json
+{ "type": "text", "align": "left", "elements": [
+    { "type": "string", "content": "Available now", "color": "#006B56", "bold": true }
+] }
+```
+
+Styling properties on `string`/`link` children:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `color` | `string` | CSS text color |
+| `highlight` | `string` | CSS highlight (background) color |
+| `bold` | `boolean` | Apply bold |
+| `italic` | `boolean` | Apply italic |
+| `strikethrough` | `boolean` | Apply strikethrough |
+| `underline` | `boolean` | Apply underline |
+
+Inline sends via `POST /send` also tolerate these styling properties flat on the `text` element itself, but the Templates API accepts only the nested form — use the nested form everywhere.
 
 **Heading example:**
 ```json
@@ -138,7 +154,7 @@ Embedded image with optional link.
 {
   "type": "image",
   "src": "https://example.com/product.jpg",
-  "altText": "Product photo",
+  "alt_text": "Product photo",
   "width": "300px",
   "href": "https://example.com/products/123",
   "align": "center"
@@ -149,7 +165,7 @@ Embedded image with optional link.
 |----------|------|----------|-------------|
 | `src` | `string` | Yes | Image URL |
 | `href` | `string` | No | Link URL when image is clicked |
-| `altText` | `string` | No | Alt text for accessibility |
+| `alt_text` | `string` | No | Alt text for accessibility |
 | `width` | `string` | No | CSS width (e.g., `"300px"`, `"50%"`) |
 | `align` | `"center"` \| `"left"` \| `"right"` \| `"full"` | No | Image alignment |
 
@@ -186,7 +202,7 @@ Channel-specific content branches. When present at the top level, **all** siblin
       "elements": [
         { "type": "meta", "title": "Order #{{order_id}} Confirmed" },
         { "type": "text", "content": "Hi {{name}}, here are your full order details...", "align": "left" },
-        { "type": "image", "src": "{{product_image}}", "altText": "{{product_name}}" },
+        { "type": "image", "src": "{{product_image}}", "alt_text": "{{product_name}}" },
         { "type": "action", "content": "Track Order", "href": "{{tracking_url}}" }
       ]
     },
@@ -229,7 +245,7 @@ Blockquote for highlighted text or testimonials.
 {
   "type": "quote",
   "content": "The best notification platform we've used.",
-  "borderColor": "#1a73e8",
+  "border_color": "#1a73e8",
   "text_style": "text"
 }
 ```
@@ -238,7 +254,7 @@ Blockquote for highlighted text or testimonials.
 |----------|------|----------|-------------|
 | `content` | `string` | Yes | Quote text |
 | `align` | `"center"` \| `"left"` \| `"right"` \| `"full"` | No | Alignment |
-| `borderColor` | `string` | No | CSS border color |
+| `border_color` | `string` | No | CSS border color |
 | `text_style` | `"text"` \| `"h1"` \| `"h2"` \| `"subtext"` | Yes | Text styling |
 
 ### group
@@ -270,7 +286,7 @@ Multi-column layouts for email and other rich channels.
       "type": "column",
       "width": "40%",
       "elements": [
-        { "type": "image", "src": "{{product_image}}", "altText": "Product" }
+        { "type": "image", "src": "{{product_image}}", "alt_text": "Product" }
       ]
     },
     {
@@ -286,6 +302,56 @@ Multi-column layouts for email and other rich channels.
 ```
 
 `columns` contains `column` children. Each `column` has a `width` (CSS percentage or pixel value) and its own `elements` array.
+
+Columns are also Elemental's design surface: `column` accepts `background_color`, `padding`, and `border_radius`, and `columns` accepts `gap` — so colored cards, card grids with gutters, and full-width section panels are all buildable in native blocks.
+
+| Property | On | Type | Description |
+|----------|----|------|-------------|
+| `gap` | `columns` | `string` | Gutter between columns (e.g., `"12px"`) |
+| `background_color` | `column` | `string` | Card fill color |
+| `padding` | `column` | `string` | Space inside the card (e.g., `"18px"`) |
+| `border_radius` | `column` | `string` | Rounded corners (e.g., `"14px"`) |
+| `border_color` | `column` | `string` | Border color |
+| `border_width` | `column` | `string` | Border width |
+
+A card grid — one styled `column` per card, repeated for each card in the row (a three-up
+grid is three of these at `"33.33%"`):
+
+```json
+{
+  "type": "columns",
+  "gap": "12px",
+  "elements": [
+    {
+      "type": "column",
+      "width": "50%",
+      "background_color": "#EEF9F7",
+      "padding": "18px",
+      "border_radius": "14px",
+      "elements": [
+        { "type": "text", "content": "**42%**", "format": "markdown", "align": "center" },
+        { "type": "text", "content": "faster onboarding", "align": "center" }
+      ]
+    },
+    {
+      "type": "column",
+      "width": "50%",
+      "background_color": "#EEF9F7",
+      "padding": "18px",
+      "border_radius": "14px",
+      "elements": [
+        { "type": "text", "content": "**3×**", "format": "markdown", "align": "center" },
+        { "type": "text", "content": "more engagement", "align": "center" }
+      ]
+    }
+  ]
+}
+```
+
+`gap` adds the gutter without requiring you to reduce column widths — equal-width columns
+with a gap render correctly.
+
+A single 100%-width styled column makes a full-width section panel — it aligns with the email's content column for a consistent layout. Set borders on `column` via `border_color`/`border_width` (that's where they render).
 
 ### list / list-item
 
@@ -415,7 +481,7 @@ Show an element only on specific channels without using a `channel` container:
 {
   "type": "image",
   "src": "https://example.com/banner.jpg",
-  "altText": "Welcome banner",
+  "alt_text": "Welcome banner",
   "channels": ["email"]
 }
 ```

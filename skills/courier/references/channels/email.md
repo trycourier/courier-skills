@@ -368,6 +368,7 @@ await client.send.message({
 
 ## Related
 
+- [Elemental](../guides/elemental.md) - Email content and layout: element types, styled text, columns/cards
 - [Quickstart](../guides/quickstart.md) - New to Courier? Start here for install, API key, first send
 - [Multi-Channel](../guides/multi-channel.md) - Email as part of routing strategy
 - [Reliability](../guides/reliability.md) - Retry logic and error handling
