@@ -456,6 +456,8 @@ The response is the real thing — merge variables resolved, brand chrome applie
 
 The same operation in each interface: REST `GET /messages/{id}/output` · SDK `client.messages.content(messageId)` · CLI `courier messages content --message-id`. For a single-recipient send the `requestId` doubles as the message id; list and audience sends fan out to one message per recipient — resolve their ids with `courier messages list --trace-id "<requestId>"` (see [CLI](./cli.md)).
 
+Rendered output becomes available once the message renders — a send is accepted as `ENQUEUED` first, so if the call 404s or `results` is empty immediately after sending, re-check after a few seconds (see [Reliability](./reliability.md) for status semantics).
+
 Tip: keep Handlebars variables in the HTML body rather than the stored `raw.text` — the plain-text part is delivered as stored, so write it as final copy.
 
 ### List Templates

@@ -202,8 +202,8 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **Audiences**: dynamic segments, filter rules, sending to a segment | [audiences.md](./references/guides/audiences.md) |
 | **Multi-tenant / B2B**: tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
-| Template CRUD, publishing, versioning, locales | [templates.md](./references/guides/templates.md) |
-| **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, verify rendered output, rollback, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
+| Template CRUD, publishing, versioning, rollback, verify rendered output, locales | [templates.md](./references/guides/templates.md) |
+| **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md), or read the installed package's own types |
 | Elemental content format, elements, control flow | [elemental.md](./references/guides/elemental.md) |
 | **Localization**: per-locale content, and AI Translation in Design Studio (add a language, AI translates every field) | [elemental.md](./references/guides/elemental.md#localization) |
@@ -228,6 +228,6 @@ Most multi-step work pairs a use-case file with **journeys.md**. Most debugging 
 
 ### Not covered here
 
-Broadcasts, inbound events, Test→Production promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/). Don't reconstruct their shapes from memory.
+Broadcasts, inbound events, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/). Don't reconstruct their shapes from memory. (Template promotion between workspaces is covered in [templates-as-code.md](./references/guides/templates-as-code.md).)
 
 For EU data residency specifically: point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.

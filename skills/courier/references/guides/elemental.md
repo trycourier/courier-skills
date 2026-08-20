@@ -311,8 +311,11 @@ Columns are also Elemental's design surface: `column` accepts `background_color`
 | `background_color` | `column` | `string` | Card fill color |
 | `padding` | `column` | `string` | Space inside the card (e.g., `"18px"`) |
 | `border_radius` | `column` | `string` | Rounded corners (e.g., `"14px"`) |
+| `border_color` | `column` | `string` | Border color |
+| `border_width` | `column` | `string` | Border width |
 
-A three-up card grid:
+A card grid — one styled `column` per card, repeated for each card in the row (a three-up
+grid is three of these at `"33.33%"`):
 
 ```json
 {
@@ -321,7 +324,7 @@ A three-up card grid:
   "elements": [
     {
       "type": "column",
-      "width": "33.33%",
+      "width": "50%",
       "background_color": "#EEF9F7",
       "padding": "18px",
       "border_radius": "14px",
@@ -332,7 +335,7 @@ A three-up card grid:
     },
     {
       "type": "column",
-      "width": "33.33%",
+      "width": "50%",
       "background_color": "#EEF9F7",
       "padding": "18px",
       "border_radius": "14px",
@@ -340,25 +343,15 @@ A three-up card grid:
         { "type": "text", "content": "**3×**", "format": "markdown", "align": "center" },
         { "type": "text", "content": "more engagement", "align": "center" }
       ]
-    },
-    {
-      "type": "column",
-      "width": "33.33%",
-      "background_color": "#EEF9F7",
-      "padding": "18px",
-      "border_radius": "14px",
-      "elements": [
-        { "type": "text", "content": "**99.9%**", "format": "markdown", "align": "center" },
-        { "type": "text", "content": "delivery rate", "align": "center" }
-      ]
     }
   ]
 }
 ```
 
-`gap` is applied as padding split between adjacent columns, so widths don't need to be reduced to make room — three `33.33%` columns with a gap render correctly.
+`gap` adds the gutter without requiring you to reduce column widths — equal-width columns
+with a gap render correctly.
 
-A single 100%-width styled column makes a full-width section panel — it aligns with the email's content column for a consistent layout. Set borders on `column` (that's where they render).
+A single 100%-width styled column makes a full-width section panel — it aligns with the email's content column for a consistent layout. Set borders on `column` via `border_color`/`border_width` (that's where they render).
 
 ### list / list-item
 

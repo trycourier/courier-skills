@@ -57,7 +57,8 @@ Brand resolution follows the send type, giving you precise control over branding
 | Send type | Brand applied |
 |---|---|
 | Inline content (`message.content`) | `message.brand_id`, else the workspace default |
-| Stored template (`message.template`) | The template's own `brand` field |
+| Stored template (`message.template`) | The template's own `brand` field — a send-time `brand_id` does not override it |
+| Any send carrying `tenant_id` | The tenant's `brand_id` is applied to the rendered template — the B2B pattern |
 
 1. **Inline sends:** pass `message.brand_id` to pick a brand for that one message; omit it
    and the workspace default brand applies — inline email always arrives branded.
@@ -70,9 +71,9 @@ Brand resolution follows the send type, giving you precise control over branding
      },
    });
    ```
-2. **Template sends:** the template's `brand` field is the single source of truth, so a
-   template always renders consistently no matter who sends it. Set it on create
-   (`brand: {id: "brand_abc"}`) or in the dashboard.
+2. **Template sends:** the template's `brand` field controls its branding — a `brand_id`
+   passed on the send does not override it, so a template renders consistently across
+   callers. Set it on create (`brand: {id: "brand_abc"}`) or in the dashboard.
 3. **Per tenant:** set `brand_id` on the tenant; any send that carries that tenant
    (`to.tenant_id` or `message.context.tenant_id`) renders with it automatically. This is the
    B2B pattern, one template, per-customer branding. See [patterns.md](./patterns.md).
@@ -86,6 +87,10 @@ plain personal-feeling emails or fully custom designs where your content is the 
 Since inline sends always carry a brand (yours or the workspace default), the working
 pattern is: **preview inline, ship by template id** — the template's `brand: null` is the
 off switch.
+
+In multi-tenant workspaces, a send that carries `tenant_id` may still apply that tenant's
+brand to the rendered template — for chrome-free output on tenant-scoped sends, confirm with
+a rendered test send (`GET /messages/{id}/output`).
 
 Verify field shapes against the installed SDK types (`resources/brands.d.ts`), brand settings
 carry more nested keys (email head/header/footer, in-app icons) than shown here.
