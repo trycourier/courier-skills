@@ -63,7 +63,11 @@ Brand resolution follows the send type, giving you precise control over branding
    and the workspace default brand applies — inline email always arrives branded.
    ```ts
    await client.send.message({
-     message: { to: { user_id: "user-123" }, content: { ... }, brand_id: brand.id },
+     message: {
+       to: { user_id: "user-123" },
+       content: { title: "Welcome!", body: "Thanks for signing up." },
+       brand_id: brand.id,
+     },
    });
    ```
 2. **Template sends:** the template's `brand` field is the single source of truth, so a

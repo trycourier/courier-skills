@@ -52,13 +52,13 @@ jq '{content: .}' order-shipped.json | \
 
 A push overwrites the template's **draft** — which is also where Design Studio edits land.
 So fetch the draft (`?version=draft`) and compare it to your local file before writing.
-Normalize both sides: sort keys and drop the server-managed `checksum` fields so the diff
-shows only real content changes:
+Normalize both sides: sort keys and drop the server-managed `id` and `checksum` fields so
+the diff shows only real content changes:
 
 ```bash
-diff <(jq -S 'del(.. | .checksum?)' order-shipped.json) \
+diff <(jq -S 'del(.. | .id?, .checksum?)' order-shipped.json) \
      <(curl -s "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
-         -H "Authorization: Bearer $COURIER_API_KEY" | jq -S 'del(.. | .checksum?)')
+         -H "Authorization: Bearer $COURIER_API_KEY" | jq -S 'del(.. | .id?, .checksum?)')
 ```
 
 A non-empty diff before you've changed anything means the draft moved since your last sync —
