@@ -480,6 +480,10 @@ The response is the content document (`version` + `elements`, with per-element c
 
 Every publish is preserved in version history, so you can ship with confidence — any prior release is one call away.
 
+```typescript
+const versions = await client.notifications.listVersions("nt_01abc123");
+```
+
 ```bash
 curl -s "https://api.courier.com/notifications/nt_01abc123/versions" \
   -H "Authorization: Bearer $COURIER_API_KEY"
