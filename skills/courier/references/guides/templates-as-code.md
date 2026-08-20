@@ -6,13 +6,21 @@ and any prior version is one call away. All the pieces are native to the Templat
 page composes them into one repeatable workflow.
 
 ```
-local files → validate → push → diff → publish → verify → (rollback if needed)
+local files → validate → diff → push → publish → verify → (rollback if needed)
 ```
 
 ## 1. Local files are the source of truth
 
-Keep one Elemental JSON file per template in your repo, plus a small map of file → template
-id. Template IDs are workspace-specific, so map per environment for dev → prod promotion:
+Keep one Elemental JSON file per template in your repo — the bare content document, exactly
+the shape `GET /notifications/{id}/content` returns:
+
+```jsonc
+// order-shipped.json
+{ "version": "2022-01-01", "elements": [ /* ... */ ] }
+```
+
+Add a small map of file → template id. Template IDs are workspace-specific, so map per
+environment for dev → prod promotion:
 
 ```jsonc
 // templates.map.json
@@ -28,68 +36,67 @@ category (`transactional`, `marketing`) — tags are filterable in the dashboard
 ## 2. Validate before pushing
 
 `PUT /notifications/{id}/content` validates Elemental deeply and names the offending key in
-its error message — which makes it an excellent pre-flight check. Probe your content against
-a scratch template in CI and validation failures diagnose themselves:
+its error message — which makes it an excellent pre-flight check. The request body nests the
+content document under a `content` key, so wrap the file at request time. Probe against a
+scratch template in CI and validation failures diagnose themselves:
 
 ```bash
-curl -X PUT "https://api.courier.com/notifications/$SCRATCH_ID/content" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d @order-shipped.json
+jq '{content: .}' order-shipped.json | \
+  curl -X PUT "https://api.courier.com/notifications/$SCRATCH_ID/content" \
+    -H "Authorization: Bearer $COURIER_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d @-
 ```
 
-## 3. Push
+## 3. Diff against the draft before pushing
 
-Create new templates as drafts, update existing ones with `PUT .../content` (which leaves
-name, tags, and routing untouched). See [Create a Template](./templates.md#create-a-template)
-and [Upload Content](./templates.md#upload-content-to-an-existing-template) — and note that
+A push overwrites the template's **draft** — which is also where Design Studio edits land.
+So fetch the draft (`?version=draft`) and compare it to your local file before writing.
+Normalize both sides: sort keys and drop the server-managed `checksum` fields so the diff
+shows only real content changes:
+
+```bash
+diff <(jq -S 'del(.. | .checksum?)' order-shipped.json) \
+     <(curl -s "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
+         -H "Authorization: Bearer $COURIER_API_KEY" | jq -S 'del(.. | .checksum?)')
+```
+
+A non-empty diff before you've changed anything means the draft moved since your last sync —
+usually a teammate's Design Studio edits. Pull those into the repo (the response body *is*
+your file format) instead of overwriting them. To audit what's *live* rather than what's
+in-progress, run the same diff with `?version=published`.
+
+## 4. Push
+
+Update content with `PUT .../content` (leaves name, tags, and routing untouched; writes to
+the draft); create new templates as drafts. See
+[Upload Content](./templates.md#upload-content-to-an-existing-template) and
+[Create a Template](./templates.md#create-a-template) — and note that
 `PUT /notifications/{id}` is a full replacement, so prefer `PUT .../content` for
 content-only changes.
-
-## 4. Diff stored vs local
-
-Before each push, fetch the stored content and compare it to your local file. Sort keys on
-both sides and drop server-managed element fields (`id`, `checksum`) so the diff shows only
-real content changes:
-
-```bash
-diff <(jq -S 'del(.. | .id?, .checksum?)' order-shipped.json) \
-     <(curl -s "https://api.courier.com/notifications/$TEMPLATE_ID/content" \
-         -H "Authorization: Bearer $COURIER_API_KEY" | jq -S 'del(.. | .id?, .checksum?)')
-```
-
-This keeps repo and workspace in sync in both directions: it surfaces edits made in the
-Design Studio (so you can pull them into the repo instead of overwriting a teammate's work)
-and confirms the workspace holds exactly what you think it does before you release.
 
 ## 5. Publish deliberately
 
 Sends always use the published version, so drafts are free to iterate — publishing is your
-release step. Confirm the draft (`GET .../draft/content`), then publish. See
-[Draft/Publish Workflow](./templates.md#draftpublish-workflow).
+release step. Confirm the draft one last time (`GET .../content?version=draft`), then
+publish. See [Draft/Publish Workflow](./templates.md#draftpublish-workflow).
 
 ## 6. Verify the release
 
-Send a test and assert on the real rendered output — subject, HTML, and text part:
-
-```
-POST /send  →  requestId  →  GET /messages/{requestId}/output  →  results[].content.html
-```
-
-This is the exact email recipients receive, with merge variables, brand chrome, and channel
-formatting applied — the definitive sign-off. See
+Send a test and assert on the real rendered output — the exact subject, HTML, and text part
+the recipient receives. Workflow and response shape:
 [Verify the Rendered Output](./templates.md#verify-the-rendered-output).
 
 ## 7. Know your rollback
 
-Every publish is preserved. `GET /notifications/{id}/versions` lists every release;
-`POST /notifications/{id}/publish` with `{"version": "vNNN"}` republishes any of them.
-History is append-only — a rollback mints a new version, so the audit trail stays complete.
-See [List Versions and Roll Back](./templates.md#list-versions-and-roll-back).
+Inspect any historical version's content with `GET .../content?version=v001`, then republish
+it with `publish {"version": "v001"}` — history is append-only, so the rollback itself lands
+in the audit trail. Calls and details:
+[List Versions and Roll Back](./templates.md#list-versions-and-roll-back).
 
 ## Promotion between workspaces
 
-The same loop promotes templates between environments: validate → push → diff → publish →
+The same loop promotes templates between environments: validate → diff → push → publish →
 verify against the target workspace's API key, with the per-environment ids from your map.
 Because the content files are identical, dev and prod stay provably in sync.
 

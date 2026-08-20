@@ -181,8 +181,7 @@ All template operations use the `/notifications` endpoints. Authenticate with `A
 | Replace | `PUT` | `/notifications/{id}` | Full replacement of a template |
 | Archive | `DELETE` | `/notifications/{id}` | Archive (soft-delete) a template |
 | Publish | `POST` | `/notifications/{id}/publish` | Publish the current draft |
-| Get content | `GET` | `/notifications/{id}/content` | Get published content blocks |
-| Get draft | `GET` | `/notifications/{id}/draft/content` | Get draft content blocks |
+| Get content | `GET` | `/notifications/{id}/content` | Content blocks. `?version=` accepts `draft`, `published` (default), or `vNNN` |
 | **Upload content** | `PUT` | `/notifications/{id}/content` | Replace a template's content only, leaves name, tags, and routing untouched |
 | Update one element | `PUT` | `/notifications/{id}/elements/{elementId}` | Update a single element (V2/Elemental templates only) |
 | List versions | `GET` | `/notifications/{id}/versions` | Version history |
@@ -514,27 +513,23 @@ curl -s "https://api.courier.com/notifications/nt_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-### Get Published Content
+### Get Content (published, draft, or any version)
 
-Inspect the live content blocks of a template:
+One endpoint serves every version of a template's content — `version` accepts `draft`,
+`published` (the default), or a historical `vNNN`:
 
 ```typescript
-const content = await client.notifications.retrieveContent("nt_01abc123");
+const live = await client.notifications.retrieveContent("nt_01abc123");
+const draft = await client.notifications.retrieveContent("nt_01abc123", { version: "draft" });
+const v1 = await client.notifications.retrieveContent("nt_01abc123", { version: "v001" });
 ```
 
 ```bash
-curl -s "https://api.courier.com/notifications/nt_01abc123/content" \
+curl -s "https://api.courier.com/notifications/nt_01abc123/content?version=draft" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-### Get Draft Content
-
-Inspect the draft before publishing:
-
-```bash
-curl -s "https://api.courier.com/notifications/nt_01abc123/draft/content" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
-```
+The response is the content document (`version` + `elements`, with per-element checksums).
 
 ### List Versions and Roll Back
 
@@ -545,7 +540,7 @@ curl -s "https://api.courier.com/notifications/nt_01abc123/versions" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-Returns `draft`, the current `published:vNNN`, and every historical `vNNN` (paginated, up to 10 per page — use the `cursor` parameter for older history). To roll back, republish the version you want:
+Returns `draft`, the current `published:vNNN`, and every historical `vNNN` (paginated, up to 10 per page — use the `cursor` parameter for older history). Inspect any version's content before restoring it with `GET /notifications/{id}/content?version=v001`, then roll back by republishing the version you want:
 
 ```typescript
 await client.notifications.publish("nt_01abc123", { version: "v001" });
@@ -585,7 +580,7 @@ Create (DRAFT) → Edit (Replace) → Publish → Live
 
 1. **Create** with `state: "DRAFT"` (or omit `state`)
 2. **Iterate** using `PUT /notifications/{id}`, the draft updates but the published version stays unchanged
-3. **Review** the draft with `GET /notifications/{id}/draft/content`
+3. **Review** the draft with `GET /notifications/{id}/content?version=draft`
 4. **Publish** with `POST /notifications/{id}/publish`, the draft becomes the live version
 5. **Verify** with `GET /notifications/{id}/content`
 
