@@ -3,13 +3,13 @@
   "owner": {
     "name": "Courier"
   },
-  "description": "Agent skills for the Courier notification platform \u2014 sending across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp, plus journeys, templates, preferences, routing, and delivery debugging.",
+  "description": "Agent skills for the Courier notification platform — sending across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp, plus journeys, templates, preferences, routing, and delivery debugging.",
   "plugins": [
     {
       "name": "courier",
       "source": "./",
       "description": "Build with Courier: send on any channel, run journeys, manage templates and preferences, and debug deliveries. Ships the Courier docs MCP.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "category": "developer-tools",
       "homepage": "https://www.courier.com/docs",
       "repository": "https://github.com/trycourier/courier-skills",
