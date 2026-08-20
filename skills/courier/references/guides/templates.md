@@ -395,13 +395,13 @@ Returns `204 No Content` on success.
 POST /send  →  requestId  →  GET /messages/{requestId}/output  →  results[].content.html
 ```
 
-The response is the real thing — merge variables resolved, brand chrome applied, channel formatting done — so you can assert on it programmatically. Each entry in `results[]` carries `channel` and a `content` object: for email, `subject`, `html`, and `text`; other channels use `title`/`body` (and `blocks` for chat channels). It's the definitive place to sign off on visual details like image dimensions and typography before publishing, and it pairs naturally with the Design Studio: arrange and iterate on the canvas, then confirm the final render here.
+The response is the real thing — merge variables resolved, brand chrome applied, channel formatting done — so you can assert on it programmatically. Each entry in `results[]` carries `channel` and a `content` object: for email, `subject`, `html`, and `text`; other channels use `title`/`body` (and `blocks` for chat channels). It's the definitive release sign-off for visual details like image dimensions and typography: template sends render the *published* version, so publish, send a test to yourself, and confirm the output before real recipients see it. It pairs naturally with the Design Studio — arrange and iterate on the canvas, then confirm the final render here.
 
 The same operation in each interface: REST `GET /messages/{id}/output` · SDK `client.messages.content(messageId)` · CLI `courier messages content --message-id`. For a single-recipient send the `requestId` doubles as the message id; list and audience sends fan out to one message per recipient — resolve their ids with `courier messages list --trace-id "<requestId>"` (see [CLI](./cli.md)).
 
 Rendered output becomes available once the message renders — a send is accepted as `ENQUEUED` first, so if the call 404s or `results` is empty immediately after sending, re-check after a few seconds (see [Reliability](./reliability.md) for status semantics).
 
-Tip: keep Handlebars variables in the HTML body rather than the stored `raw.text` — the plain-text part is delivered as stored, so write it as final copy.
+Tip: a stored template's plain-text part is delivered as stored — Handlebars variables are not rendered in it — so write the text part as final copy and keep `{{variables}}` in the Elemental/HTML content.
 
 ### List Templates
 
@@ -821,5 +821,5 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 - [Templates API Tutorial](https://www.courier.com/docs/tutorials/content/how-to-use-templates-api) - Step-by-step walkthrough
 
 <!-- Target line budget: <= 750 lines. If you are about to push this past 800, split further rather than letting it grow. Elemental reference lives in elemental.md. -->
-<!-- Target line budget (elemental.md): <= 500 lines. -->
+<!-- Target line budget (elemental.md): see the footer comment in elemental.md itself. -->
 

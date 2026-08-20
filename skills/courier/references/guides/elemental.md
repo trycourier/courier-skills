@@ -313,6 +313,7 @@ Columns are also Elemental's design surface: `column` accepts background, paddin
 | `border_radius` | `column` | `string` | Rounded corners (e.g., `"14px"`) |
 | `border_color` | `column` | `string` | Border color |
 | `border_width` | `column` | `string` | Border width |
+| `vertical_align` | `column` | `"top"` \| `"middle"` \| `"bottom"` | Vertical alignment of the column's content |
 
 A card grid — one styled `column` per card, repeated for each card in the row (a three-up
 grid is three of these at `"33.33%"`):
@@ -538,3 +539,5 @@ Reach for hand-written `locales` (or the [Translations API](https://www.courier.
 - [Quickstart](./quickstart.md). Send your first notification
 - [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview), official reference
 - [Elements Reference](https://www.courier.com/docs/platform/content/elemental/elements/index), complete element type reference
+
+<!-- Target line budget: <= 550 lines. If you are about to push this past 575, split (e.g., control flow + localization out) rather than letting it grow. -->

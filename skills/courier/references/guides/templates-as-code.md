@@ -11,8 +11,9 @@ local files → validate → diff → push → publish → verify → (rollback 
 
 ## 1. Local files are the source of truth
 
-Keep one Elemental JSON file per template in your repo — the bare content document, exactly
-the shape `GET /notifications/{id}/content` returns:
+Keep one Elemental JSON file per template in your repo — the bare content document
+(`version` + `elements`, the same document `GET /notifications/{id}/content` returns, minus
+the server-managed `id`/`checksum` fields it adds):
 
 ```jsonc
 // order-shipped.json
@@ -42,11 +43,15 @@ scratch template in CI and validation failures diagnose themselves:
 
 ```bash
 jq '{content: .}' order-shipped.json | \
-  curl -X PUT "https://api.courier.com/notifications/$SCRATCH_ID/content" \
+  curl --fail-with-body -X PUT "https://api.courier.com/notifications/$SCRATCH_ID/content" \
     -H "Authorization: Bearer $COURIER_API_KEY" \
     -H "Content-Type: application/json" \
     -d @-
 ```
+
+`--fail-with-body` makes curl exit non-zero on a validation error while still printing the
+error body (the part that names the offending key) — without it, a 400 exits 0 and a CI
+step passes green on broken content.
 
 ## 3. Diff against the draft before pushing
 
@@ -57,14 +62,17 @@ the diff shows only real content changes:
 
 ```bash
 diff <(jq -S 'del(.. | .id?, .checksum?)' order-shipped.json) \
-     <(curl -s "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
+     <(curl -sf "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
          -H "Authorization: Bearer $COURIER_API_KEY" | jq -S 'del(.. | .id?, .checksum?)')
 ```
 
-A non-empty diff before you've changed anything means the draft moved since your last sync —
-usually a teammate's Design Studio edits. Pull those into the repo (the response body *is*
-your file format) instead of overwriting them. To audit what's *live* rather than what's
-in-progress, run the same diff with `?version=published`.
+`-f` makes the fetch fail loudly on an HTTP error — a bad key or template id should stop the
+check, not be diffed as if it were content. A non-empty diff on a *successful* fetch before
+you've changed anything means the draft moved since your last sync — usually a teammate's
+Design Studio edits. Pull those into the repo by saving the response *through the same jq
+filter* (stripping the server-managed `id`/`checksum` fields restores your file format)
+instead of overwriting them. To audit what's *live* rather than what's in-progress, run the
+same diff with `?version=published`.
 
 ## 4. Push
 

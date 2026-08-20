@@ -279,6 +279,8 @@ Workflow order matters: `create_bulk_job` → `add_bulk_users` → `run_bulk_job
 | `list_notifications` | List notification templates |
 | `get_notification_content` | Get published content blocks of a template |
 | `get_notification_draft_content` | Get draft content blocks of a template |
+| `list_notification_versions` | List a template's version history |
+| `publish_notification` | Publish a template's draft (or a specific historical version) |
 
 ### Brands
 

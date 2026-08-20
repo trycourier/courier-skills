@@ -228,6 +228,6 @@ Most multi-step work pairs a use-case file with **journeys.md**. Most debugging 
 
 ### Not covered here
 
-Broadcasts, inbound events, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/). Don't reconstruct their shapes from memory. (Template promotion between workspaces is covered in [templates-as-code.md](./references/guides/templates-as-code.md).)
+Broadcasts, Test→Production environment promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/). Don't reconstruct their shapes from memory. (Promoting *template content* between workspaces is covered in [templates-as-code.md](./references/guides/templates-as-code.md); inbound events are covered in [webhooks.md](./references/guides/webhooks.md).)
 
 For EU data residency specifically: point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.

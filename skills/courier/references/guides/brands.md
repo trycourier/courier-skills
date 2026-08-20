@@ -57,7 +57,7 @@ Brand resolution follows the send type, giving you precise control over branding
 | Send type | Brand applied |
 |---|---|
 | Inline content (`message.content`) | `message.brand_id`, else the workspace default |
-| Stored template (`message.template`) | The template's own `brand` field — a send-time `brand_id` does not override it |
+| Stored template (`message.template`) | The template's own `brand` field — on `POST /send`, a `message.brand_id` does not override it. (Bulk API jobs document their own job-level `brand` — see [bulk.md](./bulk.md)) |
 | Any send carrying `tenant_id` | The tenant's `brand_id` is applied to the rendered template — the B2B pattern |
 
 1. **Inline sends** always arrive branded:
@@ -83,8 +83,9 @@ Courier gives you full control of branding — down to none at all. Store the te
 plain personal-feeling emails or fully custom designs where your content is the whole email.
 
 Since inline sends always carry a brand (yours or the workspace default), the working
-pattern is: **preview inline, ship by template id** — the template's `brand: null` is the
-off switch.
+pattern is: **iterate inline, ship by template id** — the template's `brand: null` is the
+off switch. Inline previews will show brand chrome, so confirm the final chrome-free render
+from a test send of the template itself (`GET /messages/{id}/output`).
 
 In multi-tenant workspaces, a send that carries `tenant_id` may still apply that tenant's
 brand to the rendered template — for chrome-free output on tenant-scoped sends, confirm with

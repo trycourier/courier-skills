@@ -25,7 +25,7 @@ doesn't exist.
 |-----------|------|--------|
 | Send a message | `client.send.message({ message })` | `client.send.message(message=...)` |
 | Create a template | `client.notifications.create({ notification, state })` → returns `{ id, name, content, … }` at top level | `client.notifications.create(notification=..., state=...)` → `response.id` |
-| Publish a template (or roll back to a version) | `client.notifications.publish(templateId)` · rollback: `client.notifications.publish(templateId, { version: "v001" })` | `client.notifications.publish(template_id)` |
+| Publish a template (or roll back to a version) | `client.notifications.publish(templateId)` · rollback: `client.notifications.publish(templateId, { version: "v001" })` | `client.notifications.publish(template_id)` · rollback: `client.notifications.publish(template_id, version="v001")` |
 | List a template's versions | `client.notifications.listVersions(templateId)` — paginated, `{ cursor, limit }` (max 10/page) | `client.notifications.list_versions(template_id)` |
 | Retrieve a message | `client.messages.retrieve(id)` | `client.messages.retrieve(id)` |
 | List messages | `client.messages.list({ ... })` | `client.messages.list(...)` |
@@ -66,6 +66,6 @@ doesn't exist.
 | List templates | `client.notifications.list()` | `client.notifications.list()` |
 | Replace a template (full PUT) | `client.notifications.replace(templateId, { notification, state })` | `client.notifications.replace(template_id, notification=..., state=...)` |
 | Archive a template | `client.notifications.archive(templateId)` | `client.notifications.archive(template_id)` |
-| Get published template content | `client.notifications.retrieveContent(templateId)` | `client.notifications.retrieve_content(template_id)` |
+| Get template content (published, draft, or a version) | `client.notifications.retrieveContent(templateId, { version: "draft" \| "published" \| "v001" })` — omit for published | `client.notifications.retrieve_content(template_id, version="draft")` |
 
 > The table above covers the most common operations. [journeys.md](./guides/journeys.md), [templates.md](./guides/templates.md), [routing-strategies.md](./guides/routing-strategies.md), and [providers.md](./guides/providers.md) each contain their own complete SDK shape tables for CRUD on their respective resources (including `list`, `retrieve`, `replace`, `archive`). **Journeys are Courier's orchestration primitive. Use them for every multi-step flow** (delays, branches, batching, digests, throttling, A/B experiments). See [Journeys](./guides/journeys.md).
