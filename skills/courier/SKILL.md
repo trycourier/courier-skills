@@ -198,11 +198,12 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | Preference topics, opt-out, preference centers, workspace preference sections | [preferences.md](./references/guides/preferences.md) |
 | **Scheduling a send**: delay, exact timestamp, delivery windows (business/quiet hours) | [scheduling.md](./references/guides/scheduling.md) |
 | Aggregation and digests (`batch`, `add-to-digest`) | [batching.md](./references/guides/batching.md) |
-| **Branding**: logo, colors, email/in-app theme, attaching a brand to sends/tenants | [brands.md](./references/guides/brands.md) |
+| **Branding**: logo, colors, email/in-app theme, attaching a brand to sends/tenants, sending unbranded | [brands.md](./references/guides/brands.md) |
 | **Audiences**: dynamic segments, filter rules, sending to a segment | [audiences.md](./references/guides/audiences.md) |
 | **Multi-tenant / B2B**: tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, publishing, versioning, locales | [templates.md](./references/guides/templates.md) |
+| **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, verify rendered output, rollback, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md), or read the installed package's own types |
 | Elemental content format, elements, control flow | [elemental.md](./references/guides/elemental.md) |
 | **Localization**: per-locale content, and AI Translation in Design Studio (add a language, AI translates every field) | [elemental.md](./references/guides/elemental.md#localization) |

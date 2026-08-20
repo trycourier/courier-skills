@@ -17,6 +17,8 @@
   2. **Reuse an existing strategy:** copy its ID from an existing template via `GET /notifications/{id}` or list them with `client.routingStrategies.list()`.
   3. **Defer it**. Set `routing: null` on create and assign a `strategy_id` later via `notifications.replace`.
 - Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404, the archive operation uses the `DELETE` method.
+- Confirm final visuals from a rendered test send — `GET /messages/{id}/output` returns the exact email recipients receive (see [Verify the Rendered Output](#verify-the-rendered-output))
+- Managing templates from a repo (CI, drift detection, promotion): see [Templates as Code](./templates-as-code.md)
 
 ### Common Mistakes
 - Forgetting to publish after creating or updating (template exists but sends use the old published version, or fail silently if never published)
@@ -188,6 +190,8 @@ All template operations use the `/notifications` endpoints. Authenticate with `A
 ### Create a Template
 
 Templates require a `notification` object with `name`, `tags`, `brand`, `subscription`, `routing`, and `content`, all fields are required. Set `state` to `"PUBLISHED"` to skip the draft step, or omit/set to `"DRAFT"` (default).
+
+The `brand` field is your branding control: pass an object (`{"id": "..."}`) to apply that brand's chrome, or `null` for a completely unbranded template — clean, chrome-free output, ideal for plain personal-feeling email or fully custom designs. See [Brands](./brands.md) for how brand resolution works per send type.
 
 **TypeScript:**
 ```typescript
@@ -415,7 +419,7 @@ client.notifications.put_content(
 client.notifications.publish("nt_01abc123")
 ```
 
-To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). For per-locale content, `client.notifications.putLocale(...)`. See [Localization](./elemental.md#localization).
+To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). Element `id`s and checksums make templates safe to share between agents and Design Studio users: `putElement` targets exactly one element by `id`, and a changed checksum tells you a teammate edited it since you last read — so you can detect their edits before overwriting them. For per-locale content, `client.notifications.putLocale(...)`. See [Localization](./elemental.md#localization).
 
 ### Publish
 
@@ -440,6 +444,20 @@ curl -X POST "https://api.courier.com/notifications/nt_01abc123/publish" \
 ```
 
 Returns `204 No Content` on success.
+
+### Verify the Rendered Output
+
+`GET /messages/{id}/output` returns exactly what Courier rendered and handed to the delivery provider — subject, HTML, and plain-text part, per channel. This makes end-to-end verification a first-class workflow: send a test, fetch the output, and confirm the email is precisely what you intended.
+
+```
+POST /send  →  requestId  →  GET /messages/{requestId}/output  →  results[].content.html
+```
+
+The response is the real thing — merge variables resolved, brand chrome applied, channel formatting done — so you can assert on it programmatically. Each entry in `results[]` carries `channel` and a `content` object: for email, `subject`, `html`, and `text`; other channels use `title`/`body` (and `blocks` for chat channels). It's the definitive place to sign off on visual details like image dimensions and typography before publishing, and it pairs naturally with the Design Studio: arrange and iterate on the canvas, then confirm the final render here.
+
+The same operation in each interface: REST `GET /messages/{id}/output` · SDK `client.messages.content(messageId)` · CLI `courier messages content --message-id`. For a single-recipient send the `requestId` doubles as the message id; list and audience sends fan out to one message per recipient — resolve their ids with `courier messages list --trace-id "<requestId>"` (see [CLI](./cli.md)).
+
+Tip: keep Handlebars variables in the HTML body rather than the stored `raw.text` — the plain-text part is delivered as stored, so write it as final copy.
 
 ### List Templates
 
@@ -518,14 +536,29 @@ curl -s "https://api.courier.com/notifications/nt_01abc123/draft/content" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-### List Versions
+### List Versions and Roll Back
 
-Audit what was published and when:
+Every publish is preserved in version history, so you can ship with confidence — any prior release is one call away.
 
 ```bash
 curl -s "https://api.courier.com/notifications/nt_01abc123/versions" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
+
+Returns `draft`, the current `published:vNNN`, and every historical `vNNN` (paginated, up to 10 per page — use the `cursor` parameter for older history). To roll back, republish the version you want:
+
+```typescript
+await client.notifications.publish("nt_01abc123", { version: "v001" });
+```
+
+```bash
+curl -X POST "https://api.courier.com/notifications/nt_01abc123/publish" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"version": "v001"}'
+```
+
+History is append-only: republishing v001 mints a fresh version (a copy of v001) rather than moving a pointer, so the audit trail always tells the complete story — rollbacks included.
 
 ### Archive a Template
 
@@ -557,6 +590,8 @@ Create (DRAFT) → Edit (Replace) → Publish → Live
 5. **Verify** with `GET /notifications/{id}/content`
 
 To skip the draft step entirely, set `state: "PUBLISHED"` on create or replace.
+
+Sends always use the published version, which means you can edit freely — a template mid-iteration keeps serving its last release untouched. Publish when the draft is ready and the new version goes live in one motion: a clean release step. The professional flow is putContent → confirm the draft → publish.
 
 ### Submission Checks (Approval Workflows)
 
@@ -716,7 +751,7 @@ const templateId = template.id; // response fields are at the top level
 await client.notifications.publish(templateId);
 
 // 3. Send using the template
-await client.send.message({
+const { requestId } = await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: templateId,
@@ -732,6 +767,11 @@ await client.send.message({
     }
   }
 });
+
+// 4. Verify the rendered output — the exact email the recipient receives
+//    (single send: the requestId doubles as the message id)
+const output = await client.messages.content(requestId);
+// output.results[].content → { subject, html, text } — see "Verify the Rendered Output"
 ```
 
 **Python:**
@@ -788,7 +828,7 @@ template_id = response.id  # response fields are at the top level
 client.notifications.publish(template_id)
 
 # 3. Send using the template
-client.send.message(
+send_response = client.send.message(
     message={
         "to": {"user_id": "user-123"},
         "template": template_id,
@@ -804,6 +844,11 @@ client.send.message(
         },
     }
 )
+
+# 4. Verify the rendered output — the exact email the recipient receives
+#    (single send: the request_id doubles as the message id)
+output = client.messages.content(send_response.request_id)
+# output.results[].content → subject, html, text — see "Verify the Rendered Output"
 ```
 
 ---
@@ -816,6 +861,7 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 
 ## Related
 
+- [Templates as Code](./templates-as-code.md) - Run templates like software releases: repo as source of truth, CI validation, drift detection, verified releases, rollback
 - [Journeys](./journeys.md) - Use templates in multi-step flows (journey-scoped templates)
 - [Elemental](./elemental.md) - Full element-type reference (moved out of this file)
 - [Quickstart](./quickstart.md) - Send your first notification

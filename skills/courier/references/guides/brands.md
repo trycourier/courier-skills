@@ -50,21 +50,38 @@ const brand = await client.brands.create({
 });
 ```
 
-## Attaching a brand to a send
+## Brand resolution by send type
 
-Three ways, most specific first:
+Brand resolution follows the send type, giving you precise control over branding either way:
 
-1. **Per send:** `message.brand_id` overrides everything for that one message.
+| Send type | Brand applied |
+|---|---|
+| Inline content (`message.content`) | `message.brand_id`, else the workspace default |
+| Stored template (`message.template`) | The template's own `brand` field |
+
+1. **Inline sends:** pass `message.brand_id` to pick a brand for that one message; omit it
+   and the workspace default brand applies — inline email always arrives branded.
    ```ts
    await client.send.message({
-     message: { to: { user_id: "user-123" }, template: "welcome", brand_id: brand.id },
+     message: { to: { user_id: "user-123" }, content: { ... }, brand_id: brand.id },
    });
    ```
-2. **Per tenant:** set `brand_id` on the tenant; any send that carries that tenant
+2. **Template sends:** the template's `brand` field is the single source of truth, so a
+   template always renders consistently no matter who sends it. Set it on create
+   (`brand: {id: "brand_abc"}`) or in the dashboard.
+3. **Per tenant:** set `brand_id` on the tenant; any send that carries that tenant
    (`to.tenant_id` or `message.context.tenant_id`) renders with it automatically. This is the
    B2B pattern, one template, per-customer branding. See [patterns.md](./patterns.md).
-3. **Per template:** associate a brand with a stored template in the dashboard; it applies
-   whenever that template sends without a more specific override.
+
+## Sending unbranded email
+
+Courier gives you full control of branding — down to none at all. Store the template with
+`brand: null` and send by template id: the output renders completely chrome-free, ideal for
+plain personal-feeling emails or fully custom designs where your content is the whole email.
+
+Since inline sends always carry a brand (yours or the workspace default), the working
+pattern is: **preview inline, ship by template id** — the template's `brand: null` is the
+off switch.
 
 Verify field shapes against the installed SDK types (`resources/brands.d.ts`), brand settings
 carry more nested keys (email head/header/footer, in-app icons) than shown here.
