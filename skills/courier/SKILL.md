@@ -203,7 +203,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **Multi-tenant / B2B**: tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, publishing, versioning, rollback, verify rendered output, locales | [templates.md](./references/guides/templates.md) |
-| **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
+| **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, template aliases, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md), or read the installed package's own types |
 | Elemental content format, elements, control flow | [elemental.md](./references/guides/elemental.md) |
 | **Localization**: per-locale content, and AI Translation in Design Studio (add a language, AI translates every field) | [elemental.md](./references/guides/elemental.md#localization) |

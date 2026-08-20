@@ -60,8 +60,7 @@ Brand resolution follows the send type, giving you precise control over branding
 | Stored template (`message.template`) | The template's own `brand` field — a send-time `brand_id` does not override it |
 | Any send carrying `tenant_id` | The tenant's `brand_id` is applied to the rendered template — the B2B pattern |
 
-1. **Inline sends:** pass `message.brand_id` to pick a brand for that one message; omit it
-   and the workspace default brand applies — inline email always arrives branded.
+1. **Inline sends** always arrive branded:
    ```ts
    await client.send.message({
      message: {
@@ -71,12 +70,11 @@ Brand resolution follows the send type, giving you precise control over branding
      },
    });
    ```
-2. **Template sends:** the template's `brand` field controls its branding — a `brand_id`
-   passed on the send does not override it, so a template renders consistently across
-   callers. Set it on create (`brand: {id: "brand_abc"}`) or in the dashboard.
-3. **Per tenant:** set `brand_id` on the tenant; any send that carries that tenant
-   (`to.tenant_id` or `message.context.tenant_id`) renders with it automatically. This is the
-   B2B pattern, one template, per-customer branding. See [patterns.md](./patterns.md).
+2. **Template sends:** set the template's `brand` on create (`brand: {id: "brand_abc"}`) or
+   in the dashboard.
+3. **Tenant sends:** set `brand_id` on the tenant; the send carries the tenant via
+   `to.tenant_id` or `message.context.tenant_id` — one template, per-customer branding. See
+   [patterns.md](./patterns.md).
 
 ## Sending unbranded email
 

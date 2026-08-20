@@ -25,7 +25,8 @@ doesn't exist.
 |-----------|------|--------|
 | Send a message | `client.send.message({ message })` | `client.send.message(message=...)` |
 | Create a template | `client.notifications.create({ notification, state })` → returns `{ id, name, content, … }` at top level | `client.notifications.create(notification=..., state=...)` → `response.id` |
-| Publish a template | `client.notifications.publish(templateId)` | `client.notifications.publish(template_id)` |
+| Publish a template (or roll back to a version) | `client.notifications.publish(templateId)` · rollback: `client.notifications.publish(templateId, { version: "v001" })` | `client.notifications.publish(template_id)` |
+| List a template's versions | `client.notifications.listVersions(templateId)` — paginated, `{ cursor, limit }` (max 10/page) | `client.notifications.list_versions(template_id)` |
 | Retrieve a message | `client.messages.retrieve(id)` | `client.messages.retrieve(id)` |
 | List messages | `client.messages.list({ ... })` | `client.messages.list(...)` |
 | Subscribe a user to a list (additive) | `client.lists.subscriptions.subscribeUser(userId, { list_id })` | `client.lists.subscriptions.subscribe_user(user_id, list_id=...)` |

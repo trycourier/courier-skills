@@ -94,6 +94,67 @@ it with `publish {"version": "v001"}` — history is append-only, so the rollbac
 in the audit trail. Calls and details:
 [List Versions and Roll Back](./templates.md#list-versions-and-roll-back).
 
+## Template aliases in application code
+
+Courier APIs send by template ID (`nt_...`). For agent-generated code, keep `nt_...` as the
+default. Aliases are an application-layer convenience that map a stable human name to a real
+template ID — the in-code counterpart of the `templates.map.json` above.
+
+Why aliases can help:
+
+- Easier to read in app code (`"order-shipped"` vs long ID)
+- Safer refactors (swap the mapped ID without touching call sites)
+- Useful per-environment mapping (dev/staging/prod can point to different IDs)
+
+**TypeScript:**
+
+```typescript
+const TEMPLATE_IDS = {
+  "order-shipped": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
+  "password-reset": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
+} as const;
+
+type TemplateAlias = keyof typeof TEMPLATE_IDS;
+
+function resolveTemplate(alias: TemplateAlias): string {
+  return TEMPLATE_IDS[alias];
+}
+
+await client.send.message({
+  message: {
+    to: { user_id: "user-123" },
+    template: resolveTemplate("order-shipped"),
+    data: { order_id: "ORD-9042" },
+  },
+});
+```
+
+**Python:**
+
+```python
+TEMPLATE_IDS = {
+    "order-shipped": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
+    "password-reset": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
+}
+
+def resolve_template(alias: str) -> str:
+    return TEMPLATE_IDS[alias]
+
+client.send.message(
+    message={
+        "to": {"user_id": "user-123"},
+        "template": resolve_template("order-shipped"),
+        "data": {"order_id": "ORD-9042"},
+    }
+)
+```
+
+Agent guidance:
+
+- Prefer direct `nt_...` IDs in generated examples unless the user explicitly asks for aliases.
+- If aliases are used, always resolve them to `nt_...` before calling Courier.
+- Do not assume a global alias registry exists unless the user provides one.
+
 ## Promotion between workspaces
 
 The same loop promotes templates between environments: validate → diff → push → publish →

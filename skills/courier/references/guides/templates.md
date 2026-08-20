@@ -104,66 +104,9 @@ Inline sends support both ElementalContentSugar (`title`/`body`) and the full El
 
 ---
 
-## Template Aliases (Optional)
+## Template Aliases (moved)
 
-Courier APIs send by template ID (`nt_...`). For agent-generated code, keep `nt_...` as the default.
-
-Aliases are an application-layer convenience that map a stable human name to a real template ID.
-
-### Why aliases can help
-
-- Easier to read in app code (`"order-shipped"` vs long ID)
-- Safer refactors (swap the mapped ID without touching call sites)
-- Useful per-environment mapping (dev/staging/prod can point to different IDs)
-
-### TypeScript alias map example
-
-```typescript
-const TEMPLATE_IDS = {
-  "order-shipped": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-  "password-reset": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
-} as const;
-
-type TemplateAlias = keyof typeof TEMPLATE_IDS;
-
-function resolveTemplate(alias: TemplateAlias): string {
-  return TEMPLATE_IDS[alias];
-}
-
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: resolveTemplate("order-shipped"),
-    data: { order_id: "ORD-9042" },
-  },
-});
-```
-
-### Python alias map example
-
-```python
-TEMPLATE_IDS = {
-    "order-shipped": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    "password-reset": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
-}
-
-def resolve_template(alias: str) -> str:
-    return TEMPLATE_IDS[alias]
-
-client.send.message(
-    message={
-        "to": {"user_id": "user-123"},
-        "template": resolve_template("order-shipped"),
-        "data": {"order_id": "ORD-9042"},
-    }
-)
-```
-
-### Agent guidance
-
-- Prefer direct `nt_...` IDs in generated examples unless the user explicitly asks for aliases.
-- If aliases are used, always resolve them to `nt_...` before calling Courier.
-- Do not assume a global alias registry exists unless the user provides one.
+Human-friendly alias maps for template IDs — why, TypeScript/Python examples, and agent guidance — live in [Templates as Code](./templates-as-code.md#template-aliases-in-application-code). For agent-generated code, keep `nt_...` IDs as the default and resolve aliases to `nt_...` before calling Courier.
 
 ---
 
@@ -190,7 +133,7 @@ All template operations use the `/notifications` endpoints. Authenticate with `A
 
 Templates require a `notification` object with `name`, `tags`, `brand`, `subscription`, `routing`, and `content`, all fields are required. Set `state` to `"PUBLISHED"` to skip the draft step, or omit/set to `"DRAFT"` (default).
 
-The `brand` field is your branding control: pass an object (`{"id": "..."}`) to apply that brand's chrome, or `null` for a completely unbranded template — clean, chrome-free output, ideal for plain personal-feeling email or fully custom designs. See [Brands](./brands.md) for how brand resolution works per send type.
+`brand` is required on create: an object (`{"id": "..."}`) or `null` (no brand chrome on template sends). Resolution rules and unbranded sending: [Brands](./brands.md).
 
 **TypeScript:**
 ```typescript
@@ -537,6 +480,10 @@ The response is the content document (`version` + `elements`, with per-element c
 
 Every publish is preserved in version history, so you can ship with confidence — any prior release is one call away.
 
+```typescript
+const versions = await client.notifications.listVersions("nt_01abc123");
+```
+
 ```bash
 curl -s "https://api.courier.com/notifications/nt_01abc123/versions" \
   -H "Authorization: Bearer $COURIER_API_KEY"
@@ -588,7 +535,7 @@ Create (DRAFT) → Edit (Replace) → Publish → Live
 
 To skip the draft step entirely, set `state: "PUBLISHED"` on create or replace.
 
-Sends always use the published version, which means you can edit freely — a template mid-iteration keeps serving its last release untouched. Publish when the draft is ready and the new version goes live in one motion: a clean release step. The professional flow is putContent → confirm the draft → publish.
+Sends always use the published version — drafts iterate freely, and publish is the release step.
 
 ### Submission Checks (Approval Workflows)
 
