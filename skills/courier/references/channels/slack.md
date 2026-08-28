@@ -12,6 +12,7 @@
 - Text formatting: `*bold*`, `_italic_`, `~strike~`, `` `code` ``
 - User mention: `<@U0123ABC>`
 - Channel mention: `<#C0123ABC>`
+- Journey send nodes: `access_token` must be a runtime reference, never a literal token — see [Slack in Journeys](#slack-in-journeys)
 
 ### Common Mistakes
 - Using channel name instead of channel ID
@@ -753,26 +754,7 @@ await client.send.message({
 
 ## Slack in Journeys
 
-Journey send nodes can deliver to Slack. The node's `to.slack` override takes exactly one destination — `channel` (name or ID), `user_id`, or `email` — plus an optional `access_token`:
-
-```json
-{
-  "type": "send",
-  "message": {
-    "template": "<journey-scoped-template-id>",
-    "to": {
-      "slack": { "channel": "C012AB3CD", "access_token": "{{data.slack_token}}" }
-    }
-  }
-}
-```
-
-Two rules differ from the Send API:
-
-- **`access_token` must be a runtime reference** (`{{data.slack_token}}`, `{{profile.slack.access_token}}`, or a tenant property) — a literal `xoxb-...` is rejected because it would be stored permanently in the journey definition. Omit it to fall back to the token on the recipient's stored Slack profile, or store one token per customer org on the tenant's `user_profile` ([tenants.md](../guides/tenants.md#hierarchy-and-merging)).
-- **The destination never falls back to the journey's user** — always set `channel`, `user_id`, or `email` on the node.
-
-Full node shape and workflow: [journeys.md](../guides/journeys.md#slack-and-teams-sends).
+Journey send nodes deliver to Slack via the node's `to.slack` override — exactly one destination (`channel` ID, `user_id`, or `email`) plus an optional `access_token`. Two rules differ from the Send API: the token must be a **runtime reference** like `{{data.slack_token}}` (a literal `xoxb-...` is rejected; omit it to use the stored profile or tenant token), and the destination never falls back to the journey's user — always set it on the node. Full node shape, examples, and template channel values: [journeys.md](../guides/journeys.md#slack-and-teams-sends).
 
 ## Related
 

@@ -18,8 +18,8 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - Conditions use **string** tuples: `[path, operator, value]` for binary, `[path, operator]` for unary. A single condition is the bare tuple; multiple conditions use an `{ "AND": [...] }` / `{ "OR": [...] }` object. Comparison values are always strings (`"true"`, `"50"`), not native booleans/numbers. See [Conditions](#conditions)
 - Header/value interpolation differs by context: templates and fetch URLs use `{{field}}` (no prefix); branch/trigger conditions use `data.field`; fetch **header values** use the `$ref` object form `{ "$ref": "data.token" }`. See [Variable Interpolation](#variable-interpolation)
 - A send node's `to` override takes **exactly one** of `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams` — never a combination. See [Slack and Teams sends](#slack-and-teams-sends)
-- A Slack `access_token` on a send node must be a **runtime reference** like `{{data.slack_token}}` — literal `xoxb-...` values are rejected (they'd be stored permanently with no way to rotate them). Omit it to use the token on the recipient's stored Slack profile
-- A send node can carry `message.context.tenant_id` to deliver as one of your customers: a literal tenant id or a **whole-string** mustache reference (`{{data.tenant_id}}`, `{{f1.body.tenant_id}}` from a fetch node with id `f1`). Mid-string interpolation (`tenant-{{data.region}}`) and `refs.`-prefixed values are rejected with `400`. A reference that resolves to nothing does **not** stop the run — the message sends with no tenant context
+- A Slack `access_token` on a send node must be a **runtime reference** (`{{data.slack_token}}`), never a literal token. See [Slack and Teams sends](#slack-and-teams-sends)
+- A send node can carry `message.context.tenant_id` to deliver as one of your customers — literal id or whole-string mustache reference only. See [Send Node Options](#send-node-options)
 
 ### Common Mistakes
 - Forgetting to publish after creating or updating the journey (invoke uses the last published version, not the draft)
@@ -30,8 +30,8 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - Assuming the trigger `schema` rejects bad payloads at invoke. It does **not**. The `schema` powers editor autofill and variable hints only; missing fields are not rejected at invocation. A run proceeds until it reaches a node that references a missing field, then fails there. Use **trigger `conditions`** to gate invocation (a failed trigger condition returns `422`)
 - Including `send` nodes in the `POST /journeys` body. Send nodes are **not allowed on create**. Create the shell (trigger only), add templates, then add send nodes via `PUT /journeys/{id}`
 - Wrapping a single condition in an extra array (`[[...]]`) or using non-string values, a single condition is a bare tuple of strings (`["data.plan", "is equal", "pro"]`); use an `{ "AND": [...] }` / `{ "OR": [...] }` object for multiple conditions
-- Hardcoding a literal Slack bot token in `to.slack.access_token` (rejected; pass a runtime reference, or omit it and store the token on the user's profile or tenant)
-- Addressing Teams by `channel_name`, `user_id`, or `email` without `service_url` or `tenant_id` — those targets need at least one of the two (and if you supply both, they must agree)
+- Hardcoding a literal Slack bot token in `to.slack.access_token` — see [Slack and Teams sends](#slack-and-teams-sends)
+- Addressing Teams by `channel_name`, `user_id`, or `email` without `service_url` or `tenant_id` — see [Slack and Teams sends](#slack-and-teams-sends)
 
 ### SDK shape, Journey management
 
@@ -347,7 +347,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 |------|--------------|-----------------|
 | Trigger (API) | `type: "trigger"`, `trigger_type: "api-invoke"` | None beyond discriminators. Optional: `id`, `schema`, `conditions`. |
 | Trigger (Segment) | `type: "trigger"`, `trigger_type: "segment"` | `request_type` (`identify`, `group`, or `track`). Optional: `event_id`, `conditions`. |
-| Send | `type: "send"` | `message.template` (journey-scoped template ID). Optional: `message.to` (recipient override: `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams` — exactly one), `message.context` (tenant context), `message.delay`, `message.data`, `conditions`. |
+| Send | `type: "send"` | `message.template` (journey-scoped template ID). Optional: `message.to` (recipient override: `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams` — exactly one), `message.context` (tenant context), `message.delay`, `message.data`, `channel` (optional label enum, no routing effect — see [Slack and Teams sends](#slack-and-teams-sends)), `conditions`. |
 | Delay (duration) | `type: "delay"`, `mode: "duration"` | `duration` (ISO 8601 duration string, e.g. `"PT30M"`). Optional: `conditions`. |
 | Delay (until) | `type: "delay"`, `mode: "until"` | `until` (ISO 8601 timestamp or context reference). Optional: `conditions`. |
 | Fetch (GET/DELETE) | `type: "fetch"`, `method: "get"` or `"delete"` | `url`, `merge_strategy`. Optional: `headers`, `query_params`, `response_schema`, `conditions`. |
@@ -422,7 +422,8 @@ How you reference a context value depends on **where** you use it. Getting this 
 | Template content (Elemental) | `{{field}}`, **no** `data.` prefix | `"Welcome, {{first_name}}!"` |
 | Fetch node `url` | `{{field}}` | `"https://api.app.com/users/{{user_id}}/status"` |
 | Branch / trigger `conditions` | `data.field` (string tuples) | `["data.completed", "is equal", "true"]` |
-| Fetch / send **header & override values** | `$ref` object | `{ "Authorization": { "$ref": "data.api_token" } }` |
+| Fetch **header values** | `$ref` object | `{ "Authorization": { "$ref": "data.api_token" } }` |
+| Send node `to.slack` / `to.ms_teams` / `context.tenant_id` values | `{{field}}` as the **whole string** (plain string fields — not `$ref` objects) | `"access_token": "{{data.slack_token}}"` |
 
 Notes:
 - `user_id` passed at the top level of an invoke is used for **recipient resolution** and is not guaranteed to be projected into `data`. If a fetch URL or template needs it, declare `user_id` in the trigger schema and pass it inside `data` too.
@@ -718,7 +719,7 @@ A send node's `message` can do more than reference a template:
 
 Journeys can deliver to Slack and Microsoft Teams. The send node's `to` override addresses them directly, bypassing the recipient's stored profile:
 
-**Slack** (`to.slack`) — exactly one destination: `channel` (channel name or ID), `user_id` (Slack user ID), or `email` (resolved via the workspace directory).
+**Slack** (`to.slack`) — exactly one destination: `channel`, `user_id` (Slack user ID), or `email` (resolved via the workspace directory). For `channel`, use the channel ID (`C...`): the API accepts a name and passes it through to Slack, but names only resolve for channels the bot can see — a name that doesn't resolve fails at delivery with `channel_not_found`.
 
 ```json
 {
@@ -735,8 +736,8 @@ Journeys can deliver to Slack and Microsoft Teams. The send node's `to` override
 }
 ```
 
-- `access_token` must be a **runtime reference** (`{{data.slack_token}}`, `{{profile.slack.access_token}}`, or a tenant property). Literal `xoxb-...` values are rejected — they'd be stored permanently in the journey definition with no way to rotate them.
-- Omit `access_token` to use the token on the recipient's stored Slack profile. In a multi-tenant app, store one bot token per customer on the tenant's `user_profile` and each run picks up the right workspace ([tenants.md](./tenants.md#hierarchy-and-merging)).
+- `access_token` must be a **runtime reference** like `{{data.slack_token}}` (a whole-string reference to a value the run holds). Literal `xoxb-...` values are rejected — they'd be stored permanently in the journey definition with no way to rotate them. `{{data...}}` references are the only attested form; for per-customer tokens, prefer the omission route below.
+- Omit `access_token` to use the token on the recipient's stored Slack profile. In a multi-tenant app, store one bot token per customer on the tenant's `user_profile`, send with `context.tenant_id`, and each run picks up the right workspace through the profile merge ([tenants.md](./tenants.md#hierarchy-and-merging)).
 - Unlike email/SMS/push, Slack has no journey user to fall back on for the destination — always set `channel`, `user_id`, or `email` on the node.
 
 **Microsoft Teams** (`to.ms_teams`) — exactly one target: `channel_id` (Bot Framework channel ID), `channel_name` **with** `team_id`, `user_id`, or `email`.
@@ -762,7 +763,7 @@ Journeys can deliver to Slack and Microsoft Teams. The send node's `to` override
 - `ms_teams.tenant_id` is the **Microsoft** tenant, unrelated to `message.context.tenant_id`, which is your own Courier multi-tenant context.
 - `conversation_id` and `reply_to_activity_id` from the send API's Teams profile are **not** supported on journey send nodes.
 
-Message content comes from the journey-scoped template like any other channel; `POST /journeys/{id}/templates` takes the channel as a plain string plus an optional `providerKey` (verify the exact Slack/Teams channel value against a live workspace or the current API reference — it isn't enumerated in the schema). Block Kit, Adaptive Cards, threading, and provider setup live in the channel guides: [slack.md](../channels/slack.md), [ms-teams.md](../channels/ms-teams.md).
+**Templates and the two `channel` fields.** Message content comes from a journey-scoped template like any other channel. `POST /journeys/{id}/templates` takes `channel` as an open string that participates in routing — it accepts channel keys and provider-key forms (`slack`, `msteams`, or `provider:alias`), plus an optional `providerKey` field. Separately, the send **node** itself takes an optional flat `channel` field with a closed enum — `email` | `sms` | `push` | `inbox` | `slack` | `msteams` — a label that makes the node's channel explicit to clients reading the journey; it does not affect routing, is never checked for consistency against the template's channel, and is absent from `GET` responses when unset. Don't confuse the two: the template's channel routes, the node's channel labels. Block Kit, Adaptive Cards, threading, and provider setup live in the channel guides: [slack.md](../channels/slack.md), [ms-teams.md](../channels/ms-teams.md).
 
 ### A/B Experiments on a Send Node
 

@@ -12,6 +12,7 @@
 - Webhook URLs expire - must be regenerated periodically
 - Use FactSet for key-value data display
 - Limit to 2-3 action buttons maximum
+- Journey send nodes: address Teams via `to.ms_teams`; most targets need `service_url` and/or `tenant_id` — see [Teams in Journeys](#teams-in-journeys)
 
 ### Common Mistakes
 - Using Adaptive Card version > 1.4 (won't render)
@@ -659,32 +660,7 @@ Use Microsoft's [Adaptive Card Designer](https://adaptivecards.io/designer/) to:
 
 ## Teams in Journeys
 
-Journey send nodes can deliver to Teams. The node's `to.ms_teams` override takes exactly one target — `channel_id`, `channel_name` **with** `team_id`, `user_id`, or `email`:
-
-```json
-{
-  "type": "send",
-  "message": {
-    "template": "<journey-scoped-template-id>",
-    "to": {
-      "ms_teams": {
-        "user_id": "{{data.teams_user_id}}",
-        "service_url": "https://smba.trafficmanager.net/amer",
-        "tenant_id": "{{data.microsoft_tenant_id}}"
-      }
-    }
-  }
-}
-```
-
-Rules specific to journey sends:
-
-- `channel_name`, `user_id`, and `email` targets need at least one of `service_url` or `tenant_id`; if you supply both, they must agree.
-- `channel_id` publishes without either, but sends with neither have failed at delivery — provide `service_url` or `tenant_id` anyway.
-- `ms_teams.tenant_id` is the **Microsoft (Azure AD)** tenant — unrelated to `message.context.tenant_id`, which is your own Courier multi-tenant context ([tenants.md](../guides/tenants.md)).
-- `conversation_id` and `reply_to_activity_id` from the Send API's Teams profile are **not** supported on journey send nodes.
-
-Full node shape and workflow: [journeys.md](../guides/journeys.md#slack-and-teams-sends).
+Journey send nodes deliver to Teams via the node's `to.ms_teams` override — exactly one target: `channel_id`, `channel_name` with `team_id`, `user_id`, or `email`. Most targets also need `service_url` and/or `tenant_id` (the **Microsoft** tenant, not your Courier tenant), and `conversation_id`/`reply_to_activity_id` are not supported on journey nodes. Full node shape, rules, examples, and template channel values: [journeys.md](../guides/journeys.md#slack-and-teams-sends).
 
 ## Related
 
