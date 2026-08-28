@@ -1,8 +1,30 @@
 # Tenants
 
-A tenant is a workspace/account in a B2B app, a customer of your customer. Attach users to a tenant,
-and one template renders per-tenant: the tenant's brand, preference defaults, and context apply
+A tenant is one of your customer organizations: the company, account, or workspace a group of your
+users belongs to. If you sell to businesses, you almost certainly have this object in your own
+database already. Attach users to a tenant, store everything specific to that customer on it, and
+one template renders per-tenant: the brand, preference defaults, properties, and credentials apply
 automatically when a send carries its `tenant_id`.
+
+What lives where on a tenant:
+
+| What you store | Field |
+|---|---|
+| Logo, colors, email chrome | `brand_id`, referencing a [brand](./brands.md) |
+| What's on/off for everyone at that company | `default_preferences`, plus per-topic overrides |
+| Plan, region, support address, account manager | `properties`, readable from template content |
+| Their own edited version of one of your templates | A [tenant-scoped template](#tenant-scoped-templates) |
+| Their Slack workspace token or Teams webhook | `user_profile` |
+| Their position under a parent org | `parent_tenant_id` |
+
+Two things tenants are **not**: a way to group recipients (use a list or audience for "send this to
+these people" — tenants isolate customers, they don't gather people), and a permissions system
+(authorization stays in your application). A user can belong to many tenants, with independent
+preferences, branding, and Inbox feeds in each; a send names both `user_id` and `tenant_id` — the
+user determines who receives, the tenant determines which context builds the message.
+
+Courier records the tenant on the delivered message at `providers[].reference.tenantId`, so you can
+segment delivery data by customer afterwards.
 
 ## Create or update a tenant (upsert)
 
@@ -44,6 +66,11 @@ customer org's own Slack `access_token` or Teams webhook there, and every send c
 ```json
 { "user_profile": { "slack": { "access_token": "xoxb-..." } } }
 ```
+
+This is also how one [journey](./journeys.md) serves every customer: a journey send node carries
+`message.context.tenant_id` (a literal id, or a whole-string reference like `{{data.tenant_id}}`
+resolved per run), and its Slack/Teams sends pick up that tenant's stored token — journey nodes
+reject literal tokens outright. See [Slack and Teams sends](./journeys.md#slack-and-teams-sends).
 
 ### Auto-infer, and two silent gotchas
 

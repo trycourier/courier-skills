@@ -192,7 +192,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **First notification / addressing (`to` field) / inline vs template** | [quickstart.md](./references/guides/quickstart.md) |
 | **Transactional**: password reset, OTP, orders, receipts, dunning, appointments, security alerts | [transactional.md](./references/transactional.md) |
 | **Lifecycle marketing**: onboarding, adoption, engagement, win-back, referral, campaigns | [lifecycle-marketing.md](./references/lifecycle-marketing.md) |
-| **Multi-step sequences**: delays, branches, batching, digests, A/B, cancellation. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
+| **Multi-step sequences**: delays, branches, batching, digests, A/B, cancellation, Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
 | Channel routing, fallbacks, escalation, provider failover | [multi-channel.md](./references/guides/multi-channel.md) |
 | Idempotency, retries, delivery statuses, webhook verification | [reliability.md](./references/guides/reliability.md) |
 | Preference topics, opt-out, preference centers, workspace preference sections | [preferences.md](./references/guides/preferences.md) |
