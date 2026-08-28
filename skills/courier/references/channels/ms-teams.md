@@ -12,6 +12,7 @@
 - Webhook URLs expire - must be regenerated periodically
 - Use FactSet for key-value data display
 - Limit to 2-3 action buttons maximum
+- Journey send nodes: address Teams via `to.ms_teams`; most targets need `service_url` and/or `tenant_id` — see [Teams in Journeys](#teams-in-journeys)
 
 ### Common Mistakes
 - Using Adaptive Card version > 1.4 (won't render)
@@ -657,8 +658,13 @@ Use Microsoft's [Adaptive Card Designer](https://adaptivecards.io/designer/) to:
 | Bot can't send DM | Missing permissions | Check Azure AD permissions |
 | Card not rendering | Unsupported version | Use version 1.4 or lower |
 
+## Teams in Journeys
+
+Journey send nodes deliver to Teams via the node's `to.ms_teams` override — exactly one target: `channel_id`, `channel_name` with `team_id`, `user_id`, or `email`. Most targets also need `service_url` and/or `tenant_id` (the **Microsoft** tenant, not your Courier tenant), and `conversation_id`/`reply_to_activity_id` are not supported on journey nodes. Full node shape, rules, examples, and template channel values: [journeys.md](../guides/journeys.md#slack-and-teams-sends).
+
 ## Related
 
+- [Journeys](../guides/journeys.md) - Teams send nodes in multi-step flows
 - [Slack](./slack.md) - Alternative workplace chat channel
 - [Multi-Channel](../guides/multi-channel.md) - Teams in routing strategies
 - [Reliability](../guides/reliability.md) - Webhook error handling

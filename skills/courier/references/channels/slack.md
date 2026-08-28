@@ -12,6 +12,7 @@
 - Text formatting: `*bold*`, `_italic_`, `~strike~`, `` `code` ``
 - User mention: `<@U0123ABC>`
 - Channel mention: `<#C0123ABC>`
+- Journey send nodes: `access_token` must be a runtime reference, never a literal token — see [Slack in Journeys](#slack-in-journeys)
 
 ### Common Mistakes
 - Using channel name instead of channel ID
@@ -751,8 +752,13 @@ await client.send.message({
 | "user_not_found" | Invalid email | Verify email matches Slack account |
 | "invalid_auth" | Bad token | Regenerate bot token |
 
+## Slack in Journeys
+
+Journey send nodes deliver to Slack via the node's `to.slack` override — exactly one destination (`channel` ID, `user_id`, or `email`) plus an optional `access_token`. Two rules differ from the Send API: the token must be a **runtime reference** like `{{data.slack_token}}` (a literal `xoxb-...` is rejected; omit it to use the stored profile or tenant token), and the destination never falls back to the journey's user — always set it on the node. Full node shape, examples, and template channel values: [journeys.md](../guides/journeys.md#slack-and-teams-sends).
+
 ## Related
 
+- [Journeys](../guides/journeys.md) - Slack send nodes in multi-step flows
 - [MS Teams](./ms-teams.md) - Alternative workplace chat channel
 - [Multi-Channel](../guides/multi-channel.md) - Slack in routing strategies
 - [Batching](../guides/batching.md) - Batch notifications to channels
