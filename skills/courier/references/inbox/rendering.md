@@ -4,6 +4,14 @@ The in-app notification center. Unlike every other Courier channel, the inbox re
 
 Sending a message *to* the inbox is server-side. See [inbox.md](../channels/inbox.md).
 
+## Common Mistakes
+
+- Working the auth ladder before ruling out CSP. Every auth symptom has a quieter CSP twin, see [Debugging](#debugging).
+- Skipping `listenForUpdates()`, the most common integration bug on this page.
+- Shipping an API key to the client instead of a JWT.
+- Using US hosts for an EU workspace, or expecting a `region` option that doesn't exist, see [EU and regional hosts](#eu-and-regional-hosts).
+- Writing new v7 code because the project already has some, see [legacy-v7.md](./legacy-v7.md).
+
 ## The Model
 
 Courier stores each user's inbox server-side. Your client authenticates as that user with a short-lived JWT, mounts a prebuilt component, and opens a WebSocket for live updates.

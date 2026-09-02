@@ -11,7 +11,7 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 - **Delivery windows delay a send to the next allowed hour.** Skip them for time-critical sends (OTP, password reset, security alerts), which are useless once delayed.
 - **Frequency caps live in Courier**, as a journey [`throttle` node](./throttling.md) scoped per user, globally, or by a dynamic key. Don't rebuild them app-side.
 - **Fallback routing (`method: "single"`) tries channels in order until one succeeds.** Use `method: "all"` only for genuinely multi-channel events (order shipped = email + push).
-- **Webhook handlers must respond 2xx within 10 seconds** (Courier's timeout) and do the work async. Always verify the `courier-signature` header. See [webhooks.md](./webhooks.md#verify-webhook-signatures).
+- **Webhook handlers must respond 2xx within 10 seconds** (Courier's timeout) and do the work async. Always verify the `courier-signature` header. See [webhooks.md](./webhooks.md#verifying-signatures).
 - **The SDK already retries transient errors** (`408`/`409`/`429`/`5xx`, with backoff and jitter). Tune `maxRetries` instead of wrapping calls in your own loop. See [Retries](#retries-the-sdk-already-does-this).
 - **Aggregate repeated actors** ("Alice liked your post" × 15) with a journey [`batch` node](./batching.md), keyed by `category_key`, not an app-side queue.
 - **Cancel scheduled messages** with `client.messages.cancel(messageId)` when the triggering condition becomes stale (e.g., cart abandonment after purchase).
@@ -35,7 +35,7 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 - Putting `Idempotency-Key` **inside** the `message` object instead of sending it as a request header
 - Using the same idempotency key for "send OTP" across multiple attempts (a resend should have a distinct key, typically `otp-{userId}-{otpRequestId}`, keyed off the unique id of the OTP request from your own system)
 - Retrying 4xx errors (you'll hit the same validation failure forever)
-- Verifying webhooks by re-hashing the parsed JSON. Always hash the raw request body concatenated with the timestamp, see [webhooks.md](./webhooks.md#verify-webhook-signatures)
+- Verifying webhooks by re-hashing the parsed JSON. Always hash the raw request body concatenated with the timestamp, see [webhooks.md](./webhooks.md#verifying-signatures)
 
 ## Idempotency Keys
 
@@ -154,7 +154,7 @@ For critical alerts that send to all channels simultaneously, use `method: "all"
 
 ## Webhook Handler
 
-Always respond 2xx immediately (Courier's timeout is 10 seconds) and process asynchronously. Handle duplicates by deduping on `data.id` plus status, since `data.id` is the resource id and repeats across a message's events. In production, also verify the webhook signature. See [Webhooks > Verifying Signatures](./webhooks.md#verify-webhook-signatures) for the full pattern.
+Always respond 2xx immediately (Courier's timeout is 10 seconds) and process asynchronously. Handle duplicates by deduping on `data.id` plus status, since `data.id` is the resource id and repeats across a message's events. In production, also verify the webhook signature. See [Webhooks > Verifying Signatures](./webhooks.md#verifying-signatures) for the full pattern.
 
 **TypeScript (Express):**
 ```typescript

@@ -50,7 +50,7 @@ The value returned as `message.status` from `client.messages.retrieve` (and the 
 | `DELIVERED` | Provider confirmed the message reached the recipient (e.g. email DSN, SMS carrier report). | Terminal success. |
 | `OPENED` / `CLICKED` | Engagement signals for email (requires open/click tracking). **`OPENED` is not a reliable signal of human engagement**, Apple Mail Privacy Protection and Gmail image proxying prefetch the tracking pixel, so it fires without the recipient reading anything. Build logic on `CLICKED` or in-app read state. | Terminal success with engagement. |
 | `UNMAPPED` | The `event` on the send didn't map to any notification/template in this workspace. Common for bulk sends with a typo'd `event` value. | Fix the event ID or create an event mapping in Settings. |
-| `UNROUTABLE` | Routing failed, no channel/provider combination could accept the send. Check `reason` and `error` for detail (e.g. `reason: "PROVIDER_ERROR"` with message `"No provider(s) resend in the list of message channel provider(s): postmark."` means the channel's routing list references a provider that isn't installed). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
+| `UNROUTABLE` | Routing failed, no channel/provider combination could accept the send. Check `reason` and `error` for detail (e.g. `reason: "PROVIDER_ERROR"` with message `"No provider(s) resend in the list of message channel provider(s): postmark."` means the channel's routing list references a provider that isn't installed). **An `UNROUTABLE` with no `reason` and no `error` at all** is its own case: for inbox sends it means the built-in `courier` provider isn't installed, and a `PROVIDER_ERROR` naming `courier` with `: undefined` means the template has no routing strategy. See [inbox.md](../channels/inbox.md#troubleshooting). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
 | `UNDELIVERABLE` | All providers attempted returned a terminal failure (bounce, invalid number, suppressed). | Verify the recipient's contact info; inspect `providers[].providerResponse` for the specific error. |
 | `CANCELED` | The send was canceled before delivery, via `client.messages.cancel`, a journey Cancel node, or a canceled journey run. | Expected when you cancel; otherwise check what issued the cancel. |
 | `THROTTLED` | Dropped by a `throttle` node that had reached its cap. | Expected under frequency caps; raise the cap or widen the window if unintended. |
@@ -162,7 +162,7 @@ The parts that matter for reliability:
   the event, so a single message emits several events sharing it. Dedupe on `data.id` **plus**
   status, never `data.id` alone.
 - **Verify the `courier-signature` HMAC against the raw request bytes**, in constant time, with a
-  timestamp tolerance. See [Verifying Signatures](./webhooks.md#verify-webhook-signatures).
+  timestamp tolerance. See [Verifying Signatures](./webhooks.md#verifying-signatures).
 - **Webhooks only fire in the environment they were created in.** A test-environment destination
   never sees production events.
 - Engagement statuses (`OPENED`, `CLICKED`) can arrive **before** `DELIVERED`, or without it ever

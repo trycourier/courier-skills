@@ -1,5 +1,12 @@
 # Courier Inbox for React Native
 
+## Common Mistakes
+
+- Passing the JWT as `jwt`. The React Native `signIn` parameter is **`accessToken`**, the same token under a different name.
+- Signing in before the token resolves. Gate on having it.
+- Forgetting `listenForUpdates()`, so the feed only refreshes on remount.
+- Expecting web CSP guidance to apply. It doesn't, native has no CSP, but push setup does apply, see [push.md](../channels/push.md).
+
 ### Installation
 
 ```bash

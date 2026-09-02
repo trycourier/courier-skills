@@ -1,5 +1,13 @@
 # Courier Inbox Web Components
 
+## Common Mistakes
+
+- Using the `message-click` / `message-action-click` / `message-long-press` **HTML attributes**. They compile with `new Function()`, need `script-src 'unsafe-eval'`, and fail silently without it. Use the element methods or the `CustomEvent`s, see [Event Handling](#event-handling).
+- Loading from the CDN without `script-src https://unpkg.com` in the CSP, or shipping `@latest` to production.
+- Omitting `style-src 'unsafe-inline'`, which renders the inbox unstyled with no error, see [Content Security Policy](./rendering.md#content-security-policy).
+- Calling element methods before the custom element is defined. Await the module import first.
+- Skipping `listenForUpdates()` after `signIn()`.
+
 Framework-agnostic custom elements, Vue, Angular, Svelte, or plain JavaScript.
 
 Web Components work with **any framework or no framework at all**, Vue, Angular, Svelte, vanilla JS, server-rendered HTML, WordPress, etc. They use the same v8 SDK and real-time infrastructure as the React components.

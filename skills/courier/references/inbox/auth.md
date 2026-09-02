@@ -2,6 +2,14 @@
 
 The inbox is the only Courier channel that runs client-side, so it is the only one that needs a per-user credential. Generate it server-side; never ship an API key to a browser.
 
+### Common Mistakes
+
+- Minting the JWT in client code. That requires the API key in the browser, which grants full workspace access to anyone who opens devtools.
+- Omitting a scope. All four are needed: `user_id:{id} inbox:read:messages inbox:write:events read:preferences`. A partial set returns `401` from the SDK, not a clear scope error.
+- Minting a token for one user and signing in as another. Sign out on user switch.
+- Letting a token expire instead of refreshing. The socket drops and the inbox silently stops updating.
+- Treating a v7 **client key** as interchangeable with a JWT. It isn't, and its own format has a trap, see [v7 client keys](#v7-client-keys).
+
 ### Authentication
 
 Courier uses three types of credentials in different contexts:
@@ -13,6 +21,17 @@ Courier uses three types of credentials in different contexts:
 | **JWT** | Inbox, Preferences, Toast components | Generated server-side, passed to client |
 
 The API Key is the same key regardless of which env var you store it in. The SDK and CLI just look for different variable names by convention.
+
+#### v7 client keys
+
+Only relevant when maintaining a v7 integration ([legacy-v7.md](./legacy-v7.md)). A v7 client key is **base64 of `<tenant>/<env>`**, and that env segment must match the environment of the API key behind it. Two failure modes, one of them silent:
+
+| Client key env segment | Result |
+|---|---|
+| An `env_01k...` id | Rejected outright, `403` |
+| `test` against an env-scoped API key | **`200` with an empty node list.** No error at all |
+
+The second is the single biggest v7 trap: auth looks like it succeeded and the inbox is simply empty.
 
 JWT is required for Inbox. Generate tokens server-side using your API key. The SDKs expose the issue-token endpoint directly. Prefer that over raw HTTP.
 

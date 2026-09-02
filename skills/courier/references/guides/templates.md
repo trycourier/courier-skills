@@ -16,6 +16,7 @@
   1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
   2. **Reuse an existing strategy:** copy its ID from an existing template via `GET /notifications/{id}` or list them with `client.routingStrategies.list()`.
   3. **Defer it**. Set `routing: null` on create and assign a `strategy_id` later via `notifications.replace`.
+- **`POST /notifications` does not persist `routing`.** It returns `routing: null` whatever `strategy_id` you send, so every API-created template starts with no strategy and is not sendable by id until you attach one with `PUT /notifications/{id}` (`notifications.replace`). Verify with `GET /notifications/{id}` rather than trusting the create response. On the inbox this surfaces as `UNROUTABLE` / `PROVIDER_ERROR` "No provider(s) courier ... : undefined", see [inbox.md](../channels/inbox.md#troubleshooting).
 - Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404, the archive operation uses the `DELETE` method.
 - Confirm final visuals from a rendered test send — `GET /messages/{id}/output` returns the exact email recipients receive (see [Verify the Rendered Output](#verify-the-rendered-output))
 - Managing templates from a repo (CI, drift detection, promotion): see [Templates as Code](./templates-as-code.md)
@@ -25,7 +26,7 @@
 - Omitting fields on `PUT` (e.g., leaving out `tags` resets them to `[]`, leaving out `brand` resets to `null`)
 - Nesting `channel` elements inside other `channel` elements (they must be top-level siblings)
 - Using Sugar format (`title`/`body`) in template creation payloads (only works for inline sends via the Send API)
-- Missing `routing.strategy_id` on create (template will exist but sends may fail routing)
+- Missing `routing.strategy_id` on create (template will exist but sends may fail routing). Note that supplying one is not enough either, create never persists it
 - Sending to a template that has never been published (draft content is not used at send time)
 
 ### Templates

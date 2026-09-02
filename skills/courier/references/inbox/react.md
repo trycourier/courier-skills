@@ -1,5 +1,14 @@
 # Courier Inbox for React
 
+## Common Mistakes
+
+- Skipping `listenForUpdates()` after `signIn()`. Messages arrive but the UI never changes until reload.
+- Mounting the provider before the JWT exists. Gate the mount on having a token.
+- Rendering the inbox without allowing the Courier hosts in the CSP, or without `style-src 'unsafe-inline'`. The failure looks like an auth problem, see [Content Security Policy](./rendering.md#content-security-policy).
+- Using the string HTML attributes for click handlers instead of props or the element methods. Those need `script-src 'unsafe-eval'` and fail silently, see [web-components.md](./web-components.md#event-handling).
+- Assuming a US workspace's hosts work for an EU workspace, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
+- Calling `signIn` on every render instead of once per user session.
+
 ### Installation
 
 ```bash

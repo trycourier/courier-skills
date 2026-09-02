@@ -187,8 +187,25 @@ Channel-specific content branches. When present at the top level, **all** siblin
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `channel` | `string` | Yes | Channel name: `"email"`, `"push"`, `"sms"`, `"direct_message"`, or a provider like `"slack"` |
+| `channel` | `string` | Yes | Channel name: `"email"`, `"push"`, `"sms"`, `"inbox"`, `"direct_message"`, or a provider like `"slack"` |
 | `elements` | `array` | No | Nested elements for this channel |
+
+**`inbox` is a valid value and Design Studio writes it.** A template built in the designer for the in-app inbox stores `{ "type": "channel", "channel": "inbox", "elements": [...] }`, so a channel-wrapped inbox template is normal, not malformed. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
+
+#### The channel element vs the three other places a channel is named
+
+Four different fields can name a channel, and they are not alternatives to each other. Only the Elemental `channel` element selects **content**. The other three select **delivery**.
+
+| Where | Selects | Documented in |
+|---|---|---|
+| Elemental `channel` element | Which content block **renders** for a channel | This section |
+| `channel` on `POST /journeys/{id}/templates` | The journey-scoped template's delivery channel | [journeys.md](./journeys.md) |
+| `channel` on a journey `send` node | Nothing at delivery time. An **analytics label only** | [journeys.md](./journeys.md#send-node-options) |
+| `routing` / a routing strategy on the message | Which channels are **eligible**, and in what order | [routing-strategies.md](./routing-strategies.md) |
+
+They don't override one another because they answer different questions. Routing picks the delivery channel, then rendering picks the matching content branch. A `channel` element for a channel that routing never selects simply never renders, and a delivery channel with no matching `channel` element falls back to the template's unwrapped content.
+
+The send node's `channel` is the one that surprises people: the journey designer writes it, so designer-built journeys carry it, but it does not steer delivery. Don't reach for it to route a send. Use the template's `channel` or a routing strategy.
 | `raw` | `object` | No | Raw provider-specific payload (required if `elements` is omitted) |
 
 **Multi-channel example:**

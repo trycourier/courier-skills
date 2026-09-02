@@ -69,6 +69,16 @@ Argument order differs by method: `create` and `list` take the **journey** id fi
 | Put locale | `client.journeys.templates.putLocale(localeId, { ... })` | `PUT .../locales/{localeId}` | `put_journey_template_locale` |
 | List versions | `client.journeys.templates.listVersions(templateId, { ... })` | `GET /journeys/{id}/templates/{templateId}/versions` | `list_journey_template_versions` |
 
+**Reading a draft is different from the workspace namespace.** `GET /notifications/{id}/draft/content` has no journey-scoped equivalent; `GET /journeys/{id}/templates/{templateId}/draft/content` returns **404**. Use the `version` query parameter instead:
+
+| Want | Route |
+|---|---|
+| Published content | `GET /journeys/{jid}/templates/{tid}/content` |
+| Draft content | `GET /journeys/{jid}/templates/{tid}/content?version=draft` |
+| A specific version | `GET /journeys/{jid}/templates/{tid}/content?version=v001` |
+
+`?version=` works on the workspace namespace too (`GET /notifications/{id}/content?version=draft`), and reads any published version on either.
+
 Workspace templates under `/notifications` are a separate namespace with their own full SDK support. See [templates.md](./templates.md).
 
 ---
@@ -113,6 +123,14 @@ so journeys using them have to be built in the UI:
 | Publishable | Independently or with journey publish | Via `notifications.publish` |
 
 Journey-scoped templates are published **automatically** when you publish the journey itself. You can also publish them independently via `POST /journeys/{id}/templates/{templateId}/publish` if you need to update a template without republishing the entire journey.
+
+**Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the previously published version with nothing in the journey to indicate an edit is pending. Publish the template (or republish the journey) to make the edit live. `GET .../versions` shows the mismatch while it lasts:
+
+```json
+[{ "version": "draft", "has_changes": true }, { "version": "published:v001" }]
+```
+
+`GET .../versions` orders entries by creation timestamp, not by version number, so a `v002` can appear after a `published:v003`. Sort by `created` rather than trusting list position.
 
 If you need a template reusable across journeys or callable from the Send API, use a workspace template. If the template is specific to one journey, keep it scoped.
 
@@ -714,6 +732,14 @@ A send node's `message` can do more than reference a template:
 - `context.tenant_id`, deliver this send as one of your customers so the message uses that tenant's brand and settings. A literal id, or a whole-string mustache reference resolved per run (`{{data.tenant_id}}`, or `{{f1.body.tenant_id}}` from the fetch node with id `f1`), so one journey serves every tenant. Mid-string interpolation and `refs.`-prefixed values are `400`s; an unresolved reference sends **without** tenant context rather than failing the run. See [tenants.md](./tenants.md).
 - `delay`, schedule this individual send: `until` (required, ISO 8601 timestamp or context reference) plus optional `timezone`. (For pausing the whole run, use a `delay` node instead.)
 - `data`, extra merge data scoped to this send.
+
+A send node can also carry `channel` **outside** `message`:
+
+```json
+{ "id": "n1", "type": "send", "message": { "template": "<template-id>" }, "channel": "inbox" }
+```
+
+The journey designer writes this field, so designer-built journeys have it and hand-written ones usually don't. **It is a label for analytics and reporting, not routing.** Setting it does not make a send go to that channel, and omitting it does not stop delivery. To control the delivery channel, set `channel` on the journey-scoped template (`POST /journeys/{id}/templates`) or attach a routing strategy. See [the channel element vs the three other places a channel is named](./elemental.md#the-channel-element-vs-the-three-other-places-a-channel-is-named).
 
 ### Slack and Teams Sends
 
