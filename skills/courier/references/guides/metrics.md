@@ -33,6 +33,8 @@ This is aggregates for one template. For one message's timeline, use [cli.md](./
 
 Available in all seven server SDKs (Node, Python, Ruby, Go, Java, PHP, C#).
 
+CLI: `courier notifications get-metrics --id <template-id> --lookback P7D --granularity DAY`. See [cli.md](./cli.md#template-metrics).
+
 ## Pick a window and granularity
 
 `granularity` sets the bucket size: `HOUR`, `DAY` (the default), `WEEK`, or `MONTH`. `WEEK` buckets start on Sunday. All boundaries are UTC, with no timezone support, so a "day" is a UTC day.
@@ -187,7 +189,7 @@ for (const template of results) {
 
 ## Not available via MCP
 
-The API MCP server at `mcp.courier.com` has **no metrics tool**. Its notification tools cover create, retrieve, content, versions, publish, archive, duplicate, and checks only. Use an SDK call or a plain HTTP request; see [mcp.md](./mcp.md).
+The API MCP server at `mcp.courier.com` has **no metrics tool**. Its notification tools cover create, retrieve, content, versions, publish, archive, duplicate, and checks only. Use an SDK call, the CLI (`courier notifications get-metrics`), or a plain HTTP request; see [mcp.md](./mcp.md#known-gaps).
 
 ## Related
 

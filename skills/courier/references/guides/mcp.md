@@ -388,7 +388,7 @@ Endpoints with no MCP tool. Use an SDK call or a plain HTTP request for these.
 
 | Missing | Use instead |
 |---|---|
-| `GET /notifications/{id}/metrics` (template delivery metrics) | `client.notifications.getMetrics(...)`, see [metrics.md](./metrics.md) |
+| `GET /notifications/{id}/metrics` (template delivery metrics) | `client.notifications.getMetrics(...)` or `courier notifications get-metrics`, see [metrics.md](./metrics.md) |
 
 This list is not exhaustive. It records gaps that have actually been hit, so treat an absent tool as a possible gap rather than proof the endpoint doesn't exist, and check the [API reference](https://www.courier.com/docs/api-reference/) before concluding a feature is unavailable.
 
