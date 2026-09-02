@@ -20,6 +20,10 @@ npm install @trycourier/courier-ui-inbox @trycourier/courier-ui-toast
 ```
 
 The CDN approach requires no build step. Add the script tags and use the custom elements immediately.
+Two caveats: a CSP needs `script-src https://unpkg.com` for these to load at all, and `@latest` means a
+future release can change behavior without a deploy on your side. Pin an exact version for anything
+beyond a prototype. A bundled npm install needs no `script-src` host, see
+[Content Security Policy](./rendering.md#content-security-policy).
 
 ### Basic Setup
 
@@ -154,6 +158,28 @@ All the same callbacks available in React are available on the Web Component ele
 </script>
 ```
 
+The elements also dispatch `CustomEvent`s of the same names, which is the right hook for frameworks that
+bind declaratively:
+
+```html
+<courier-inbox id="inbox"></courier-inbox>
+
+<script type="module">
+  document.getElementById('inbox').addEventListener('message-click', (e) => {
+    const { message, index } = e.detail;
+    window.location.href = message.data?.deepLink;
+  });
+</script>
+```
+
+**Use the methods or the events, not the HTML string attributes.** `<courier-inbox>` and
+`<courier-inbox-popup-menu>` also accept `message-click`, `message-action-click`, and `message-long-press`
+as HTML attributes containing a JavaScript string, but those are compiled with `new Function()`, so they
+need `script-src 'unsafe-eval'`. Under a normal CSP the failure is silent: the throw is caught and logged
+and the handler never runs. The methods and the `CustomEvent`s have no such requirement. Vue's
+`@message-click` already uses the event path. See
+[Content Security Policy](./rendering.md#content-security-policy).
+
 ### Unread Badge (Vanilla JS)
 
 Build a custom notification bell with unread count without any framework:
@@ -207,5 +233,9 @@ Build a custom notification bell with unread count without any framework:
 | `onMessageActionClick(cb)` | `courier-inbox` | Handle action button click |
 | `onToastItemClick(cb)` | `courier-toast` | Handle toast click |
 | `unreadMessageCount` | `courier-inbox` | Current unread count (read-only) |
+
+The `message-click`, `message-action-click`, and `message-long-press` `CustomEvent`s carry the same
+payload as the matching `on...` method in `event.detail`. The identically named **HTML attributes** are a
+third form that requires `script-src 'unsafe-eval'`; prefer the methods or events.
 
 ---

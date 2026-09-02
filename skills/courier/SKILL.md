@@ -133,6 +133,11 @@ Sub-namespaces: `digests.schedules`, `journeys.templates`, `notifications.checks
 
 Work down this ladder. Each step tells you whether to stop or keep going.
 
+First, separate the two questions. **One message that failed** is this ladder. **A template whose
+delivery rate is dropping across the board** is [metrics.md](./references/guides/metrics.md), which
+returns the funnel as a time series. Running the ladder on a sample of messages will not tell you a
+rate is trending down.
+
 1. **Did Courier accept the request?** A `2xx` from `send` returns a `requestId`. No `requestId` means the call failed, not the delivery.
 2. **What does Courier think happened?** Run `courier messages list --trace-id "<requestId>"`. A list or audience send fans out to one message per recipient, so the `requestId` is the job, not a message id.
 3. **Where did it stop?** `courier messages history --message-id "<id>"` walks the event timeline.
@@ -204,6 +209,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, publishing, versioning, rollback, verify rendered output, locales | [templates.md](./references/guides/templates.md) |
 | **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, template aliases, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
+| **Delivery metrics for a template**: sent/delivered/opened/clicked as a time series, dashboards, alerting on delivery rate | [metrics.md](./references/guides/metrics.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md), or read the installed package's own types |
 | Elemental content format, elements, control flow | [elemental.md](./references/guides/elemental.md) |
 | **Localization**: per-locale content, and AI Translation in Design Studio (add a language, AI translates every field) | [elemental.md](./references/guides/elemental.md#localization) |

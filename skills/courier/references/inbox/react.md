@@ -10,6 +10,10 @@ npm install @trycourier/courier-react
 npm install @trycourier/courier-react-17
 ```
 
+If the app sets a Content Security Policy, add the Courier hosts and `style-src 'unsafe-inline'` before
+you start debugging anything: see [Content Security Policy](./rendering.md#content-security-policy). EU
+workspaces also need different hosts, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
+
 ### Basic Setup (v8)
 
 v8 uses `useCourier()` hook + `courier.shared.signIn()`, no provider wrapper needed:

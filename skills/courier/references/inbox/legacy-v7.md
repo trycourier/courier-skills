@@ -71,6 +71,20 @@ Contrast with the v8 shape in [react.md](./react.md): a single package (`@trycou
 | Sign in | Implicit via provider props | Explicit: `courier.shared.signIn({ userId, jwt })` |
 | Real-time | Auto | Explicit: `inbox.listenForUpdates()` |
 | Tags / Pins | Supported | **Not yet**, only blocker where v7 is still needed |
+| CSP hosts | `https://inbox.courier.com`, `wss://realtime.courier.com` | `https://api.courier.com`, `https://inbox.courier.com`, `wss://realtime.courier.io` |
+
+### v7 CSP hosts
+
+These values are **v7 only**. Do not carry them into a v8 app.
+
+| Version | connect-src |
+|---|---|
+| v7 (v5 and up) | `https://inbox.courier.com` `wss://realtime.courier.com` |
+| Before v5 | `https://fxw3r7gdm9.execute-api.us-east-1.amazonaws.com` `wss://1x60p1o3h8.execute-api.us-east-1.amazonaws.com` |
+
+v8's hosts differ, and the WebSocket in particular moves from `realtime.courier.com` to
+**`realtime.courier.io`**. See [Content Security Policy](./rendering.md#content-security-policy) for the
+full v8 set.
 
 ## Migration Path
 
@@ -84,6 +98,9 @@ High-level steps:
 4. Wire a server endpoint that issues a JWT (example in [auth.md](./auth.md)).
 5. After sign-in, call `inbox.registerFeeds(defaultFeeds())` and `inbox.listenForUpdates()`.
 6. Migrate custom styling, v8 uses a different theming API.
+7. **Update the CSP.** Swap `wss://realtime.courier.com` for `wss://realtime.courier.io`, add
+   `https://api.courier.com`, and confirm `style-src` allows `'unsafe-inline'`. Missing this leaves an
+   inbox that loads but never updates in real time, or renders unstyled, with no error either way.
 
 ## Related
 

@@ -117,6 +117,9 @@ This is not configurable, and it is not something to reimplement. Watch it in
 [Message Logs](https://www.courier.com/docs/platform/analytics/message-logs) or via
 `courier messages history`.
 
+Those are both per-message views. For the aggregate trend across a whole template, use
+[metrics.md](./metrics.md).
+
 ### 3. Your ingest path
 
 The layer that is genuinely yours. If a send is part of a larger unit of work that must survive a

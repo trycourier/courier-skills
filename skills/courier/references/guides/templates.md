@@ -128,6 +128,7 @@ All template operations use the `/notifications` endpoints. Authenticate with `A
 | **Upload content** | `PUT` | `/notifications/{id}/content` | Replace a template's content only, leaves name, tags, and routing untouched |
 | Update one element | `PUT` | `/notifications/{id}/elements/{elementId}` | Update a single element (V2/Elemental templates only) |
 | List versions | `GET` | `/notifications/{id}/versions` | Version history |
+| Metrics | `GET` | `/notifications/{id}/metrics` | Delivery funnel as a time series. See [metrics.md](./metrics.md) |
 
 ### Create a Template
 
@@ -813,6 +814,7 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 - [Routing Strategies](./routing-strategies.md) - Create/list/replace `rs_...` routing strategies via API
 - [Providers](./providers.md) - Configure provider integrations (SendGrid, Twilio, etc.) via API
 - [Multi-Channel](./multi-channel.md) - Routing strategies and channel priority
+- [Template Metrics](./metrics.md) - Delivery metrics for a template as a time series (sent, delivered, opened, clicked)
 - [CLI](./cli.md) - CLI for ad-hoc template operations (`courier notifications list`)
 - [Reliability](./reliability.md) - Idempotency keys for sends using templates
 - [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview) - Full Elemental documentation

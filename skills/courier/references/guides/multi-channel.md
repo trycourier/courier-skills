@@ -555,30 +555,42 @@ await client.send.message({
 
 ### Track Per Channel
 
-| Metric | What It Tells You |
-|--------|-------------------|
-| Delivery rate | % successfully delivered |
-| Open/read rate | User engagement |
-| Click-through rate | Action taken |
-| Bounce/failure rate | Data quality issues |
-| Unsubscribe rate | Channel fatigue |
+| Metric | What It Tells You | Where it comes from |
+|--------|-------------------|---------------------|
+| Delivery rate | % successfully delivered | `sent` and `delivered` from [metrics.md](./metrics.md) |
+| Open/read rate | User engagement | `opened`, structurally `0` on channels with no open tracking |
+| Click-through rate | Action taken | `clicked` |
+| Bounce/failure rate | Data quality issues | `errors` and `undeliverable` |
+| Unsubscribe rate | Channel fatigue | Not in the metrics API. Track your own opt-outs, see [preferences.md](./preferences.md) |
 
 ### Track Routing Effectiveness
 
-```typescript
-// Analyze which channels perform best
-const analytics = {
-  notification: "order_shipped",
-  channels: {
-    email: { sent: 10000, opened: 4500, clicked: 2000 },
-    push: { sent: 8000, opened: 6000, clicked: 3500 },
-    sms: { sent: 5000, clicked: 2500 }
-  }
-};
+Don't hand-roll these numbers. `GET /notifications/{id}/metrics` already returns them per provider and channel, per bucket. Roll the series up by channel to see which channel earns its priority:
 
-// Push has highest engagement for this notification type
-// Consider making push primary
+```typescript
+const metrics = await client.notifications.getMetrics(templateId, {
+  lookback: "P30D",
+  granularity: "DAY",
+});
+
+const byChannel = {};
+
+for (const bucket of metrics.series) {
+  for (const row of bucket.data) {
+    const c = (byChannel[row.channel] ??= { sent: 0, delivered: 0, opened: 0, clicked: 0 });
+    c.sent += row.sent;
+    c.delivered += row.delivered;
+    c.opened += row.opened;
+    c.clicked += row.clicked;
+  }
+}
+
+// e.g. { email: { sent: 10000, opened: 4500, clicked: 2000 },
+//        push:  { sent: 8000,  opened: 6000, clicked: 3500 } }
+// If push out-engages email for this template, consider making push primary.
 ```
+
+Compare channels without open tracking on `clicked`, not `opened`. Full parameter and response detail in [metrics.md](./metrics.md).
 
 ## Related
 

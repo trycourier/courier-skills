@@ -50,6 +50,10 @@ Do not write new v7 code. If the project is on v7, propose migrating before addi
 - **JWTs expire.** Refresh before expiry rather than letting the socket drop. See [auth.md](./auth.md).
 - **Call `listenForUpdates()` after `signIn()`**, or nothing updates in real time.
 - **Never call `signIn` with a JWT minted for a different user.** Sign out on user switch.
+- **Allow the Courier hosts in your CSP** before you debug anything else. A blocked host or a blocked
+  inline style looks exactly like an auth failure. See [Content Security Policy](#content-security-policy).
+- **EU workspaces need different hosts.** There is no `region` option; pass `apiUrls`. See
+  [EU and regional hosts](#eu-and-regional-hosts).
 
 ## Read State and Unread Counts
 
@@ -84,14 +88,69 @@ See [Feeds and Tabs](./react.md) for wiring tabs to those fields.
 
 ## Debugging
 
+**Rule out CSP first.** Every auth symptom below has a CSP twin, and CSP failures are quieter.
+
 | Symptom | Cause to check first |
 |---|---|
-| Empty inbox, no errors | `signIn()` never resolved, or the JWT's `user_id` scope doesn't match the recipient |
-| Messages appear only after reload | `listenForUpdates()` was never called |
+| Inbox renders, but completely unstyled | `style-src` (really `style-src-elem`) without `'unsafe-inline'`. The components inject `<style>` elements and there is no nonce or hash API |
+| Messages arrive only on reload, console shows a blocked WebSocket | `connect-src` missing `wss://realtime.courier.io`. Note `.io`, not `.com` |
+| Empty inbox, network requests blocked in devtools | `connect-src` missing `https://api.courier.com` or `https://inbox.courier.com` |
+| A `message-click`, `message-action-click`, or `message-long-press` HTML attribute never fires | `script-src` without `'unsafe-eval'`. Use the element method or the `CustomEvent` instead, both CSP-safe |
+| Empty inbox on an EU workspace | US hosts. Pass `apiUrls` for the EU region |
+| Empty inbox, no errors | `signIn()` never resolved, or the JWT's `user_id` scope doesn't match the recipient. Check the CSP rows above first, they present identically |
+| Messages appear only after reload | `listenForUpdates()` was never called. Or the WebSocket is CSP-blocked, see above |
 | Works, then silently stops | JWT expired; no refresh in place |
 | 401 from the SDK | JWT minted with missing scopes, or generated client-side |
 | Message sent but never arrives | Server-side, the send never reached the `inbox` channel. Work the [delivery-failure ladder](../../SKILL.md#debugging-a-delivery-failure); check the [inbox channel](../channels/inbox.md) and preferences |
 | Send succeeded, message invisible in a multi-tenant app | The send carried a `tenant_id` but `signIn` didn't (or vice versa). Tenant-scoped messages only show when the signed-in `tenantId` matches. See [tenants.md](../guides/tenants.md#auto-infer-and-two-silent-gotchas) |
+
+## Content Security Policy
+
+If the app sets a CSP, the inbox needs these directives. A missing one fails quietly, so check this before working the auth ladder.
+
+### connect-src
+
+| Region | Hosts |
+|---|---|
+| US (default) | `https://api.courier.com` `https://inbox.courier.com` `wss://realtime.courier.io` |
+| EU | `https://api.eu.courier.com` `https://inbox.eu.courier.io` `wss://realtime.eu.courier.io` |
+
+**The WebSocket host is `realtime.courier.io`, with `.io`.** Everything else on US is `.com`. The mixed suffixes are correct, do not "fix" them for consistency. v7 used `wss://realtime.courier.com`, so a migration that keeps the old CSP line has a silently dead realtime connection and an inbox that only updates on reload.
+
+### style-src
+
+Needs `'unsafe-inline'`. The components inject `<style>` elements at runtime, both into shadow roots and into `document.head`, which puts them under `style-src-elem`. **The packages expose no nonce or hash API**, so `'unsafe-inline'` is currently the only way to style the inbox. Without it the inbox renders, unstyled, with no error.
+
+### script-src
+
+Nothing extra for a bundled npm install. There is no `eval`, no `Worker`, and no injected `<script>`. Two exceptions:
+
+- **`'unsafe-eval'` is required only if you use the HTML string attributes** `message-click`, `message-action-click`, or `message-long-press` on `<courier-inbox>` or `<courier-inbox-popup-menu>`. Those are compiled with `new Function()`, and under a normal CSP the throw is caught and logged, so the handler simply never fires. Prefer the element methods (`inbox.onMessageClick(fn)`) or the dispatched `CustomEvent`s of the same names, which need no `'unsafe-eval'`. Vue's `@message-click` already uses the event path.
+- **Loading the components from a CDN** instead of bundling needs that CDN host, e.g. `script-src https://unpkg.com`. See [web-components.md](./web-components.md).
+
+### img-src
+
+The inbox itself draws only inline SVG, so it needs nothing. Preference components are different: `courier-ui-preferences` and `courier-react` set an `<img>` source from `brand.logo.image`, so if you render preferences, `img-src` has to allow whatever host serves your brand logo.
+
+### frame-src
+
+Only needed if you embed the hosted preference center in an iframe, which serves from `https://view.notificationcenter.app`. Not needed for the inbox.
+
+## EU and regional hosts
+
+There is **no `region` option** on `signIn()`. `CourierProps` accepts `apiUrls`, and the package exports the per-region values:
+
+```typescript
+import { Courier, getCourierApiUrlsForRegion } from "@trycourier/courier-js";
+
+Courier.shared.signIn({
+  userId: "user-123",
+  jwt,
+  apiUrls: getCourierApiUrlsForRegion("eu"), // 'us' | 'eu', default 'us'
+});
+```
+
+`EU_COURIER_API_URLS` and `DEFAULT_COURIER_API_URLS` are exported too if you want the objects directly. Getting this wrong looks like an empty inbox: the client authenticates against the wrong region and finds no messages. Update the CSP to the EU hosts at the same time.
 
 ## Where to Look
 
