@@ -211,7 +211,7 @@ The `channel` wrapper selects which content renders on the inbox. It does not se
 
 ### "No provider(s) courier ... : undefined"
 
-The `undefined` in that error is the template's missing routing strategy. **`POST /notifications` does not persist `routing`**: it returns `routing: null` regardless of the `strategy_id` you send, so every API-created template starts with no strategy and cannot be sent to the inbox by template id until one is attached.
+The `undefined` in that error is the template's missing routing strategy: `GET /notifications/{id}` on a template that fails this way returns `routing: null`. A template in that state cannot be sent to the inbox by id, because nothing names `courier` as the inbox provider. Templates reach that state in practice, so **check `routing` with a `GET` before assuming the template is fine**, see [templates.md](../guides/templates.md).
 
 Two ways out:
 
