@@ -573,7 +573,9 @@ const metrics = await client.notifications.getMetrics(templateId, {
   granularity: "DAY",
 });
 
-const byChannel = {};
+type ChannelTotals = { sent: number; delivered: number; opened: number; clicked: number };
+
+const byChannel: Record<string, ChannelTotals> = {};
 
 for (const bucket of metrics.series) {
   for (const row of bucket.data) {

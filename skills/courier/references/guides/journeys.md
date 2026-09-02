@@ -127,10 +127,18 @@ Journey-scoped templates are published **automatically** when you publish the jo
 **Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the previously published version with nothing in the journey to indicate an edit is pending. Publish the template (or republish the journey) to make the edit live. `GET .../versions` shows the mismatch while it lasts:
 
 ```json
-[{ "version": "draft", "has_changes": true }, { "version": "published:v001" }]
+{
+  "paging": { "more": false },
+  "versions": [
+    { "version": "draft", "has_changes": true, "created": 1755561339147, "creator": "user-123" },
+    { "version": "published:v001", "created": 1755559277705, "creator": "user-123" }
+  ]
+}
 ```
 
-`GET .../versions` orders entries by creation timestamp, not by version number, so a `v002` can appear after a `published:v003`. Sort by `created` rather than trusting list position.
+Note the envelope: the array is under `versions`, alongside `paging`, not returned bare. `has_changes` appears only on the draft entry.
+
+`versions` is ordered by `created` (epoch milliseconds), not by version number, so a `v002` can appear after a `published:v003`. Sort on `created` rather than trusting list position.
 
 If you need a template reusable across journeys or callable from the Send API, use a workspace template. If the template is specific to one journey, keep it scoped.
 

@@ -146,19 +146,48 @@ Only needed if you embed the hosted preference center in an iframe, which serves
 
 ## EU and regional hosts
 
-There is **no `region` option** on `signIn()`. `CourierProps` accepts `apiUrls`, and the package exports the per-region values:
+There is **no `region` option** on `signIn()`. `CourierProps` accepts `apiUrls`, and `getCourierApiUrlsForRegion` builds the right object. Both packages re-export that helper, so import it from the one you installed rather than from `@trycourier/courier-js`, which is only a transitive dependency.
+
+**React** (`@trycourier/courier-react`, which exports the hook, not a `Courier` class):
+
+```tsx
+import { useEffect } from "react";
+import { CourierInbox, useCourier, getCourierApiUrlsForRegion } from "@trycourier/courier-react";
+
+export default function App() {
+  const courier = useCourier();
+
+  useEffect(() => {
+    fetch("/api/courier-token")
+      .then((res) => res.json())
+      .then((data) => {
+        courier.shared.signIn({
+          userId: "user-123",
+          jwt: data.token,
+          apiUrls: getCourierApiUrlsForRegion("eu"), // 'us' | 'eu', default 'us'
+        });
+      });
+  }, []);
+
+  return <CourierInbox />;
+}
+```
+
+**Web components** (`@trycourier/courier-ui-inbox`, which does export `Courier`):
 
 ```typescript
-import { Courier, getCourierApiUrlsForRegion } from "@trycourier/courier-js";
+import { Courier, getCourierApiUrlsForRegion } from "@trycourier/courier-ui-inbox";
 
 Courier.shared.signIn({
   userId: "user-123",
   jwt,
-  apiUrls: getCourierApiUrlsForRegion("eu"), // 'us' | 'eu', default 'us'
+  apiUrls: getCourierApiUrlsForRegion("eu"),
 });
 ```
 
-`EU_COURIER_API_URLS` and `DEFAULT_COURIER_API_URLS` are exported too if you want the objects directly. Getting this wrong looks like an empty inbox: the client authenticates against the wrong region and finds no messages. Update the CSP to the EU hosts at the same time.
+`EU_COURIER_API_URLS` and `DEFAULT_COURIER_API_URLS` come from the same place if you want the objects directly. Reaching into `@trycourier/courier-js` works under a hoisting package manager and breaks under pnpm or Yarn PnP, so don't.
+
+Getting the region wrong looks like an empty inbox: the client authenticates against the wrong region and finds no messages. Update the CSP to the EU hosts at the same time.
 
 ## Where to Look
 

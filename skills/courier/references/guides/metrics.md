@@ -68,10 +68,18 @@ Either one of `start`/`end` alone returns `400`, as does a `start` that is not e
         { "provider": "sendgrid", "channel": "email", "sent": 412, "delivered": 408, "opened": 173, "clicked": 41, "errors": 0, "undeliverable": 4 },
         { "provider": "twilio", "channel": "sms", "sent": 96, "delivered": 95, "opened": 0, "clicked": 12, "errors": 1, "undeliverable": 0 }
       ]
+    },
+    {
+      "period": "2026-08-19T00:00:00Z",
+      "data": [
+        { "provider": "sendgrid", "channel": "email", "sent": 380, "delivered": 377, "opened": 151, "clicked": 33, "errors": 2, "undeliverable": 1 }
+      ]
     }
   ]
 }
 ```
+
+Three buckets for a three-day window, including the quiet first one. `end` is exclusive, so the `08-20` bucket is not part of this series.
 
 `series` holds one entry per bucket between the snapped `start` and `end`, oldest first. Each entry has a `period` (the start of the bucket, UTC) and a `data` array with one row per provider and channel that handled a message in that bucket. Quiet buckets are still returned with `data: []`, so a series plots as-is with no gap filling on your side.
 
@@ -96,7 +104,9 @@ const metrics = await client.notifications.getMetrics(templateId, {
   granularity: "DAY",
 });
 
-function totals(bucket) {
+type Bucket = (typeof metrics)["series"][number];
+
+function totals(bucket: Bucket) {
   return bucket.data.reduce(
     (acc, row) => ({
       sent: acc.sent + row.sent,
@@ -137,7 +147,9 @@ for bucket in metrics.series:
 Each row already carries `provider` and `channel`, so comparing channel performance for one template needs no extra calls. Roll the whole series up by channel:
 
 ```typescript
-const byChannel = {};
+type ChannelTotals = { sent: number; delivered: number; opened: number; clicked: number };
+
+const byChannel: Record<string, ChannelTotals> = {};
 
 for (const bucket of metrics.series) {
   for (const row of bucket.data) {
@@ -164,19 +176,27 @@ Rate limits are per workspace, and every response carries `RateLimit-*` headers,
 
 Walking every template in a workspace means one call per template against that limit. Read the headers and back off rather than firing the whole list concurrently:
 
-```typescript
-const { results, paging } = await client.notifications.list();
+`notifications.list()` is paginated (`paging.more` plus an opaque `paging.cursor`), so a sweep has to page or it silently covers only the first page:
 
-for (const template of results) {
-  const metrics = await client.notifications.getMetrics(template.id, {
-    lookback: "P30D",
-    granularity: "DAY",
-  });
-  // handle metrics, then pace the next call on the plan's requests-per-second
-}
+```typescript
+let cursor: string | undefined;
+
+do {
+  const page = await client.notifications.list(cursor ? { cursor } : undefined);
+
+  for (const template of page.results) {
+    const metrics = await client.notifications.getMetrics(template.id, {
+      lookback: "P30D",
+      granularity: "DAY",
+    });
+    // handle metrics, then pace the next call on the plan's requests-per-second
+  }
+
+  cursor = page.paging.more ? page.paging.cursor ?? undefined : undefined;
+} while (cursor);
 ```
 
-`notifications.list()` is paginated, so a real workspace sweep pages through `paging` as well. See [templates.md](./templates.md#list-templates).
+See [templates.md](./templates.md#list-templates) for the list call itself.
 
 ## Errors
 

@@ -194,7 +194,7 @@ Channel-specific content branches. When present at the top level, **all** siblin
 
 #### The channel element vs the three other places a channel is named
 
-Four different fields can name a channel, and they are not alternatives to each other. Only the Elemental `channel` element selects **content**. The other three select **delivery**.
+Four different fields can name a channel, and they are not alternatives to each other. The Elemental `channel` element selects **content**. Two of the others affect **delivery**. The fourth, `channel` on a journey `send` node, affects **nothing at delivery time** and is only a reporting label.
 
 | Where | Selects | Documented in |
 |---|---|---|
