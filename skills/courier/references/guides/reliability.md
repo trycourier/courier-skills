@@ -162,7 +162,7 @@ The parts that matter for reliability:
   the event, so a single message emits several events sharing it. Dedupe on `data.id` **plus**
   status, never `data.id` alone.
 - **Verify the `courier-signature` HMAC against the raw request bytes**, in constant time, with a
-  timestamp tolerance. See [Verifying Signatures](./webhooks.md#verifying-signatures).
+  timestamp tolerance. See [Verifying Signatures](./webhooks.md#verify-webhook-signatures).
 - **Webhooks only fire in the environment they were created in.** A test-environment destination
   never sees production events.
 - Engagement statuses (`OPENED`, `CLICKED`) can arrive **before** `DELIVERED`, or without it ever
