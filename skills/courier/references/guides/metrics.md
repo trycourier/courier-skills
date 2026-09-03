@@ -2,13 +2,13 @@
 
 `GET /notifications/{id}/metrics` returns one template's delivery funnel as a time series: sent, delivered, opened, clicked, errors, and undeliverable, broken out per provider and channel inside every bucket. Use it to build a dashboard, alert when a delivery rate drops, push the numbers into a warehouse, or answer "how is this template doing?" without opening the Courier app.
 
-This is aggregates for one template. For one message's timeline, use [cli.md](./cli.md) and Message Logs instead.
+These are aggregates for one template. For one message's timeline, use [cli.md](./cli.md) and Message Logs instead.
 
 ## Quick Reference
 
 ### Rules
 
-- **Window is `lookback` OR `start`+`end`, never a mix.** `lookback` is an ISO 8601 duration counted back from now (`P30D`, `P12W`, `PT12H`), default `P30D`. `start`+`end` are ISO 8601 timestamps with an offset and must be supplied together. If you send both forms, `start`/`end` win and `lookback` is ignored.
+- **Set the window with `lookback`, or with `start`+`end`.** `lookback` is an ISO 8601 duration counted back from now (`P30D`, `P12W`, `PT12H`), default `P30D`. `start`+`end` are ISO 8601 timestamps with an offset and must be supplied together. If you send both forms, `start`/`end` win and `lookback` is ignored.
 - **Label charts with the response's `start` and `end`, not the values you requested.** Courier widens the window outward to whole buckets, so a request for the last 36 hours at `DAY` returns two full days.
 - **Go coarser, don't split the range.** A granularity too fine for the window returns `400`. Switch `HOUR` to `DAY` rather than issuing several calls.
 - **There is no bucket-level total.** Sum the rows in a bucket yourself, and guard the division: a quiet bucket has `sent: 0`.
@@ -22,7 +22,7 @@ This is aggregates for one template. For one message's timeline, use [cli.md](./
 - Expecting sends made without a template to show up. They never appear here.
 - Reading `opened` on a channel with no open tracking. It is always `0` there, which is not the same as "nobody opened it."
 - Assuming `errors` and `undeliverable` are the same failure. They aren't; see the field table below.
-- Requesting `HOUR` granularity over a month, or `WEEK` over ten years, and expecting a truncated result instead of a `400`.
+- Requesting `HOUR` granularity over a month and expecting a truncated result instead of a `400`.
 - Retrying a `429` immediately. Honor `Retry-After`.
 
 ### SDK shape

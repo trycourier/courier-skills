@@ -22,7 +22,7 @@ For every other case, including new inboxes, new features on existing inboxes, o
 ### Common Mistakes
 
 - **v7 reads auth once, on mount.** A token that arrives later is ignored, so the provider must be gated on having it. Mount unconditionally with an async token and you get a permanently empty inbox and no error.
-- **A freshly sent message takes about a minute to appear.** v7's `client-graphql` hardcodes `pinned: false` into the feed query, and immediately after a send that filter returns `totalCount: 0` while an unfiltered query returns the message. It is backend-side, not your code. A new integration therefore looks broken for its first minute, and auth is the natural but wrong suspect.
+- **A freshly sent message can take about a minute to appear** in v7's default feed, while the message is already retrievable. Not your code. A new integration therefore looks broken for its first minute, and auth is the natural but wrong suspect.
 - **Action clicks need `onRouteChange`.** The built-in handler awaits `markMessageRead` and `trackClick` before calling `window.open`, by which point it has lost user activation and popup blockers drop the navigation silently.
 - **A single action renders no button.** The whole row becomes the click target. That is intended in v7, but v8 draws a visible button for the identical payload, so migrating changes the look of every single-action message with no content change.
 - **A client key is base64 of `<tenant>/<env>`, and that env must match the API key's env.** An `env_01k...` segment is rejected with `403`; a `test` segment against an env-scoped API key returns `200` with an empty node list and no error. See [auth.md](./auth.md#v7-client-keys).

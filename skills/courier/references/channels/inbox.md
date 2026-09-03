@@ -41,10 +41,10 @@ curl -X POST https://api.courier.com/providers \
 
 | Setting | Why |
 |---|---|
-| `jwt_enabled` | Lets clients authenticate with a short-lived JWT, which is what v8 requires. See [inbox/auth.md](../inbox/auth.md) |
+| `jwt_enabled` | Lets browser and mobile clients authenticate with a short-lived JWT, which the v8 inbox SDKs require. See [inbox/auth.md](../inbox/auth.md) |
 | `simple_profile_req` | Without it, the provider expects a `courier.channel` value inside each user's profile and sends fail with "Information required by the provider was not included." |
 
-The two fail differently: without `simple_profile_req` the **send** fails `UNROUTABLE`; without `jwt_enabled` the send is fine and the **client** cannot sign in. Not installing the provider at all is a third case. All three in [Troubleshooting](#troubleshooting). Provider API in general: [providers.md](../guides/providers.md).
+`simple_profile_req` is the one that affects sending: without it, sends fail `UNROUTABLE`. `jwt_enabled` affects client authentication, not delivery. See [Troubleshooting](#troubleshooting), and [providers.md](../guides/providers.md) for the provider API in general.
 
 ## Sending to Inbox
 
@@ -200,7 +200,6 @@ The `channel` wrapper selects which content renders on the inbox. It does not se
 |---|---|
 | `UNROUTABLE`, no `reason` and no `error` field | No `courier` provider on the workspace. See [Setup](#setup) |
 | `UNROUTABLE`, "Information required by the provider was not included." | `courier` provider is missing `simple_profile_req` |
-| Sends succeed, but the client can't sign in | `courier` provider is missing `jwt_enabled`. See [inbox/auth.md](../inbox/auth.md) |
 | `UNROUTABLE` / `PROVIDER_ERROR`, "No provider(s) courier in the list of message channel provider(s): undefined." | The template has no routing strategy attached. See below |
 | Template send fails but the same content sent inline succeeds | Same cause. Inline content never consults the template's routing, so this comparison misleads rather than isolating the bug |
 | Message sent, never visible in the app | Client-side. See [inbox/rendering.md](../inbox/rendering.md) |
