@@ -56,7 +56,7 @@ Field notes:
 - **`wait_period`** is a *quiet* window. It resets on each new event. `max_wait_period` is the hard ceiling and must be greater than `wait_period`, so a continuously-active user still gets their batch.
 - **`category_key`** partitions the batch (≤256 chars). Keying on `target_id` gives one batch per post rather than one batch per user. This is how you get "3 people liked *this* post" instead of lumping unrelated activity together.
 - **`retain`** controls which items survive into the payload: `{ type: "first" | "last" | "highest" | "lowest", count: 0–25 }`. `highest`/`lowest` also require `sort_key`.
-- **Do not include node `id` fields.** They're server-generated; `POST /journeys` rejects client-supplied ids with a `400`. Send nodes are also not allowed on create. Add them via `PUT` once the journey-scoped templates exist. See [Journeys](./journeys.md#standard-workflow).
+- **Do not include node `id` fields.** They're server-generated; `POST /journeys` rejects client-supplied ids with `400 client-supplied node ids are not allowed`. Send nodes are rejected too, with a `422` that spells out the sequence: create the journey, create its scoped templates, then `PUT` to wire the send nodes. Add them via `PUT` once the journey-scoped templates exist. See [Journeys](./journeys.md#standard-workflow).
 
 Invoke once per event; Courier handles the accumulation:
 

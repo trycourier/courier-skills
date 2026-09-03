@@ -68,7 +68,7 @@ Brand resolution follows the send type, giving you precise control over branding
 | Send type | Brand applied |
 |---|---|
 | Inline content (`message.content`) | `message.brand_id`, else the workspace default |
-| Stored template (`message.template`) | The template's own `brand` field — on `POST /send`, a `message.brand_id` does not override it. (Bulk API jobs document their own job-level `brand` — see [bulk.md](./bulk.md)) |
+| Stored template (`message.template`) | `message.brand_id` when the send carries one, otherwise the template's own `brand` field. (Bulk API jobs document their own job-level `brand` — see [bulk.md](./bulk.md)) |
 | Any send carrying `tenant_id` | The tenant's `brand_id` is applied to the rendered template — the B2B pattern |
 
 1. **Inline sends** always arrive branded:

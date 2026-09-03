@@ -477,13 +477,12 @@ Hi {{1}}, {{2}} {{3}} {{4}} {{5}} {{6}}...
 
 WhatsApp charges per conversation (24-hour window from first message).
 
-> **Last verified: 2026-04.** Meta updates WhatsApp Business pricing and free-tier rules frequently. If this file is older than **3 months**, re-verify against https://developers.facebook.com/docs/whatsapp/pricing before quoting these numbers to a user. Do **not** reason from memory, fetch the live page.
+Rates are set by Meta, vary by country and conversation category (utility, authentication,
+marketing), and change often.
 
-| Category | Cost Range (varies by country, as of 2026-04) |
-|----------|-----------------------------------------------|
-| Utility | $0.005 - $0.015 |
-| Authentication | $0.005 - $0.015 |
-| Marketing | $0.01 - $0.05 |
+> **Never quote a price from memory or from this file.** Fetch
+> https://developers.facebook.com/docs/whatsapp/pricing and read the current rates for the
+> countries the customer sends to.
 | Service (user-initiated) | Free (first 1,000/month) |
 
 **Tip:** Use UTILITY for order updates to minimize costs.

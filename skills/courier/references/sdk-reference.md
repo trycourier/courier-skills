@@ -3,7 +3,7 @@
 Method-name lookup for the Node (`@trycourier/courier`) and Python (`trycourier`) SDKs.
 Both follow the same structure, Node is camelCase, Python is snake_case.
 
-**This is a snapshot of Node v7.25.2 / Python v7.26.2.** The authoritative source is the installed package's
+**This lists method names, not signatures.** The authoritative source is the installed package's
 own type definitions, `node_modules/@trycourier/courier/resources/*.d.ts` or the Python
 package stubs. When they disagree with this file, they win. See
 [Verifying Against Live Sources](../SKILL.md#verifying-against-live-sources).
@@ -11,13 +11,12 @@ package stubs. When they disagree with this file, they win. See
 **Staying current.** The installed version is the ground truth. Check it
 (`npm ls @trycourier/courier`, `pip show trycourier`) and verify shapes against its types.
 If it trails the latest release, recommend upgrading (`npm install @trycourier/courier@latest`);
-a major-version jump (6 → 7) is a breaking migration that reshaped `send`, `messages`,
-`journeys`, and `digests`, so flag it as one rather than assuming a silent bump.
+a major-version jump is a breaking migration rather than a silent bump, so flag it as one and
+check the SDK changelog.
 
-Minor versions have also moved whole namespaces. `client.bulk` was absent from Node 7.21.0–7.25.0
-and Python ≤7.26.0, and returned in Node **7.25.1** / Python **7.26.1**. If a namespace in this
-table is `undefined` on the installed client, check the version before concluding the method
-doesn't exist.
+Minor versions have moved whole namespaces before now. If a namespace in this table is
+`undefined` on the installed client, check the installed version and upgrade before concluding
+the method doesn't exist.
 
 ## Method lookup
 
@@ -43,7 +42,6 @@ doesn't exist.
 | Resend a message | `client.messages.resend(messageId)` | `client.messages.resend(message_id)` |
 | Rendered content of a sent message | `client.messages.content(messageId)` | `client.messages.content(message_id)` |
 | Delivery event history | `client.messages.history(messageId)` | `client.messages.history(message_id)` |
-| Duplicate a template | `client.notifications.duplicate(templateId)` | `client.notifications.duplicate(template_id)` |
 | Release a digest early | `client.digests.schedules.release(scheduleId)` | `client.digests.schedules.release(schedule_id)` |
 | Inspect digest accumulation | `client.digests.schedules.listInstances(scheduleId)` | `client.digests.schedules.list_instances(schedule_id)` |
 | Create/update a profile (merge) | `client.profiles.create(userId, { profile })` | `client.profiles.create(user_id, profile=...)` |

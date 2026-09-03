@@ -94,7 +94,7 @@ requests   routingStrategies  send  tenants  translations
 users      workspacePreferences
 ```
 
-Sub-namespaces: `digests.schedules`, `journeys.templates`, `notifications.checks`, `providers.catalog`, `lists.subscriptions`, `profiles.lists`, `tenants.templates`, `tenants.preferences.items`, `users.preferences`, `users.tenants`, `users.tokens`, `automations.invoke`, `workspacePreferences.topics`.
+Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `journeys.runs`, `journeys.templates`, `lists.subscriptions`, `notifications.checks`, `profiles.lists`, `providers.catalog`, `tenants.preferences`, `tenants.preferences.items`, `tenants.templates`, `tenants.templates.versions`, `users.preferences`, `users.tenants`, `users.tokens`, `workspacePreferences.topics`.
 
 `auditEvents`, `digests`, `inbound`, and `requests` have no dedicated guide. Use MCP or the CLI for those.
 

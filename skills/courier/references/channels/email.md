@@ -296,20 +296,22 @@ await client.send.message({
 | Soft bounce | Mailbox full, server temporarily down | Retry: 1h → 4h → 24h |
 | Block | Spam filter rejection | Review content, check authentication |
 
+**Courier does not classify a bounce as hard or soft.** `data.providers[].error` is the provider's
+own message as a **string**, worded differently by each provider, so don't pattern-match it in
+delivery logic. Record the failure and let repetition drive suppression; if you need the hard/soft
+distinction itself, take it from your email provider's own webhooks.
+
 ```typescript
 // Handle delivery webhooks from Courier
-// Bounces surface as UNDELIVERABLE message:updated events with
-// provider-specific reason in data.providers[].error and data.reason.
+// Bounces surface as message:updated with status UNDELIVERABLE.
 app.post('/webhooks/courier', async (req, res) => {
   const { type, data } = req.body;
 
   if (type === 'message:updated' && data.status === 'UNDELIVERABLE') {
+    // e.g. "probe@example.com belongs to a reserved domain name." — a string, not a code
     const providerError = data.providers?.[0]?.error;
-    if (providerError?.type === 'hard_bounce') {
-      await markEmailInvalid(data.recipient);
-    } else {
-      await incrementSoftBounceCount(data.recipient);
-    }
+    await recordDeliveryFailure(data.recipient, data.reason, providerError);
+    if (await failureCount(data.recipient) >= 3) await markEmailInvalid(data.recipient);
   }
 
   res.sendStatus(200);
