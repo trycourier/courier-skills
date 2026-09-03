@@ -204,8 +204,6 @@ Four different fields can name a channel, and they are not alternatives to each 
 | `routing` / a routing strategy on the message | Which channels are **eligible**, and in what order | [routing-strategies.md](./routing-strategies.md) |
 
 They don't override one another because they answer different questions. Routing picks the delivery channel, then rendering picks the matching content branch. A `channel` element for a channel that routing never selects simply never renders, and a delivery channel with no matching `channel` element falls back to the template's unwrapped content.
-
-The send node's `channel` is the one that surprises people: the journey designer writes it, so designer-built journeys carry it, but it does not steer delivery. Don't reach for it to route a send. Use the template's `channel` or a routing strategy.
 | `raw` | `object` | No | Raw provider-specific payload (required if `elements` is omitted) |
 
 **Multi-channel example:**

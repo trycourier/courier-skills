@@ -21,8 +21,6 @@ For every other case, including new inboxes, new features on existing inboxes, o
 
 ### Common Mistakes
 
-The failure modes that actually cost time on a v7 integration. Someone reading this file is already blocked on v7, so these matter more than the migration advice above.
-
 - **v7 reads auth once, on mount.** A token that arrives later is ignored, so the provider must be gated on having it. Mount unconditionally with an async token and you get a permanently empty inbox and no error.
 - **A freshly sent message takes about a minute to appear.** v7's `client-graphql` hardcodes `pinned: false` into the feed query, and immediately after a send that filter returns `totalCount: 0` while an unfiltered query returns the message. It is backend-side, not your code. A new integration therefore looks broken for its first minute, and auth is the natural but wrong suspect.
 - **Action clicks need `onRouteChange`.** The built-in handler awaits `markMessageRead` and `trackClick` before calling `window.open`, by which point it has lost user activation and popup blockers drop the navigation silently.

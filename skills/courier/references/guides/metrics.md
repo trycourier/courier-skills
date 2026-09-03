@@ -79,7 +79,7 @@ Either one of `start`/`end` alone returns `400`, as does a `start` that is not e
 }
 ```
 
-Three buckets for a three-day window, including the quiet first one. `end` is exclusive, so the `08-20` bucket is not part of this series.
+`end` is exclusive: the `08-20` bucket is not in this series.
 
 `series` holds one entry per bucket between the snapped `start` and `end`, oldest first. Each entry has a `period` (the start of the bucket, UTC) and a `data` array with one row per provider and channel that handled a message in that bucket. Quiet buckets are still returned with `data: []`, so a series plots as-is with no gap filling on your side.
 
@@ -94,7 +94,7 @@ What each count means:
 | `errors` | Messages the provider rejected or failed on, **including ones a later provider then delivered** |
 | `undeliverable` | Messages Courier could not deliver on any provider for the channel |
 
-Because `errors` counts a provider-level failure even when a fallback succeeded, `errors > 0` with `undeliverable: 0` is a healthy multi-provider setup doing its job, not an outage.
+`errors > 0` with `undeliverable: 0` means a fallback provider covered the failure. Not an outage.
 
 ## Fetch and roll up
 
@@ -104,30 +104,16 @@ const metrics = await client.notifications.getMetrics(templateId, {
   granularity: "DAY",
 });
 
-type Bucket = (typeof metrics)["series"][number];
-
-function totals(bucket: Bucket) {
-  return bucket.data.reduce(
-    (acc, row) => ({
-      sent: acc.sent + row.sent,
-      delivered: acc.delivered + row.delivered,
-      opened: acc.opened + row.opened,
-    }),
-    { sent: 0, delivered: 0, opened: 0 }
-  );
-}
-
 for (const bucket of metrics.series) {
-  const { sent, delivered, opened } = totals(bucket);
-  console.log(bucket.period, {
-    sent,
-    deliveryRate: sent ? delivered / sent : null,
-    openRate: delivered ? opened / delivered : null,
-  });
+  const sent = bucket.data.reduce((n, r) => n + r.sent, 0);
+  const delivered = bucket.data.reduce((n, r) => n + r.delivered, 0);
+
+  // Guard the division: a quiet bucket has sent === 0
+  console.log(bucket.period, sent ? delivered / sent : null);
 }
 ```
 
-Chart the range as `metrics.start` to `metrics.end`, which are the snapped values.
+Chart the range as `metrics.start` to `metrics.end`, the snapped values.
 
 ```python
 metrics = client.notifications.get_metrics(
@@ -144,25 +130,7 @@ for bucket in metrics.series:
 
 ## Break out by channel
 
-Each row already carries `provider` and `channel`, so comparing channel performance for one template needs no extra calls. Roll the whole series up by channel:
-
-```typescript
-type ChannelTotals = { sent: number; delivered: number; opened: number; clicked: number };
-
-const byChannel: Record<string, ChannelTotals> = {};
-
-for (const bucket of metrics.series) {
-  for (const row of bucket.data) {
-    const c = (byChannel[row.channel] ??= { sent: 0, delivered: 0, opened: 0, clicked: 0 });
-    c.sent += row.sent;
-    c.delivered += row.delivered;
-    c.opened += row.opened;
-    c.clicked += row.clicked;
-  }
-}
-```
-
-Use that to decide which channel deserves to be primary in a [routing strategy](./routing-strategies.md), and remember `opened` is structurally `0` on channels without open tracking, so compare those on `clicked`.
+Every row carries `provider` and `channel`, so comparing channels for one template needs no extra calls. Sum rows by `row.channel` across the series, and compare channels without open tracking on `clicked`, not `opened`. Worked example in [multi-channel.md](./multi-channel.md#track-routing-effectiveness).
 
 ## Plan limits and rate limits
 

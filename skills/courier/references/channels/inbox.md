@@ -44,12 +44,7 @@ curl -X POST https://api.courier.com/providers \
 | `jwt_enabled` | Lets clients authenticate with a short-lived JWT, which is what v8 requires. See [inbox/auth.md](../inbox/auth.md) |
 | `simple_profile_req` | Without it, the provider expects a `courier.channel` value inside each user's profile and sends fail with "Information required by the provider was not included." |
 
-Two failure modes come from skipping this, and both are hard to search for:
-
-- **No `courier` provider at all:** the send fails `UNROUTABLE` with **no `reason` and no `error` field**, which reads like a routing bug rather than missing configuration.
-- **Provider installed without `simple_profile_req`:** `UNROUTABLE` with "Information required by the provider was not included."
-
-See [providers.md](../guides/providers.md) for the provider API in general.
+Skipping either setting fails as `UNROUTABLE`, with nothing obvious to search for. See [Troubleshooting](#troubleshooting). Provider API in general: [providers.md](../guides/providers.md).
 
 ## Sending to Inbox
 

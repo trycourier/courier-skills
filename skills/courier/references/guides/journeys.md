@@ -136,9 +136,7 @@ Journey-scoped templates are published **automatically** when you publish the jo
 }
 ```
 
-Note the envelope: the array is under `versions`, alongside `paging`, not returned bare. `has_changes` appears only on the draft entry.
-
-`versions` is ordered by `created` (epoch milliseconds), not by version number, so a `v002` can appear after a `published:v003`. Sort on `created` rather than trusting list position.
+`has_changes` appears only on the draft entry. `versions` is ordered by `created` (epoch ms), not by version number, so a `v002` can follow a `published:v003`. Sort on `created`.
 
 If you need a template reusable across journeys or callable from the Send API, use a workspace template. If the template is specific to one journey, keep it scoped.
 

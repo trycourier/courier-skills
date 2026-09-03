@@ -565,7 +565,7 @@ await client.send.message({
 
 ### Track Routing Effectiveness
 
-Don't hand-roll these numbers. `GET /notifications/{id}/metrics` already returns them per provider and channel, per bucket. Roll the series up by channel to see which channel earns its priority:
+Don't hand-roll these numbers. `GET /notifications/{id}/metrics` returns them per provider and channel, per bucket:
 
 ```typescript
 const metrics = await client.notifications.getMetrics(templateId, {
@@ -573,26 +573,16 @@ const metrics = await client.notifications.getMetrics(templateId, {
   granularity: "DAY",
 });
 
-type ChannelTotals = { sent: number; delivered: number; opened: number; clicked: number };
-
-const byChannel: Record<string, ChannelTotals> = {};
-
+const byChannel: Record<string, number> = {};
 for (const bucket of metrics.series) {
   for (const row of bucket.data) {
-    const c = (byChannel[row.channel] ??= { sent: 0, delivered: 0, opened: 0, clicked: 0 });
-    c.sent += row.sent;
-    c.delivered += row.delivered;
-    c.opened += row.opened;
-    c.clicked += row.clicked;
+    byChannel[row.channel] = (byChannel[row.channel] ?? 0) + row.clicked;
   }
 }
-
-// e.g. { email: { sent: 10000, opened: 4500, clicked: 2000 },
-//        push:  { sent: 8000,  opened: 6000, clicked: 3500 } }
-// If push out-engages email for this template, consider making push primary.
+// e.g. { email: 2000, push: 3500 } -> push out-engages email here, consider making it primary
 ```
 
-Compare channels without open tracking on `clicked`, not `opened`. Full parameter and response detail in [metrics.md](./metrics.md).
+Compare on `clicked`, not `opened`: `opened` is structurally `0` on channels with no open tracking. Full parameters and response shape in [metrics.md](./metrics.md).
 
 ## Related
 
