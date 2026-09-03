@@ -175,43 +175,6 @@ const response = await client.notifications.create({
 const templateId = response.id; // "nt_..." (response fields are at the top level)
 ```
 
-**Python:**
-```python
-from courier import Courier
-
-client = Courier()
-
-response = client.notifications.create(
-    notification={
-        "name": "Shipping Update",
-        "tags": ["transactional", "orders"],
-        "brand": None,
-        "subscription": None,
-        "routing": {"strategy_id": "rs_..."},
-        "content": {
-            "version": "2022-01-01",
-            "elements": [
-                {
-                    "type": "channel",
-                    "channel": "email",
-                    "elements": [
-                        {"type": "meta", "title": "Your order {{order_id}} has shipped"},
-                        {
-                            "type": "text",
-                            "content": "Hi {{name}}, your package is on the way. Tracking: {{tracking_url}}.",
-                        },
-                        {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
-                    ],
-                },
-            ],
-        },
-    },
-    state="DRAFT",
-)
-
-template_id = response.id  # "nt_..." (response fields are at the top level)
-```
-
 **curl:**
 ```bash
 curl -X POST "https://api.courier.com/notifications" \
@@ -259,20 +222,6 @@ await client.notifications.create({
 });
 ```
 
-**Python:**
-```python
-client.notifications.create(
-    notification={
-        "name": "Placeholder",
-        "tags": [],
-        "brand": None,
-        "subscription": None,
-        "routing": None,
-        "content": {"version": "2022-01-01", "elements": []},
-    },
-)
-```
-
 ### Replace a Template
 
 `PUT` replaces the entire template. You must send **all fields**, any field you omit resets to its default. This is not a partial update.
@@ -305,66 +254,6 @@ await client.notifications.replace("nt_01abc123", {
 });
 ```
 
-**Python:**
-```python
-client.notifications.replace(
-    "nt_01abc123",
-    notification={
-        "name": "Shipping Update v2",
-        "tags": ["transactional", "orders"],
-        "brand": None,
-        "subscription": {"topic_id": "order-updates"},
-        "routing": {"strategy_id": "rs_..."},
-        "content": {
-            "version": "2022-01-01",
-            "elements": [
-                {
-                    "type": "channel",
-                    "channel": "email",
-                    "elements": [
-                        {"type": "meta", "title": "Order {{order_id}} shipped — arriving {{eta}}"},
-                        {"type": "text", "content": "Hi {{name}}, your package shipped via {{carrier}}."},
-                        {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
-                    ],
-                },
-            ],
-        },
-    },
-    state="DRAFT",
-)
-```
-
-**curl:**
-```bash
-curl -X PUT "https://api.courier.com/notifications/nt_01abc123" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "notification": {
-      "name": "Shipping Update v2",
-      "tags": ["transactional", "orders"],
-      "brand": null,
-      "subscription": { "topic_id": "order-updates" },
-      "routing": { "strategy_id": "rs_..." },
-      "content": {
-        "version": "2022-01-01",
-        "elements": [
-          {
-            "type": "channel",
-            "channel": "email",
-            "elements": [
-              { "type": "meta", "title": "Order {{order_id}} shipped — arriving {{eta}}" },
-              { "type": "text", "content": "Hi {{name}}, your package shipped via {{carrier}}." },
-              { "type": "action", "content": "Track Shipment", "href": "{{tracking_url}}" }
-            ]
-          }
-        ]
-      }
-    },
-    "state": "DRAFT"
-  }'
-```
-
 ### Upload Content to an Existing Template
 
 `putContent` replaces just the **content** of a template, its Elemental `elements`, without touching name, tags, brand, subscription, or routing. Reach for it when you're syncing template bodies from code (a CMS export, a generated layout) and don't want to resend the whole `notification` object as `replace` requires. It writes to the **draft** by default (`state` defaults to `"DRAFT"`), so publish afterward to go live.
@@ -390,28 +279,6 @@ await client.notifications.putContent("nt_01abc123", {
 await client.notifications.publish("nt_01abc123");
 ```
 
-**Python:**
-```python
-client.notifications.put_content(
-    "nt_01abc123",
-    content={
-        "version": "2022-01-01",
-        "elements": [
-            {
-                "type": "channel",
-                "channel": "email",
-                "elements": [
-                    {"type": "meta", "title": "Your order {{order_id}} has shipped"},
-                    {"type": "text", "content": "Hi {{name}}, your package is on the way."},
-                    {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
-                ],
-            },
-        ],
-    },
-)
-client.notifications.publish("nt_01abc123")
-```
-
 To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). Element `id`s and checksums make templates safe to share between agents and Design Studio users: `putElement` targets exactly one element by `id`, and a changed checksum tells you a teammate edited it since you last read — so you can detect their edits before overwriting them. For per-locale content, `client.notifications.putLocale(...)`. See [Localization](./elemental.md#localization).
 
 ### Publish
@@ -421,11 +288,6 @@ Publishing moves the current draft to live. After publishing, sends that referen
 **TypeScript:**
 ```typescript
 await client.notifications.publish("nt_01abc123");
-```
-
-**Python:**
-```python
-client.notifications.publish("nt_01abc123")
 ```
 
 **curl:**
@@ -483,12 +345,6 @@ courier notifications list --format json --transform "results.#.id"
 courier notifications list --format json --transform "results.#.{id:id,name:name,title:title}"
 ```
 
-**curl:**
-```bash
-curl -s "https://api.courier.com/notifications" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
-```
-
 Paginated. Use `paging.cursor` for the next page.
 
 ### Get a Template
@@ -496,17 +352,6 @@ Paginated. Use `paging.cursor` for the next page.
 **TypeScript:**
 ```typescript
 const template = await client.notifications.retrieve("nt_01abc123");
-```
-
-**Python:**
-```python
-template = client.notifications.retrieve("nt_01abc123")
-```
-
-**curl:**
-```bash
-curl -s "https://api.courier.com/notifications/nt_01abc123" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
 ### Get Content (published, draft, or any version)
@@ -518,11 +363,6 @@ One endpoint serves every version of a template's content — `version` accepts 
 const live = await client.notifications.retrieveContent("nt_01abc123");
 const draft = await client.notifications.retrieveContent("nt_01abc123", { version: "draft" });
 const v1 = await client.notifications.retrieveContent("nt_01abc123", { version: "v001" });
-```
-
-```bash
-curl -s "https://api.courier.com/notifications/nt_01abc123/content?version=draft" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
 The response is the content document (`version` + `elements`, with per-element checksums).
@@ -546,13 +386,6 @@ Returns `draft`, the current `published:vNNN`, and every historical `vNNN` (pagi
 await client.notifications.publish("nt_01abc123", { version: "v001" });
 ```
 
-```bash
-curl -X POST "https://api.courier.com/notifications/nt_01abc123/publish" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"version": "v001"}'
-```
-
 History is append-only: republishing v001 mints a fresh version (a copy of v001) rather than moving a pointer, so the audit trail always tells the complete story — rollbacks included.
 
 ### Archive a Template
@@ -561,11 +394,6 @@ Archiving removes the template from normal catalog flows. Returns `204 No Conten
 
 ```typescript
 await client.notifications.archive("nt_01abc123");
-```
-
-```bash
-curl -X DELETE "https://api.courier.com/notifications/nt_01abc123" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
 ### Draft/Publish Workflow
