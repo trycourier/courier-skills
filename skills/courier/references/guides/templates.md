@@ -12,6 +12,7 @@
 - Elemental version string is always `"2022-01-01"`
 - ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
+- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements send, but the template does not display or edit properly in Design Studio. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type is missing `elements` on the channel node; suppress with `// @ts-expect-error` rather than unwrapping, see [elemental.md](./elemental.md#channel).
 - A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
   1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
   2. **Reuse an existing strategy:** copy its ID from an existing template via `GET /notifications/{id}` or list them with `client.routingStrategies.list()`.
@@ -153,12 +154,18 @@ const response = await client.notifications.create({
     content: {
       version: "2022-01-01",
       elements: [
-        { type: "meta", title: "Your order {{order_id}} has shipped" },
         {
-          type: "text",
-          content: "Hi {{name}}, your package is on the way. Tracking: {{tracking_url}}."
-        },
-        { type: "action", content: "Track Shipment", href: "{{tracking_url}}" }
+          type: "channel",
+          channel: "email",
+          elements: [
+            { type: "meta", title: "Your order {{order_id}} has shipped" },
+            {
+              type: "text",
+              content: "Hi {{name}}, your package is on the way. Tracking: {{tracking_url}}."
+            },
+            { type: "action", content: "Track Shipment", href: "{{tracking_url}}" }
+          ]
+        }
       ]
     }
   },
@@ -184,12 +191,18 @@ response = client.notifications.create(
         "content": {
             "version": "2022-01-01",
             "elements": [
-                {"type": "meta", "title": "Your order {{order_id}} has shipped"},
                 {
-                    "type": "text",
-                    "content": "Hi {{name}}, your package is on the way. Tracking: {{tracking_url}}.",
+                    "type": "channel",
+                    "channel": "email",
+                    "elements": [
+                        {"type": "meta", "title": "Your order {{order_id}} has shipped"},
+                        {
+                            "type": "text",
+                            "content": "Hi {{name}}, your package is on the way. Tracking: {{tracking_url}}.",
+                        },
+                        {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
+                    ],
                 },
-                {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
             ],
         },
     },
@@ -214,9 +227,15 @@ curl -X POST "https://api.courier.com/notifications" \
       "content": {
         "version": "2022-01-01",
         "elements": [
-          { "type": "meta", "title": "Your order {{order_id}} has shipped" },
-          { "type": "text", "content": "Hi {{name}}, your package is on the way. Tracking: {{tracking_url}}." },
-          { "type": "action", "content": "Track Shipment", "href": "{{tracking_url}}" }
+          {
+            "type": "channel",
+            "channel": "email",
+            "elements": [
+              { "type": "meta", "title": "Your order {{order_id}} has shipped" },
+              { "type": "text", "content": "Hi {{name}}, your package is on the way. Tracking: {{tracking_url}}." },
+              { "type": "action", "content": "Track Shipment", "href": "{{tracking_url}}" }
+            ]
+          }
         ]
       }
     },
@@ -270,9 +289,15 @@ await client.notifications.replace("nt_01abc123", {
     content: {
       version: "2022-01-01",
       elements: [
-        { type: "meta", title: "Order {{order_id}} shipped — arriving {{eta}}" },
-        { type: "text", content: "Hi {{name}}, your package shipped via {{carrier}}." },
-        { type: "action", content: "Track Shipment", href: "{{tracking_url}}" }
+        {
+          type: "channel",
+          channel: "email",
+          elements: [
+            { type: "meta", title: "Order {{order_id}} shipped — arriving {{eta}}" },
+            { type: "text", content: "Hi {{name}}, your package shipped via {{carrier}}." },
+            { type: "action", content: "Track Shipment", href: "{{tracking_url}}" }
+          ]
+        }
       ]
     }
   },
@@ -293,9 +318,15 @@ client.notifications.replace(
         "content": {
             "version": "2022-01-01",
             "elements": [
-                {"type": "meta", "title": "Order {{order_id}} shipped — arriving {{eta}}"},
-                {"type": "text", "content": "Hi {{name}}, your package shipped via {{carrier}}."},
-                {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
+                {
+                    "type": "channel",
+                    "channel": "email",
+                    "elements": [
+                        {"type": "meta", "title": "Order {{order_id}} shipped — arriving {{eta}}"},
+                        {"type": "text", "content": "Hi {{name}}, your package shipped via {{carrier}}."},
+                        {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
+                    ],
+                },
             ],
         },
     },
@@ -318,9 +349,15 @@ curl -X PUT "https://api.courier.com/notifications/nt_01abc123" \
       "content": {
         "version": "2022-01-01",
         "elements": [
-          { "type": "meta", "title": "Order {{order_id}} shipped — arriving {{eta}}" },
-          { "type": "text", "content": "Hi {{name}}, your package shipped via {{carrier}}." },
-          { "type": "action", "content": "Track Shipment", "href": "{{tracking_url}}" }
+          {
+            "type": "channel",
+            "channel": "email",
+            "elements": [
+              { "type": "meta", "title": "Order {{order_id}} shipped — arriving {{eta}}" },
+              { "type": "text", "content": "Hi {{name}}, your package shipped via {{carrier}}." },
+              { "type": "action", "content": "Track Shipment", "href": "{{tracking_url}}" }
+            ]
+          }
         ]
       }
     },
@@ -338,9 +375,15 @@ await client.notifications.putContent("nt_01abc123", {
   content: {
     version: "2022-01-01",
     elements: [
-      { type: "meta", title: "Your order {{order_id}} has shipped" },
-      { type: "text", content: "Hi {{name}}, your package is on the way." },
-      { type: "action", content: "Track Shipment", href: "{{tracking_url}}" }
+      {
+        type: "channel",
+        channel: "email",
+        elements: [
+          { type: "meta", title: "Your order {{order_id}} has shipped" },
+          { type: "text", content: "Hi {{name}}, your package is on the way." },
+          { type: "action", content: "Track Shipment", href: "{{tracking_url}}" }
+        ]
+      }
     ]
   }
 });
@@ -354,9 +397,15 @@ client.notifications.put_content(
     content={
         "version": "2022-01-01",
         "elements": [
-            {"type": "meta", "title": "Your order {{order_id}} has shipped"},
-            {"type": "text", "content": "Hi {{name}}, your package is on the way."},
-            {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
+            {
+                "type": "channel",
+                "channel": "email",
+                "elements": [
+                    {"type": "meta", "title": "Your order {{order_id}} has shipped"},
+                    {"type": "text", "content": "Hi {{name}}, your package is on the way."},
+                    {"type": "action", "content": "Track Shipment", "href": "{{tracking_url}}"},
+                ],
+            },
         ],
     },
 )

@@ -10,6 +10,7 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 - Every Elemental payload has exactly two required top-level fields: `version` and `elements`.
 - `version` is always `"2022-01-01"` (the only supported version).
 - The shorthand `{ title, body }` (ElementalContentSugar) only works for **inline sends**. Never for template creation via the API.
+- **Wrap stored template content in `channel` elements**, one per channel. Flat top-level elements send, but the template does not display or edit properly in Design Studio.
 - When `channel` elements appear at the top level, **every** top-level sibling must also be a `channel` element.
 - Control flow (`if`, `loop`, `ref`, `channels`) works on any element type.
 
@@ -190,7 +191,9 @@ Channel-specific content branches. When present at the top level, **all** siblin
 | `channel` | `string` | Yes | Channel name: `"email"`, `"push"`, `"sms"`, `"inbox"`, `"direct_message"`, or a provider like `"slack"` |
 | `elements` | `array` | No | Nested elements for this channel |
 
-**`inbox` is a valid value and Design Studio writes it.** A template built in the designer for the in-app inbox stores `{ "type": "channel", "channel": "inbox", "elements": [...] }`, so a channel-wrapped inbox template is normal, not malformed. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
+**`inbox` is a valid value and Design Studio writes it.** A template built in the designer for the in-app inbox stores `{ "type": "channel", "channel": "inbox", "elements": [...] }`, so wrap inbox content the same way. Channel-wrapped is the expected shape, not malformed.
+
+**SDK typing gap.** The public OpenAPI spec omits `elements` on the channel node, so the generated SDK types don't declare it: in TypeScript, `elements` inside a `type: "channel"` object fails with TS2353 even though the API accepts it. Keep the wrapper and add `// @ts-expect-error elements is accepted by the API but missing from the SDK type` on that line, or cast the node. Python accepts it at runtime. Do not unwrap to satisfy the compiler. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
 
 #### The channel element vs the three other places a channel is named
 

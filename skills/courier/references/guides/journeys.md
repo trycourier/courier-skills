@@ -196,7 +196,7 @@ Create returns `201` with the journey. The response echoes back **server-generat
 
 ### Step 2: Create journey-scoped templates
 
-Create the notification templates your send nodes will reference. Content uses [Elemental](./elemental.md) format.
+Create the notification templates your send nodes will reference. Content uses [Elemental](./elemental.md) format, wrapped in a `channel` element that matches the template's `channel` so it displays and edits properly in Courier.
 
 ```bash
 JOURNEY_ID="<id from step 1>"
@@ -214,10 +214,16 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/templates" \
       "content": {
         "version": "2022-01-01",
         "elements": [
-          { "type": "meta", "title": "Welcome to {{company_name}}, {{first_name}}!" },
-          { "type": "text", "content": "Hi {{first_name}}, thanks for signing up. We are excited to have you on board." },
-          { "type": "text", "content": "Here are a few things to get you started:" },
-          { "type": "action", "content": "Go to your dashboard", "href": "{{dashboard_url}}" }
+          {
+            "type": "channel",
+            "channel": "email",
+            "elements": [
+              { "type": "meta", "title": "Welcome to {{company_name}}, {{first_name}}!" },
+              { "type": "text", "content": "Hi {{first_name}}, thanks for signing up. We are excited to have you on board." },
+              { "type": "text", "content": "Here are a few things to get you started:" },
+              { "type": "action", "content": "Go to your dashboard", "href": "{{dashboard_url}}" }
+            ]
+          }
         ]
       }
     }
@@ -520,9 +526,15 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/templates" \
       "content": {
         "version": "2022-01-01",
         "elements": [
-          { "type": "meta", "title": "Welcome, {{user_name}}!" },
-          { "type": "text", "content": "Thanks for signing up. Let us help you get started." },
-          { "type": "action", "content": "Complete setup", "href": "{{setup_url}}" }
+          {
+            "type": "channel",
+            "channel": "email",
+            "elements": [
+              { "type": "meta", "title": "Welcome, {{user_name}}!" },
+              { "type": "text", "content": "Thanks for signing up. Let us help you get started." },
+              { "type": "action", "content": "Complete setup", "href": "{{setup_url}}" }
+            ]
+          }
         ]
       }
     }
