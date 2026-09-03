@@ -28,6 +28,18 @@ To segment delivery data by customer afterwards, filter the message log by tenan
 `providers[].reference` for this — its contents are provider-specific, and the `tenantId` the MS Teams
 provider records there is the *Microsoft* tenant, not yours.
 
+## Quick Reference
+
+### Rules
+- `tenants.update` upserts by the id you choose; `name` is required.
+- Four layers load per send, as a sliding window; merging is parent first, child overwrites per key.
+- Tenant-scoped inbox messages are invisible outside their tenant: the client must sign in with the same `tenantId`.
+- Pass the tenant on the recipient (`to.tenant_id`) or in `message.context.tenant_id`, and use one form consistently.
+
+### Common Mistakes
+- Sending with `tenant_id` but signing the inbox client in without one. The message never shows and nothing fails.
+- Relying on auto-inferred tenant context for users who belong to more than one tenant.
+
 ## Create or update a tenant (upsert)
 
 `update` upserts by the id you choose; `name` is required.

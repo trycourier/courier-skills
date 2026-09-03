@@ -37,6 +37,7 @@
 | Invoke a journey (recommended for multi-step flows) | `courier journeys invoke --template-id "$JOURNEY_ID" --user-id "user-123" --data '{"plan":"pro"}'` |
 | Send to many recipients | `courier send message --message.to '{"list_id":"beta-testers"}' --message.template "nt_01kmrbq6ypf25tsge12qek41r0"` |
 | List templates | `courier notifications list` |
+| Template delivery metrics | `courier notifications get-metrics --id "nt_01kmrbq6ypf25tsge12qek41r0" --lookback P7D --granularity DAY` |
 
 ### Output Formats
 
@@ -294,6 +295,33 @@ courier messages content  --message-id "1-abc123" --format json
 
 In the SDKs the same distinction applies: `client.messages.list({ traceId: "<requestId>" })` (Node) / `client.messages.list(trace_id="<requestId>")` (Python) returns the per-recipient messages; each has an `id` you can pass to `client.messages.retrieve`.
 
+## Template Metrics
+
+`courier notifications get-metrics` returns one template's delivery funnel as a time series, the same data as the Analytics tab.
+
+```bash
+courier notifications get-metrics \
+  --id "$TEMPLATE_ID" \
+  --lookback P7D \
+  --granularity DAY
+```
+
+| Flag | Notes |
+|---|---|
+| `--id` | Required. Template ID or alias |
+| `--lookback` | ISO 8601 duration, default `P30D`. Ignored when `--start`/`--end` are given |
+| `--granularity` | `HOUR`, `DAY` (default), `WEEK`, `MONTH` |
+| `--start` / `--end` | ISO 8601 timestamps with an offset. Supply both or neither |
+
+Pipe it through `jq` for a quick delivery rate per bucket:
+
+```bash
+courier notifications get-metrics --id "$TEMPLATE_ID" --lookback P7D --format json \
+  | jq -r '.series[] | [.period, ([.data[].sent] | add // 0), ([.data[].delivered] | add // 0)] | @tsv'
+```
+
+There is no bucket-level total, so the sums above are on you. Full semantics, plan caps, and error cases in [metrics.md](./metrics.md).
+
 ## Machine-Readable Output
 
 Every command supports `--format json`. Combine with `--transform` (GJSON syntax) to extract specific fields:
@@ -367,6 +395,7 @@ Store API keys as secrets in your CI provider (GitHub Actions secrets, GitLab CI
 - [Patterns](./patterns.md) - Reusable code patterns (includes CLI examples)
 - [Reliability](./reliability.md) - Idempotency and retry logic
 - [Multi-Channel](./multi-channel.md) - Routing strategies
+- [Template Metrics](./metrics.md) - What `notifications get-metrics` returns, and its plan caps
 
 Source code: [trycourier/courier-cli](https://github.com/trycourier/courier-cli)
 Documentation: [courier.com/docs/tools/cli](https://www.courier.com/docs/tools/cli)

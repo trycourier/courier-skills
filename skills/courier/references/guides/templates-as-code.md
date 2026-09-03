@@ -9,6 +9,18 @@ page composes them into one repeatable workflow.
 local files → validate → diff → push → publish → verify → (rollback if needed)
 ```
 
+## Quick Reference
+
+### Rules
+- Local files are the source of truth; validate, diff against the draft, then push.
+- Sends always use the published version, so drafts are free to iterate. Publishing is the release.
+- Rollback is `publish { "version": "v001" }`. History is append-only, so the rollback itself lands as a new version.
+- Resolve aliases to `nt_...` before calling Courier.
+
+### Common Mistakes
+- Pushing without diffing and overwriting dashboard edits.
+- Treating a push as a release. Nothing changes for recipients until you publish.
+
 ## 1. Local files are the source of truth
 
 Keep one Elemental JSON file per template in your repo — the bare content document

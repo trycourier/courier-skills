@@ -1,5 +1,21 @@
 # Courier Inbox for React
 
+## Quick Reference
+
+### Rules
+- v8 is `useCourier()` plus `courier.shared.signIn()`. No provider wrapper.
+- Call `inbox.listenForUpdates()` after authentication or nothing updates in real time.
+- Components render client-side only. In Next.js 13+, add `'use client'`.
+
+### Common Mistakes
+
+- Skipping `listenForUpdates()` after `signIn()`. Messages arrive but the UI never changes until reload.
+- Mounting the provider before the JWT exists. Gate the mount on having a token.
+- Rendering the inbox without allowing the Courier hosts in the CSP, or without `style-src 'unsafe-inline'`. The failure looks like an auth problem, see [Content Security Policy](./rendering.md#content-security-policy).
+- Using the string HTML attributes for click handlers instead of props or the element methods. Those need `script-src 'unsafe-eval'` and fail silently, see [web-components.md](./web-components.md#event-handling).
+- Assuming a US workspace's hosts work for an EU workspace, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
+- Calling `signIn` on every render instead of once per user session.
+
 ### Installation
 
 ```bash
@@ -9,6 +25,10 @@ npm install @trycourier/courier-react
 # React 17
 npm install @trycourier/courier-react-17
 ```
+
+If the app sets a Content Security Policy, add the Courier hosts and `style-src 'unsafe-inline'` before
+you start debugging anything: see [Content Security Policy](./rendering.md#content-security-policy). EU
+workspaces also need different hosts, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
 
 ### Basic Setup (v8)
 

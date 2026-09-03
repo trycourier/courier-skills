@@ -127,7 +127,7 @@ courier-skills/
         └── guides/    (quickstart, journeys, templates, templates-as-code, elemental,
                         multi-channel, preferences, batching, throttling, brands,
                         audiences, tenants, patterns, routing-strategies, providers,
-                        reliability, webhooks, bulk, scheduling, cli, mcp)
+                        reliability, webhooks, bulk, scheduling, metrics, cli, mcp)
 ```
 
 Open `skills/courier/SKILL.md`. Its **Where to Look** table routes you to the one or two references that match your task.

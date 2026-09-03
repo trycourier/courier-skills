@@ -46,7 +46,7 @@ Journey management is supported by the Node and Python SDKs and the CLI. Use the
 | Retrieve | `client.journeys.retrieve(id)` | `client.journeys.retrieve(id)` | `courier journeys retrieve --template-id ID` |
 | Replace (draft) | `client.journeys.replace(id, { name, nodes, enabled })` | `client.journeys.replace(id, name=..., nodes=...)` | `courier journeys replace --template-id ID ...` |
 | Archive | `client.journeys.archive(id)` | `client.journeys.archive(id)` | `courier journeys archive --template-id ID` |
-| List versions | `client.journeys.listVersions(id)` | `client.journeys.list_versions(id)` | `courier journeys versions --template-id ID` |
+| List versions | `client.journeys.listVersions(id)` | `client.journeys.list_versions(id)` | `courier journeys list-versions --template-id ID` |
 | Publish | `client.journeys.publish(id)` | `client.journeys.publish(id)` | `courier journeys publish --template-id ID` |
 | Invoke | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` | `client.journeys.invoke(template_id=id, user_id=..., data=..., profile=...)` → `.run_id` | `courier journeys invoke --template-id ID --user-id user-123 --data '{...}'` |
 
@@ -68,6 +68,16 @@ Argument order differs by method: `create` and `list` take the **journey** id fi
 | Put content | `client.journeys.templates.putContent(templateId, { ... })` | `PUT /journeys/{id}/templates/{templateId}/content` | `put_journey_template_content` |
 | Put locale | `client.journeys.templates.putLocale(localeId, { ... })` | `PUT .../locales/{localeId}` | `put_journey_template_locale` |
 | List versions | `client.journeys.templates.listVersions(templateId, { ... })` | `GET /journeys/{id}/templates/{templateId}/versions` | `list_journey_template_versions` |
+
+**Reading a draft.** There is no `/draft/content` route on journey-scoped templates (it returns **404**). Use the `version` query parameter:
+
+| Want | Route |
+|---|---|
+| Published content | `GET /journeys/{jid}/templates/{tid}/content` |
+| Draft content | `GET /journeys/{jid}/templates/{tid}/content?version=draft` |
+| A specific version | `GET /journeys/{jid}/templates/{tid}/content?version=v001` |
+
+`?version=` works the same way on workspace templates (`GET /notifications/{id}/content?version=draft`) and reads any published version on either.
 
 Workspace templates under `/notifications` are a separate namespace with their own full SDK support. See [templates.md](./templates.md).
 
@@ -113,6 +123,20 @@ so journeys using them have to be built in the UI:
 | Publishable | Independently or with journey publish | Via `notifications.publish` |
 
 Journey-scoped templates are published **automatically** when you publish the journey itself. You can also publish them independently via `POST /journeys/{id}/templates/{templateId}/publish` if you need to update a template without republishing the entire journey.
+
+**Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the previously published version with nothing in the journey to indicate an edit is pending. Publish the template (or republish the journey) to make the edit live. `GET .../versions` shows the mismatch while it lasts:
+
+```json
+{
+  "paging": { "more": false },
+  "versions": [
+    { "version": "draft", "has_changes": true, "created": 1755561339147, "creator": "user-123" },
+    { "version": "published:v001", "created": 1755559277705, "creator": "user-123" }
+  ]
+}
+```
+
+`has_changes` appears only on the draft entry. `versions` is ordered by `created` (epoch ms), not by version number, so a `v002` can follow a `published:v003`. Sort on `created`.
 
 If you need a template reusable across journeys or callable from the Send API, use a workspace template. If the template is specific to one journey, keep it scoped.
 
@@ -172,7 +196,7 @@ Create returns `201` with the journey. The response echoes back **server-generat
 
 ### Step 2: Create journey-scoped templates
 
-Create the notification templates your send nodes will reference. Content uses [Elemental](./elemental.md) format.
+Create the notification templates your send nodes will reference. Content uses [Elemental](./elemental.md) format, wrapped in a `channel` element that matches the template's `channel` so it displays and edits properly in Courier.
 
 ```bash
 JOURNEY_ID="<id from step 1>"
@@ -190,10 +214,16 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/templates" \
       "content": {
         "version": "2022-01-01",
         "elements": [
-          { "type": "meta", "title": "Welcome to {{company_name}}, {{first_name}}!" },
-          { "type": "text", "content": "Hi {{first_name}}, thanks for signing up. We are excited to have you on board." },
-          { "type": "text", "content": "Here are a few things to get you started:" },
-          { "type": "action", "content": "Go to your dashboard", "href": "{{dashboard_url}}" }
+          {
+            "type": "channel",
+            "channel": "email",
+            "elements": [
+              { "type": "meta", "title": "Welcome to {{company_name}}, {{first_name}}!" },
+              { "type": "text", "content": "Hi {{first_name}}, thanks for signing up. We are excited to have you on board." },
+              { "type": "text", "content": "Here are a few things to get you started:" },
+              { "type": "action", "content": "Go to your dashboard", "href": "{{dashboard_url}}" }
+            ]
+          }
         ]
       }
     }
@@ -449,65 +479,9 @@ Fetch nodes require **HTTPS** URLs. If a fetch fails (network error or non-2xx),
 
 ## Examples
 
-### Onboarding Journey with Delays and Branching
+### Delay, Fetch, Branch, and Exit Nodes
 
-A multi-day onboarding sequence that checks whether the user completed setup and branches accordingly.
-
-**Step 1. Create the journey shell:**
-
-```bash
-curl -sS -X POST "https://api.courier.com/journeys" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Onboarding Sequence",
-    "nodes": [
-      {
-        "type": "trigger",
-        "trigger_type": "api-invoke",
-        "schema": {
-          "type": "object",
-          "properties": {
-            "user_name": { "type": "string" },
-            "signup_date": { "type": "string" }
-          },
-          "required": ["user_name"]
-        }
-      }
-    ],
-    "enabled": true
-  }'
-```
-
-**Step 2. Create journey-scoped templates** (one per send node, welcome, setup reminder, core nudge, success):
-
-```bash
-# Create welcome email template
-curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/templates" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "email",
-    "notification": {
-      "name": "Onboarding - Welcome",
-      "tags": [],
-      "brand": null,
-      "subscription": null,
-      "content": {
-        "version": "2022-01-01",
-        "elements": [
-          { "type": "meta", "title": "Welcome, {{user_name}}!" },
-          { "type": "text", "content": "Thanks for signing up. Let us help you get started." },
-          { "type": "action", "content": "Complete setup", "href": "{{setup_url}}" }
-        ]
-      }
-    }
-  }'
-
-# Repeat for: setup-reminder, core-nudge, success templates
-```
-
-**Step 3, Wire the full DAG:**
+The [Standard Workflow](#standard-workflow) covers the trigger, journey-scoped templates, and send nodes. This journey adds the rest: a `delay`, a `fetch` that merges an HTTP response into run state, a `branch` on that data, and `exit` nodes that end the run early.
 
 ```bash
 curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
@@ -593,103 +567,22 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
   }'
 ```
 
-**Steps 4 & 5, Publish and invoke** (same as the standard workflow above).
+Every field is in the [Node Types Reference](#node-types-reference).
 
-### Escalation Journey (Time-Based)
+### Throttle Node and Send Conditions
 
-Escalate from in-app to push to email if the user hasn't read the notification:
+Rate-limit re-engagement per user, and gate a send on run data:
 
 ```json
-{
-  "name": "Escalating Alert",
-  "nodes": [
-    {
-      "id": "trigger-1",
-      "type": "trigger",
-      "trigger_type": "api-invoke"
-    },
-    {
-      "id": "send-inbox",
-      "type": "send",
-      "message": { "template": "<inbox-template-id>" }
-    },
-    {
-      "id": "wait-15m",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "PT15M"
-    },
-    {
-      "id": "send-push",
-      "type": "send",
-      "message": { "template": "<push-template-id>" }
-    },
-    {
-      "id": "wait-1h",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "PT1H"
-    },
-    {
-      "id": "send-email",
-      "type": "send",
-      "message": { "template": "<email-template-id>" }
-    }
-  ],
-  "enabled": true
-}
+{ "id": "throttle-user", "type": "throttle", "scope": "user", "max_allowed": 1, "period": "P30D" }
 ```
 
-### Win-Back Journey with Throttle
-
-Rate-limit re-engagement attempts per user:
-
 ```json
 {
-  "name": "Win-Back Sequence",
-  "nodes": [
-    {
-      "id": "trigger-1",
-      "type": "trigger",
-      "trigger_type": "api-invoke"
-    },
-    {
-      "id": "throttle-user",
-      "type": "throttle",
-      "scope": "user",
-      "max_allowed": 1,
-      "period": "P30D"
-    },
-    {
-      "id": "send-miss-you",
-      "type": "send",
-      "message": { "template": "<miss-you-template-id>" }
-    },
-    {
-      "id": "wait-3-days",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "P3D"
-    },
-    {
-      "id": "send-whats-new",
-      "type": "send",
-      "message": { "template": "<whats-new-template-id>" }
-    },
-    {
-      "id": "wait-7-days",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "P7D"
-    },
-    {
-      "id": "send-last-chance",
-      "type": "send",
-      "message": { "template": "<last-chance-template-id>" },
-      "conditions": ["data.user_tier", "is equal", "high-value"]
-    }
-  ],
-  "enabled": true
+  "id": "send-last-chance",
+  "type": "send",
+  "message": { "template": "<last-chance-template-id>" },
+  "conditions": ["data.user_tier", "is equal", "high-value"]
 }
 ```
 
@@ -714,6 +607,14 @@ A send node's `message` can do more than reference a template:
 - `context.tenant_id`, deliver this send as one of your customers so the message uses that tenant's brand and settings. A literal id, or a whole-string mustache reference resolved per run (`{{data.tenant_id}}`, or `{{f1.body.tenant_id}}` from the fetch node with id `f1`), so one journey serves every tenant. Mid-string interpolation and `refs.`-prefixed values are `400`s; an unresolved reference sends **without** tenant context rather than failing the run. See [tenants.md](./tenants.md).
 - `delay`, schedule this individual send: `until` (required, ISO 8601 timestamp or context reference) plus optional `timezone`. (For pausing the whole run, use a `delay` node instead.)
 - `data`, extra merge data scoped to this send.
+
+A send node can also carry `channel` **outside** `message`:
+
+```json
+{ "id": "n1", "type": "send", "message": { "template": "<template-id>" }, "channel": "inbox" }
+```
+
+The journey designer writes this field, so designer-built journeys have it and hand-written ones usually don't. **It is a label for analytics and reporting, not routing.** Setting it does not make a send go to that channel, and omitting it does not stop delivery. To control the delivery channel, set `channel` on the journey-scoped template (`POST /journeys/{id}/templates`) or attach a routing strategy. See [the channel element vs the three other places a channel is named](./elemental.md#the-channel-element-vs-the-three-other-places-a-channel-is-named).
 
 ### Slack and Teams Sends
 

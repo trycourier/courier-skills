@@ -39,7 +39,7 @@ Cheaper still, when you already know the exact page: append `.md` to any docs UR
 ### Rules
 - MCP provides structured tool access; agents discover tools automatically and call them with typed parameters
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- Tools cover essentially the whole Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, inbound, audit. The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
+- Tools cover most of the Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, inbound, audit. Coverage is not complete: newly shipped endpoints can lag, and template metrics is a known gap (see [Known gaps](#known-gaps)). The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
 - Journey management and notification-template writes are both available via MCP
 - Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
@@ -203,7 +203,7 @@ const response = await client.beta.messages.create({
 
 ## Available Tools
 
-Tools cover essentially the whole Courier API, all backed by the official `@trycourier/courier` Node SDK with typed error handling, including notification template writes (create/replace/publish/archive/versions/checks) and the full journey lifecycle.
+Tools cover most of the Courier API, all backed by the official `@trycourier/courier` Node SDK with typed error handling, including notification template writes (create/replace/publish/archive/versions/checks) and the full journey lifecycle. Some endpoints have no tool, see [Known gaps](#known-gaps).
 
 > The inventory below is a **snapshot for orientation, not a contract.** Call the MCP server's tool-list endpoint for the authoritative names and coverage. Where this file and the live server disagree, the server is right.
 
@@ -380,6 +380,17 @@ All tools return structured error responses:
 | `401` | Invalid API key |
 | `404` | Resource not found |
 | `429` | Rate limited |
+
+
+## Known gaps
+
+Endpoints with no MCP tool. Use an SDK call or a plain HTTP request for these.
+
+| Missing | Use instead |
+|---|---|
+| `GET /notifications/{id}/metrics` (template delivery metrics) | `client.notifications.getMetrics(...)` or `courier notifications get-metrics`, see [metrics.md](./metrics.md) |
+
+Not exhaustive. An absent tool is a possible gap, not proof the endpoint doesn't exist. Check the [API reference](https://www.courier.com/docs/api-reference/).
 
 ## Related
 

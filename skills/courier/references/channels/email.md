@@ -24,6 +24,8 @@
 
 ### Templates
 
+Build email templates from Elemental blocks unless the design needs markup the blocks cannot express. Blocks stay editable in Design Studio's drag-and-drop editor; a `raw` HTML or MJML body renders and displays in Design Studio but has to be edited as HTML. See [elemental.md](../guides/elemental.md#channel).
+
 **Basic Email Send (TypeScript):**
 ```typescript
 await client.send.message({

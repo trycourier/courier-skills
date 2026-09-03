@@ -67,5 +67,6 @@ doesn't exist.
 | Replace a template (full PUT) | `client.notifications.replace(templateId, { notification, state })` | `client.notifications.replace(template_id, notification=..., state=...)` |
 | Archive a template | `client.notifications.archive(templateId)` | `client.notifications.archive(template_id)` |
 | Get template content (published, draft, or a version) | `client.notifications.retrieveContent(templateId, { version: "draft" \| "published" \| "v001" })` — omit for published | `client.notifications.retrieve_content(template_id, version="draft")` |
+| Template delivery metrics (time series) | `client.notifications.getMetrics(templateId, { lookback: "P7D", granularity: "DAY" })` | `client.notifications.get_metrics(template_id, lookback="P7D", granularity="DAY")` |
 
 > The table above covers the most common operations. [journeys.md](./guides/journeys.md), [templates.md](./guides/templates.md), [routing-strategies.md](./guides/routing-strategies.md), and [providers.md](./guides/providers.md) each contain their own complete SDK shape tables for CRUD on their respective resources (including `list`, `retrieve`, `replace`, `archive`). **Journeys are Courier's orchestration primitive. Use them for every multi-step flow** (delays, branches, batching, digests, throttling, A/B experiments). See [Journeys](./guides/journeys.md).
