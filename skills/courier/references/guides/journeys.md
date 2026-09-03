@@ -479,71 +479,9 @@ Fetch nodes require **HTTPS** URLs. If a fetch fails (network error or non-2xx),
 
 ## Examples
 
-### Onboarding Journey with Delays and Branching
+### Delay, Fetch, Branch, and Exit Nodes
 
-A multi-day onboarding sequence that checks whether the user completed setup and branches accordingly.
-
-**Step 1. Create the journey shell:**
-
-```bash
-curl -sS -X POST "https://api.courier.com/journeys" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Onboarding Sequence",
-    "nodes": [
-      {
-        "type": "trigger",
-        "trigger_type": "api-invoke",
-        "schema": {
-          "type": "object",
-          "properties": {
-            "user_name": { "type": "string" },
-            "signup_date": { "type": "string" }
-          },
-          "required": ["user_name"]
-        }
-      }
-    ],
-    "enabled": true
-  }'
-```
-
-**Step 2. Create journey-scoped templates** (one per send node, welcome, setup reminder, core nudge, success):
-
-```bash
-# Create welcome email template
-curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/templates" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "email",
-    "notification": {
-      "name": "Onboarding - Welcome",
-      "tags": [],
-      "brand": null,
-      "subscription": null,
-      "content": {
-        "version": "2022-01-01",
-        "elements": [
-          {
-            "type": "channel",
-            "channel": "email",
-            "elements": [
-              { "type": "meta", "title": "Welcome, {{user_name}}!" },
-              { "type": "text", "content": "Thanks for signing up. Let us help you get started." },
-              { "type": "action", "content": "Complete setup", "href": "{{setup_url}}" }
-            ]
-          }
-        ]
-      }
-    }
-  }'
-
-# Repeat for: setup-reminder, core-nudge, success templates
-```
-
-**Step 3, Wire the full DAG:**
+The [Standard Workflow](#standard-workflow) covers the trigger, journey-scoped templates, and send nodes. This journey adds the rest: a `delay`, a `fetch` that merges an HTTP response into run state, a `branch` on that data, and `exit` nodes that end the run early.
 
 ```bash
 curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
@@ -629,103 +567,22 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
   }'
 ```
 
-**Steps 4 & 5, Publish and invoke** (same as the standard workflow above).
+Every field is in the [Node Types Reference](#node-types-reference).
 
-### Escalation Journey (Time-Based)
+### Throttle Node and Send Conditions
 
-Escalate from in-app to push to email if the user hasn't read the notification:
+Rate-limit re-engagement per user, and gate a send on run data:
 
 ```json
-{
-  "name": "Escalating Alert",
-  "nodes": [
-    {
-      "id": "trigger-1",
-      "type": "trigger",
-      "trigger_type": "api-invoke"
-    },
-    {
-      "id": "send-inbox",
-      "type": "send",
-      "message": { "template": "<inbox-template-id>" }
-    },
-    {
-      "id": "wait-15m",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "PT15M"
-    },
-    {
-      "id": "send-push",
-      "type": "send",
-      "message": { "template": "<push-template-id>" }
-    },
-    {
-      "id": "wait-1h",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "PT1H"
-    },
-    {
-      "id": "send-email",
-      "type": "send",
-      "message": { "template": "<email-template-id>" }
-    }
-  ],
-  "enabled": true
-}
+{ "id": "throttle-user", "type": "throttle", "scope": "user", "max_allowed": 1, "period": "P30D" }
 ```
 
-### Win-Back Journey with Throttle
-
-Rate-limit re-engagement attempts per user:
-
 ```json
 {
-  "name": "Win-Back Sequence",
-  "nodes": [
-    {
-      "id": "trigger-1",
-      "type": "trigger",
-      "trigger_type": "api-invoke"
-    },
-    {
-      "id": "throttle-user",
-      "type": "throttle",
-      "scope": "user",
-      "max_allowed": 1,
-      "period": "P30D"
-    },
-    {
-      "id": "send-miss-you",
-      "type": "send",
-      "message": { "template": "<miss-you-template-id>" }
-    },
-    {
-      "id": "wait-3-days",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "P3D"
-    },
-    {
-      "id": "send-whats-new",
-      "type": "send",
-      "message": { "template": "<whats-new-template-id>" }
-    },
-    {
-      "id": "wait-7-days",
-      "type": "delay",
-      "mode": "duration",
-      "duration": "P7D"
-    },
-    {
-      "id": "send-last-chance",
-      "type": "send",
-      "message": { "template": "<last-chance-template-id>" },
-      "conditions": ["data.user_tier", "is equal", "high-value"]
-    }
-  ],
-  "enabled": true
+  "id": "send-last-chance",
+  "type": "send",
+  "message": { "template": "<last-chance-template-id>" },
+  "conditions": ["data.user_tier", "is equal", "high-value"]
 }
 ```
 
