@@ -14,6 +14,20 @@ Neither is a send path. To *send* a notification over an HTTP callback, that's t
 
 <a id="outbound-webhooks"></a>
 
+## Quick Reference
+
+### Rules
+- Webhooks are scoped to the environment they're created in. A test webhook never fires for production events.
+- Respond 2xx within 10 seconds and do the work async.
+- Events can arrive more than once. Deduplicate on `data.id` plus `data.status`, never on `data.id` alone.
+- Verify signatures against the raw request bytes, not a re-serialized object.
+- Inbound events need a `userId` that matches an existing Courier user, or nothing starts.
+
+### Common Mistakes
+- Creating one webhook and expecting it to fire in both environments.
+- Hashing `JSON.stringify(parsedBody)` and getting a signature that never matches.
+- Deduplicating on `data.id` alone and dropping later status events for the same message.
+
 ## Outbound Webhooks
 
 ### Setup

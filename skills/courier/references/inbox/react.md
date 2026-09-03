@@ -1,6 +1,13 @@
 # Courier Inbox for React
 
-## Common Mistakes
+## Quick Reference
+
+### Rules
+- v8 is `useCourier()` plus `courier.shared.signIn()`. No provider wrapper.
+- Call `inbox.listenForUpdates()` after authentication or nothing updates in real time.
+- Components render client-side only. In Next.js 13+, add `'use client'`.
+
+### Common Mistakes
 
 - Skipping `listenForUpdates()` after `signIn()`. Messages arrive but the UI never changes until reload.
 - Mounting the provider before the JWT exists. Gate the mount on having a token.

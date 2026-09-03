@@ -19,7 +19,7 @@ Multi-step flows (anything with a delay, a branch, or aggregation) are **journey
 1. **Route first.** [Where to Look](#where-to-look) picks the 1–2 files for the task. Don't read the tree.
 2. **Ask when the request is ambiguous.** Channel? Transactional or lifecycle? New code or existing? Which language? Skip the questions when the request is already specific.
 3. **Verify shapes against a [live source](#verifying-against-live-sources)** rather than memory. The installed SDK's own types are ground truth.
-4. **Apply the rules.** [Universal Rules](#universal-rules) and each file's Quick Reference are constraints, not suggestions.
+4. **Apply the rules.** [Universal Rules](#universal-rules) and each file's Quick Reference are constraints, not suggestions. (`sdk-reference.md` is a lookup table and has none.)
 
 If the project already has `@trycourier/courier` or `trycourier` installed, skip quickstart's install steps and assume `client` exists.
 

@@ -4,7 +4,9 @@ The in-app notification center. Unlike every other Courier channel, the inbox re
 
 Sending a message *to* the inbox is server-side. See [inbox.md](../channels/inbox.md).
 
-## Common Mistakes
+## Quick Reference
+
+### Common Mistakes
 
 - Working the auth ladder before ruling out CSP. Every auth symptom has a quieter CSP twin, see [Debugging](#debugging).
 - Skipping `listenForUpdates()`, the most common integration bug on this page.
@@ -51,7 +53,9 @@ This documents **v8**. Check what the project is on before adding anything.
 
 Do not write new v7 code. If the project is on v7, propose migrating before adding features, the [migration guide](https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide) is step-by-step.
 
-## Universal Rules
+<a id="universal-rules"></a>
+
+### Rules
 
 - **JWT only.** v8 requires it. Generate it server-side from your API key, an API key in client code grants full workspace access to anyone who opens devtools.
 - **Scopes:** `user_id:{id} inbox:read:messages inbox:write:events`, plus `read:preferences` only if you also mount preferences. Enforced per endpoint, see [auth.md](./auth.md)

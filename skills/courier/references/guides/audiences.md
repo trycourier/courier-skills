@@ -4,6 +4,17 @@ An audience is a **filter Courier evaluates and keeps current**. Send to `audien
 resolves the matching users at send time and fans out. Use it for dynamic segments (trial users, a
 plan tier, an activity cohort); use a **list** when you want an explicit, managed set of subscribers.
 
+## Quick Reference
+
+### Rules
+- An audience is a filter Courier evaluates and keeps current. Create or update it with an upsert by the id you choose.
+- Send to it with `to: { audience_id: "..." }`; Courier fans out to every current member.
+- Preferences still apply: a marketing audience only reaches opted-in users.
+
+### Common Mistakes
+- Treating an audience like a static list. Membership changes as user data changes.
+- Expecting an audience send to bypass preferences.
+
 ## Create or update (upsert)
 
 There is no separate `create`, `update` upserts by the id you choose.

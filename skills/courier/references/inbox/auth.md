@@ -2,6 +2,13 @@
 
 The inbox is the only Courier channel that runs client-side, so it is the only one that needs a per-user credential. Generate it server-side; never ship an API key to a browser.
 
+## Quick Reference
+
+### Rules
+- JWT is required for the inbox. Mint it server-side from your API key; never ship an API key to a browser.
+- Scopes are checked per call: `inbox:read:messages` to read, `inbox:write:events` to mark read or clicked, `read:preferences` only if you mount preferences.
+- Refresh before expiry rather than letting the socket drop.
+
 ### Common Mistakes
 
 - Minting the JWT in client code. That requires the API key in the browser, which grants full workspace access to anyone who opens devtools.

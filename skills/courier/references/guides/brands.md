@@ -4,6 +4,17 @@ A brand is reusable visual styling (colors, logo, email header/footer, in-app wi
 that Courier applies when rendering a template. Define it once, attach it, and every send
 picks it up without touching message content.
 
+## Quick Reference
+
+### Rules
+- `brand` is required on template create: an object `{ id }` or `null` (no brand chrome).
+- Inline sends always arrive branded, with the brand you name or the workspace default.
+- To send unbranded email, use a template with `brand: null`, not an inline send.
+
+### Common Mistakes
+- Expecting an inline send to arrive unbranded.
+- Omitting `brand` on `POST /notifications` and getting a validation error.
+
 ## The Brand object
 
 `name` and `settings.colors` (`primary` + `secondary`) are the minimum; everything else is optional.

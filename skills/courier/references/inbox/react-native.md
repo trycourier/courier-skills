@@ -1,6 +1,13 @@
 # Courier Inbox for React Native
 
-## Common Mistakes
+## Quick Reference
+
+### Rules
+- `signIn` takes `accessToken`, the same JWT the web SDKs call `jwt`.
+- `CourierInboxView` keeps itself updated. Use `addInboxListener` only for a custom UI or your own unread badge.
+- Gate `signIn` on having the token.
+
+### Common Mistakes
 
 - Passing the JWT as `jwt`. The React Native `signIn` parameter is **`accessToken`**, the same token under a different name.
 - Signing in before the token resolves. Gate on having it.
