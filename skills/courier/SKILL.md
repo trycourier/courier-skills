@@ -84,13 +84,14 @@ client.send.message(
 
 Full method-name lookup for both SDKs: **[sdk-reference.md](./references/sdk-reference.md)**.
 
-**The 20 namespaces are the complete SDK surface.** If an operation isn't here, it isn't in the SDK:
+**The 22 namespaces are the complete SDK surface.** If an operation isn't here, it isn't in the SDK:
 
 ```
 audiences  auditEvents  auth      automations  brands
-digests    inbound      journeys  lists        messages
-notifications  profiles  providers  requests   routingStrategies
-send       tenants      translations  users    workspacePreferences
+broadcasts  bulk        digests   inbound      journeys
+lists      messages     notifications  profiles  providers
+requests   routingStrategies  send  tenants  translations
+users      workspacePreferences
 ```
 
 Sub-namespaces: `digests.schedules`, `journeys.templates`, `notifications.checks`, `providers.catalog`, `lists.subscriptions`, `profiles.lists`, `tenants.templates`, `tenants.preferences.items`, `users.preferences`, `users.tenants`, `users.tokens`, `automations.invoke`, `workspacePreferences.topics`.
