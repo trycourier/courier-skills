@@ -209,6 +209,8 @@ Four different fields can name a channel, and they are not alternatives to each 
 They don't override one another because they answer different questions. Routing picks the delivery channel, then rendering picks the matching content branch. A `channel` element for a channel that routing never selects simply never renders, and a delivery channel with no matching `channel` element falls back to the template's unwrapped content.
 | `raw` | `object` | No | Raw provider-specific payload (required if `elements` is omitted) |
 
+**Elemental blocks or raw HTML.** For email, a channel element carries either `elements` (Elemental blocks) or `raw` (your own HTML or MJML). Both render and both show in Design Studio, but only Elemental blocks are editable there with the drag-and-drop editor. Raw HTML has to be edited as HTML. Default to Elemental blocks unless the design needs markup the block set cannot express, and treat `raw` as a deliberate choice to give up in-app editing.
+
 **Multi-channel example:**
 ```json
 {
