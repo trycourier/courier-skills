@@ -4,7 +4,7 @@
 
 - Passing the JWT as `jwt`. The React Native `signIn` parameter is **`accessToken`**, the same token under a different name.
 - Signing in before the token resolves. Gate on having it.
-- Forgetting `listenForUpdates()`, so the feed only refreshes on remount.
+- Reaching for `listenForUpdates()`. That is the web API and does not exist here. `CourierInboxView` keeps itself updated; for a custom UI or your own unread badge use `addInboxListener({ onMessagesChanged, onUnreadCountChanged, onMessageEvent })`, which resolves to a `CourierInboxListener`, and remove it with `removeInboxListener({ listenerId })`.
 - Expecting web CSP guidance to apply. It doesn't, native has no CSP, but push setup does apply, see [push.md](../channels/push.md).
 
 ### Installation

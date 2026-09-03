@@ -5,7 +5,7 @@ The inbox is the only Courier channel that runs client-side, so it is the only o
 ### Common Mistakes
 
 - Minting the JWT in client code. That requires the API key in the browser, which grants full workspace access to anyone who opens devtools.
-- Omitting a scope. All four are needed: `user_id:{id} inbox:read:messages inbox:write:events read:preferences`. A partial set returns `401` from the SDK, not a clear scope error.
+- Granting the wrong scopes. Scopes are enforced **per endpoint**, not as one required set: rendering the feed needs `inbox:read:messages`, marking read or clicked needs `inbox:write:events`, and `read:preferences` is only needed if you also mount preferences. `user_id:{id}` is a separate binding that ties the token to one user. `POST /auth/issue-token` does not validate which scopes you ask for, so a token missing one is issued happily and fails later at the call that needs it.
 - Minting a token for one user and signing in as another. Sign out on user switch.
 - Letting a token expire instead of refreshing. The socket drops and the inbox silently stops updating.
 - Treating a v7 **client key** as interchangeable with a JWT. It isn't, and its own format has a trap, see [v7 client keys](#v7-client-keys).

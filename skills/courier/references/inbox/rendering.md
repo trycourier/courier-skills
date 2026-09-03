@@ -54,7 +54,7 @@ Do not write new v7 code. If the project is on v7, propose migrating before addi
 ## Universal Rules
 
 - **JWT only.** v8 requires it. Generate it server-side from your API key, an API key in client code grants full workspace access to anyone who opens devtools.
-- **Scopes:** `user_id:{id} inbox:read:messages inbox:write:events read:preferences`
+- **Scopes:** `user_id:{id} inbox:read:messages inbox:write:events`, plus `read:preferences` only if you also mount preferences. Enforced per endpoint, see [auth.md](./auth.md)
 - **JWTs expire.** Refresh before expiry rather than letting the socket drop. See [auth.md](./auth.md).
 - **Call `listenForUpdates()` after `signIn()`**, or nothing updates in real time.
 - **Never call `signIn` with a JWT minted for a different user.** Sign out on user switch.
