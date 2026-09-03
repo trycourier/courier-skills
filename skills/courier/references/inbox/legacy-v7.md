@@ -88,8 +88,7 @@ These values are **v7 only**. Do not carry them into a v8 app.
 
 | Version | connect-src |
 |---|---|
-| v7 (v5 and up) | `https://inbox.courier.com` `wss://realtime.courier.com` |
-| Before v5 | `https://fxw3r7gdm9.execute-api.us-east-1.amazonaws.com` `wss://1x60p1o3h8.execute-api.us-east-1.amazonaws.com` |
+| v7 | `https://inbox.courier.com` `wss://realtime.courier.com` |
 
 v8's hosts differ, and the WebSocket in particular moves from `realtime.courier.com` to
 **`realtime.courier.io`**. See [Content Security Policy](./rendering.md#content-security-policy) for the
