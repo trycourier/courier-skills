@@ -193,7 +193,7 @@ Channel-specific content branches. When present at the top level, **all** siblin
 
 **`inbox` is a valid value and Design Studio writes it.** A template built in the designer for the in-app inbox stores `{ "type": "channel", "channel": "inbox", "elements": [...] }`, so wrap inbox content the same way. Channel-wrapped is the expected shape, not malformed.
 
-**SDK typing gap.** The public OpenAPI spec omits `elements` on the channel node, so the generated SDK types don't declare it: in TypeScript, `elements` inside a `type: "channel"` object fails with TS2353 even though the API accepts it. Keep the wrapper and add `// @ts-expect-error elements is accepted by the API but missing from the SDK type` on that line, or cast the node. Python accepts it at runtime. Do not unwrap to satisfy the compiler. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
+**SDK typing gap.** The public OpenAPI spec omits `elements` on the channel node and omits the `group` node entirely, so the generated SDK types don't declare either. In TypeScript, `elements` inside a `type: "channel"` object fails with TS2353, and `type: "group"` fails with TS2322, even though the API accepts both and Design Studio produces both. Keep the shape and add `// @ts-expect-error accepted by the API, missing from the SDK type` on the offending line, or cast the node. Python accepts both at runtime. Do not unwrap or drop `group` to satisfy the compiler. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
 
 #### The channel element vs the three other places a channel is named
 
