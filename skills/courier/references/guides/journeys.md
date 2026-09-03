@@ -69,7 +69,7 @@ Argument order differs by method: `create` and `list` take the **journey** id fi
 | Put locale | `client.journeys.templates.putLocale(localeId, { ... })` | `PUT .../locales/{localeId}` | `put_journey_template_locale` |
 | List versions | `client.journeys.templates.listVersions(templateId, { ... })` | `GET /journeys/{id}/templates/{templateId}/versions` | `list_journey_template_versions` |
 
-**Reading a draft is different from the workspace namespace.** `GET /notifications/{id}/draft/content` has no journey-scoped equivalent; `GET /journeys/{id}/templates/{templateId}/draft/content` returns **404**. Use the `version` query parameter instead:
+**Reading a draft.** There is no `/draft/content` route on journey-scoped templates (it returns **404**). Use the `version` query parameter:
 
 | Want | Route |
 |---|---|
@@ -77,7 +77,7 @@ Argument order differs by method: `create` and `list` take the **journey** id fi
 | Draft content | `GET /journeys/{jid}/templates/{tid}/content?version=draft` |
 | A specific version | `GET /journeys/{jid}/templates/{tid}/content?version=v001` |
 
-`?version=` works on the workspace namespace too (`GET /notifications/{id}/content?version=draft`), and reads any published version on either.
+`?version=` works the same way on workspace templates (`GET /notifications/{id}/content?version=draft`) and reads any published version on either.
 
 Workspace templates under `/notifications` are a separate namespace with their own full SDK support. See [templates.md](./templates.md).
 
