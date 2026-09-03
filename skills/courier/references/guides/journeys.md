@@ -46,7 +46,7 @@ Journey management is supported by the Node and Python SDKs and the CLI. Use the
 | Retrieve | `client.journeys.retrieve(id)` | `client.journeys.retrieve(id)` | `courier journeys retrieve --template-id ID` |
 | Replace (draft) | `client.journeys.replace(id, { name, nodes, enabled })` | `client.journeys.replace(id, name=..., nodes=...)` | `courier journeys replace --template-id ID ...` |
 | Archive | `client.journeys.archive(id)` | `client.journeys.archive(id)` | `courier journeys archive --template-id ID` |
-| List versions | `client.journeys.listVersions(id)` | `client.journeys.list_versions(id)` | `courier journeys versions --template-id ID` |
+| List versions | `client.journeys.listVersions(id)` | `client.journeys.list_versions(id)` | `courier journeys list-versions --template-id ID` |
 | Publish | `client.journeys.publish(id)` | `client.journeys.publish(id)` | `courier journeys publish --template-id ID` |
 | Invoke | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` | `client.journeys.invoke(template_id=id, user_id=..., data=..., profile=...)` → `.run_id` | `courier journeys invoke --template-id ID --user-id user-123 --data '{...}'` |
 
