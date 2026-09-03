@@ -32,7 +32,7 @@ Cheaper still, when you already know the exact page: append `.md` to any docs UR
 
 ## API MCP Server
 
-> **Last verified: 2026-07.** The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file.** If this file is older than **3 months**, re-verify against https://www.courier.com/docs/tools/mcp before quoting specifics, and note that a tool being advertised does not guarantee the endpoint behind it still exists.
+> The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file**, and re-verify against https://www.courier.com/docs/tools/mcp before quoting specifics. A tool being advertised does not guarantee the endpoint behind it still exists.
 
 ## Quick Reference
 

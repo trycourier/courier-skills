@@ -7,12 +7,13 @@
 - Human-friendly aliases are optional in app code, but this skill set uses Courier-generated `nt_...` IDs as the canonical pattern for agent consistency
 - Treat template IDs as opaque, workspace-specific values (they vary by environment and should not encode business meaning)
 - Templates are created in **DRAFT** state by default. They must be published before sends will use them
-- **Canonical create flow is DRAFT → `notifications.publish`, not `state: "PUBLISHED"` on create.** When `state: "PUBLISHED"` is passed to `notifications.create`, the response body currently echoes `name: "Untitled"` and `tags: []` even though the template is stored correctly under the hood. Creating as DRAFT and calling `publish(id)` returns a response body whose `name`/`tags` match what you sent, safer for logging, validation, and lookup.
+- **`POST /notifications` needs more than `name` and `content`.** `tags` (an array), `brand`, `subscription` and `routing` must all be **present** in the body; the last three accept `null`. Omit any one and the call fails with a `400` naming the missing key.
+- **`state: "PUBLISHED"` on create is supported** and returns the `name`, `tags` and `state` you sent. Creating as DRAFT and calling `publish(id)` is still the clearer flow when you want a review step between writing and publishing.
 - `PUT /notifications/{id}` is a **full replacement**, every field is required, even if unchanged; omitted fields reset to empty/null
 - Elemental version string is always `"2022-01-01"`
 - ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
-- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements send, but the template does not display or edit properly in Design Studio. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type is missing `elements` on the channel node and has no `group` node; suppress with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
+- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected**: `400 Template content must place its elements inside a channel block`. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type is missing `elements` on the channel node and has no `group` node; suppress with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
 - **Elemental blocks by default, raw HTML by exception.** Blocks stay editable in Design Studio's drag-and-drop editor; a `raw` HTML or MJML email only shows there and must be edited as HTML. See [elemental.md](./elemental.md#channel).
 - A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
   1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
@@ -388,6 +389,18 @@ await client.notifications.publish("nt_01abc123", { version: "v001" });
 ```
 
 History is append-only: republishing v001 mints a fresh version (a copy of v001) rather than moving a pointer, so the audit trail always tells the complete story — rollbacks included.
+
+### Duplicate a Template
+
+There is no duplicate method. Read the source template's content, then create a new template with it.
+
+```typescript
+const { content } = await client.notifications.retrieveContent("nt_01abc123");
+const copy = await client.notifications.create({ content, name: "Order confirmation (copy)" });
+```
+
+Python is `client.notifications.retrieve_content(...)` then `client.notifications.create(...)`.
+The copy starts as a fresh draft, so [publish](#publish) it before sending.
 
 ### Archive a Template
 

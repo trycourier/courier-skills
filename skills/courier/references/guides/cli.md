@@ -184,8 +184,8 @@ courier bulk list-users --job-id "1-6a7e474b-..."     # per-recipient status and
 > `--message.event` is required on `create-job` (a 400 otherwise); `--message.template` and
 > `--message.content` are optional overrides on top of it. Each `--user` value is a full
 > `InboundBulkMessageUser` object, not a bare `{"user_id": ...}`. **Email jobs need `profile.email`
-> per user**, since `to.email` alone won't route. Bulk commands were absent from CLI 3.12.x and returned
-> in **3.13.0**. See [bulk.md](./bulk.md) for the SDK equivalents and the full gotcha list.
+> per user**, since `to.email` alone won't route. Bulk commands need a current CLI; upgrade if they
+> are missing. See [bulk.md](./bulk.md) for the SDK equivalents and the full gotcha list.
 
 ## Tenants, Journeys, and Preferences
 

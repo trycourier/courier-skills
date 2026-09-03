@@ -175,15 +175,8 @@ Job-level aggregates live on `retrieveJob`, never on `client.messages.retrieve`.
 
 ## Version note
 
-Bulk was removed from the API spec, and therefore from every generated SDK, on 2026-07-23, then
-restored. The REST endpoints served traffic the whole time; only the spec, the SDKs, and the
-reference docs lost them.
-
-| SDK | Missing in | Restored in |
-|---|---|---|
-| Node `@trycourier/courier` | 7.21.0 through 7.25.0 | **7.25.1** |
-| Python `trycourier` | up to and including 7.26.0 | **7.26.1** |
-| CLI | 3.12.x | **3.13.0** |
+Bulk has been missing from the API spec, and therefore from the generated SDKs and the reference
+docs, in some releases. The REST endpoints serve traffic regardless.
 
 If `client.bulk` is `undefined`, that is a version problem, not a missing feature. Upgrade, or call
 the REST endpoints directly with the curl above. Verify method shapes against the installed

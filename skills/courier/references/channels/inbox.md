@@ -173,7 +173,7 @@ app.post('/email-clicked', async (req, res) => {
 
 ## Elemental Content for Inbox
 
-The `{ title, body }` shorthand used in the examples above **only works for inline sends**. It is not valid for template creation via the API ([elemental.md](../guides/elemental.md)). A stored inbox template uses Elemental wrapped in a `channel` element. Flat top-level elements send, but the template does not display or edit properly in Courier:
+The `{ title, body }` shorthand used in the examples above **only works for inline sends**. It is not valid for template creation via the API ([elemental.md](../guides/elemental.md)). A stored inbox template uses Elemental wrapped in a `channel` element. Flat top-level elements are rejected by the Templates API with a `400` telling you to wrap them in a channel block:
 
 ```json
 {

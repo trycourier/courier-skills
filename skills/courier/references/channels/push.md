@@ -491,21 +491,32 @@ await client.send.message({
 
 ### Remove Invalid Tokens
 
+`data.providers[].error` is the provider's own message as a **string**, and the webhook does not
+name which token failed. The token's own `status` is the reliable signal, so read it and drop the
+dead ones.
+
 ```typescript
 // Handle feedback from APNs/FCM about invalid tokens
 app.post('/webhooks/courier', async (req, res) => {
   const { type, data } = req.body;
 
   if (type === 'message:updated' && data.status === 'UNDELIVERABLE') {
-    const providerError = data.providers?.[0]?.error;
-    if (providerError?.code === 'token_expired') {
-      await client.users.tokens.delete(providerError.token, { user_id: data.recipient });
+    const { tokens } = await client.users.tokens.list(data.recipient);
+    for (const { token } of tokens ?? []) {
+      // status is on the single-token read, not on the list rows
+      const { status } = await client.users.tokens.retrieve(token, { user_id: data.recipient });
+      if (status === 'failed' || status === 'revoked') {
+        await client.users.tokens.delete(token, { user_id: data.recipient });
+      }
     }
   }
 
   res.sendStatus(200);
 });
 ```
+
+Token `status` is one of `active`, `unknown`, `failed`, `revoked`, with a free-text
+`status_reason`. Delete on `failed` or `revoked`; leave `unknown` alone.
 
 ### Content Guidelines
 
