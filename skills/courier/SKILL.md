@@ -1,6 +1,6 @@
 ---
 name: courier
-description: "Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp: sends, templates, Elemental, journeys, preferences, routing, CLI and MCP."
+description: "Use when working with Courier, the notification API: sending a message to a user across email, SMS, push, in-app inbox, Slack, Teams, or WhatsApp from one API call, creating or editing a template with Elemental, building a journey with delays, batches, or digests, managing user profiles and notification preferences, setting up routing and provider failover, tracing a message that did not arrive or arrived twice, or running Courier from the CLI or MCP. Always use this skill when the user mentions Courier, even for a one-line send. It carries the canonical send shape, the recipient addressing rules, the channel-wrapped template requirement, and the idempotency and delivery-status gotchas that prevent common production issues."
 license: MIT
 ---
 
