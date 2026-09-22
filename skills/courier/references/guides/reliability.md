@@ -114,7 +114,7 @@ and transient errors on its side:
 | Webhook delivery | Retried for about **24 hours** (see [webhooks.md](./webhooks.md#responding)) |
 
 This is not configurable, and it is not something to reimplement. Watch it in
-[Message Logs](https://www.courier.com/docs/platform/analytics/message-logs) or via
+[Message Logs](https://www.courier.com/docs/monitor/overview) or via
 `courier messages history`.
 
 Those are both per-message views. For the aggregate trend across a whole template, use

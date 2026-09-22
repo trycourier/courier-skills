@@ -539,7 +539,7 @@ The `meta` element carries `title` (used as the email subject and push/chat titl
 }
 ```
 
-For full localization setup, see the official [Locales](https://www.courier.com/docs/platform/content/elemental/locales) docs and the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation) for workspace-wide string management.
+For full localization setup, see the official [Locales](https://www.courier.com/docs/design/elemental/locales) docs and the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation) for workspace-wide string management.
 
 ### AI Translation (Design Studio)
 
@@ -550,14 +550,14 @@ For templates built in Design Studio, you don't have to write the `locales` bloc
 - **Outdated strings are flagged.** When you change the default-locale template, Courier marks which translations are now stale; re-translate only those with **Translate all**, leaving unchanged strings and overrides intact.
 - **Not used for model training**: templates, customer data, and variables stay within Courier's infrastructure.
 
-Reach for hand-written `locales` (or the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation)) when a template is defined in code rather than Design Studio, or when you localize as part of a deploy pipeline. Docs: [AI Translation](https://www.courier.com/docs/platform/content/design-studio/ai-translations).
+Reach for hand-written `locales` (or the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation)) when a template is defined in code rather than Design Studio, or when you localize as part of a deploy pipeline. Docs: [AI Translation](https://www.courier.com/docs/design/elemental/locales).
 
 ## Related
 
 - [Templates](./templates.md), template lifecycle (create, publish, version, archive) and inline-vs-templated decisions
 - [Multi-Channel](./multi-channel.md), routing strategies for the top-level `channel` elements
 - [Quickstart](./quickstart.md). Send your first notification
-- [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview), official reference
-- [Elements Reference](https://www.courier.com/docs/platform/content/elemental/elements/index), complete element type reference
+- [Elemental Overview](https://www.courier.com/docs/design/elemental/overview), official reference
+- [Elements Reference](https://www.courier.com/docs/design/elemental/overview), complete element type reference
 
 <!-- Target line budget: <= 550 lines. If you are about to push this past 575, split (e.g., control flow + localization out) rather than letting it grow. -->

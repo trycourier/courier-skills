@@ -428,6 +428,6 @@ Rule of thumb: if you're reaching for `routing` in a `send.message` call repeate
 - [Create Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/create-routing-strategy), official endpoint reference
 - [Replace Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/replace-routing-strategy)
 - [Archive Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/archive-routing-strategy)
-- [Routing Configuration (Design Studio)](https://www.courier.com/docs/platform/content/template-designer/routing-configuration), dashboard equivalent
+- [Routing Configuration (Design Studio)](https://www.courier.com/docs/send/routing#routing-configuration-and-strategies), dashboard equivalent
 
 <!-- Target line budget: <= 500 lines. -->

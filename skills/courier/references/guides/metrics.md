@@ -185,5 +185,5 @@ The API MCP server at `mcp.courier.com` has **no metrics tool**. Its notificatio
 - [cli.md](./cli.md) - per-message triage when one send failed, rather than aggregates
 - [reliability.md](./reliability.md) - delivery statuses and webhooks for real-time per-message events
 - [multi-channel.md](./multi-channel.md) - acting on what the per-channel numbers tell you
-- [Analytics](https://www.courier.com/docs/platform/analytics/analytics) - the same metrics in the Courier app
-- [Template Metrics API docs](https://www.courier.com/docs/platform/analytics/template-metrics-api)
+- [Analytics](https://www.courier.com/docs/monitor/analytics) - the same metrics in the Courier app
+- [Template Metrics API docs](https://www.courier.com/docs/monitor/template-metrics)

@@ -432,7 +432,7 @@ Sends always use the published version — drafts iterate freely, and publish is
 
 ### Submission Checks (Approval Workflows)
 
-Templates support approval workflows via submission checks. When enabled, publishing requires external review. Courier emits webhooks on submission, locks the draft, and publishes only after checks are resolved via the checks API (`GET/PUT/DELETE /notifications/{id}/{submissionId}/checks`). See [Template Approval Workflow](https://www.courier.com/docs/platform/content/template-approval-workflow) for setup.
+Templates support approval workflows via submission checks. When enabled, publishing requires external review. Courier emits webhooks on submission, locks the draft, and publishes only after checks are resolved via the checks API (`GET/PUT/DELETE /notifications/{id}/{submissionId}/checks`). See [Template Approval Workflow](https://www.courier.com/docs/design/templates/api#approval-workflow) for setup.
 
 ---
 
@@ -496,7 +496,7 @@ Conditional rendering (`if`), iteration (`loop`), element references (`ref`), an
 
 ## Localization (reference moved)
 
-The `locales` property on `text`, `action`, `quote`, and `meta` elements is documented in [Elemental](./elemental.md). For full localization setup, see the official [Locales](https://www.courier.com/docs/platform/content/elemental/locales) docs.
+The `locales` property on `text`, `action`, `quote`, and `meta` elements is documented in [Elemental](./elemental.md). For full localization setup, see the official [Locales](https://www.courier.com/docs/design/elemental/locales) docs.
 
 ---
 
@@ -694,7 +694,7 @@ output = client.messages.content(send_response.request_id)
 
 This guide covers **workspace templates**, the `/notifications/...` endpoints. These are the templates visible in your Courier dashboard and shared across all tenants.
 
-For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/templates/...` endpoints. See the [Courier Create API](https://www.courier.com/docs/platform/create/courier-create-api) and [Courier Create tutorial](https://www.courier.com/docs/tutorials/content/how-to-use-courier-create-api) for those routes.
+For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/templates/...` endpoints. See the [Courier Create API](https://www.courier.com/docs/design/embedded-designer/api) and [Courier Create tutorial](https://www.courier.com/docs/design/embedded-designer/api) for those routes.
 
 ## Related
 
@@ -709,10 +709,10 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 - [Template Metrics](./metrics.md) - Delivery metrics for a template as a time series (sent, delivered, opened, clicked)
 - [CLI](./cli.md) - CLI for ad-hoc template operations (`courier notifications list`)
 - [Reliability](./reliability.md) - Idempotency keys for sends using templates
-- [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview) - Full Elemental documentation
-- [Elements Reference](https://www.courier.com/docs/platform/content/elemental/elements/index) - Complete element type reference
-- [Templates API](https://www.courier.com/docs/platform/content/templates-api) - API endpoint reference
-- [Templates API Tutorial](https://www.courier.com/docs/tutorials/content/how-to-use-templates-api) - Step-by-step walkthrough
+- [Elemental Overview](https://www.courier.com/docs/design/elemental/overview) - Full Elemental documentation
+- [Elements Reference](https://www.courier.com/docs/design/elemental/overview) - Complete element type reference
+- [Templates API](https://www.courier.com/docs/design/templates/api) - API endpoint reference
+- [Templates API Tutorial](https://www.courier.com/docs/design/templates/api) - Step-by-step walkthrough
 
 <!-- Target line budget: <= 750 lines. If you are about to push this past 800, split further rather than letting it grow. Elemental reference lives in elemental.md. -->
 <!-- Target line budget (elemental.md): see the footer comment in elemental.md itself. -->

@@ -398,4 +398,4 @@ Store API keys as secrets in your CI provider (GitHub Actions secrets, GitLab CI
 - [Template Metrics](./metrics.md) - What `notifications get-metrics` returns, and its plan caps
 
 Source code: [trycourier/courier-cli](https://github.com/trycourier/courier-cli)
-Documentation: [courier.com/docs/tools/cli](https://www.courier.com/docs/tools/cli)
+Documentation: [courier.com/docs/resources/cli](https://www.courier.com/docs/resources/cli)

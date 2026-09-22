@@ -175,7 +175,7 @@ Enabling channel selection on a **section** lets users pick channels for the top
 choices land in `custom_routing`, which only populates for sections where it's enabled. Users see the
 channel display names configured in page settings, not the raw enum values.
 
-> Template [send conditions](https://www.courier.com/docs/platform/content/template-settings/send-conditions)
+> Template [send conditions](https://www.courier.com/docs/design/templates/template-settings#conditions)
 > do not override a user's `custom_routing`. To drop a channel when required data is missing, use
 > variable guardrails instead.
 
@@ -426,4 +426,4 @@ page), and `has_custom_routing`. Confirm topic-body shapes against the installed
 - [Brands](./brands.md) - what drives the hosted page's appearance
 - [Tenants](./tenants.md) - tenant defaults that override workspace defaults
 - [Batching](./batching.md) - digest and batch nodes inside journeys
-- [Hosted Preference Center](https://www.courier.com/docs/platform/preferences/hosted-page) · [Preferences Editor](https://www.courier.com/docs/platform/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/platform/preferences/user-preference-management) · [Embedding](https://www.courier.com/docs/platform/preferences/embedding-preferences)
+- [Hosted Preference Center](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page) · [Preferences Editor](https://www.courier.com/docs/recipients/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/recipients/preferences/api) · [Embedding](https://www.courier.com/docs/guides/build-a-preference-center#embedded-component)

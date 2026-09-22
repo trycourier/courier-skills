@@ -8,7 +8,7 @@ npx skills add trycourier/courier-skills
 
 > **What is this?** A packaged, verified knowledge base that teaches an AI agent how to use Courier well: the right primitive for each use case, the exact SDK shapes for the installed version, and the rules you cannot get wrong (never batch an OTP, mask PII in security alerts, recorded opt-in for marketing). Every API claim is checked against the installed SDK, so the code your agent writes actually runs.
 
-**New to building notifications with AI?** Start with Courier's [Build with AI onboarding guide](https://www.courier.com/docs/tools/ai-onboarding), which covers the CLI, the [Courier MCP server](https://www.courier.com/docs/mcp), agent skills, and machine-readable docs.
+**New to building notifications with AI?** Start with Courier's [Build with AI onboarding guide](https://www.courier.com/docs/get-started/build-with-ai), which covers the CLI, the [Courier MCP server](https://www.courier.com/docs/mcp), agent skills, and machine-readable docs.
 
 ## What you can build with it
 
@@ -103,13 +103,13 @@ Use the Courier Inbox. Send to the `inbox` channel server-side, then render it c
 Transactional notifications are triggered by a user action (password reset, order confirmation) and should never be batched or delayed. Marketing notifications are sent proactively and require recorded opt-in. See the [transactional guide](./skills/courier/references/transactional.md) and the [lifecycle marketing guide](./skills/courier/references/lifecycle-marketing.md) for patterns and the rules for each.
 
 **How do I handle notification preferences?**
-See [`references/guides/preferences.md`](./skills/courier/references/guides/preferences.md) for per-user subscription topics, opt-out, hosted [preference pages](https://www.courier.com/docs/platform/preferences/hosted-page), and workspace-level preference sections.
+See [`references/guides/preferences.md`](./skills/courier/references/guides/preferences.md) for per-user subscription topics, opt-out, hosted [preference pages](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page), and workspace-level preference sections.
 
 **How do I debug why a message was not delivered?**
 Start from the delivery ladder in the skill. Confirm Courier accepted the request (it returns a `requestId`), then run `courier messages list --trace-id`, `history`, and `content` to see where it stopped and what rendered, before touching the channel.
 
 **How do I build multi-step flows like onboarding, escalation, or win-back?**
-Use [Journeys](https://www.courier.com/docs/platform/journeys/building-journeys-via-api), a JSON graph of send, delay, branch, fetch, throttle, and batch nodes that you create, publish, and invoke over the API.
+Use [Journeys](https://www.courier.com/docs/journeys/build), a JSON graph of send, delay, branch, fetch, throttle, and batch nodes that you create, publish, and invoke over the API.
 
 ## Repository structure
 
@@ -145,11 +145,11 @@ Courier is provider-agnostic. You write one `send` call and Courier delivers thr
 | Messaging | WhatsApp Business API |
 | In-app | Courier Inbox |
 
-Courier supports 50+ providers in total. For the complete, current list see the [Courier integrations docs](https://www.courier.com/docs/platform/channels/), or call `client.providers.catalog.list()` for the live catalog in your workspace.
+Courier supports 50+ providers in total. For the complete, current list see the [Courier integrations docs](https://www.courier.com/docs/integrations/overview), or call `client.providers.catalog.list()` for the live catalog in your workspace.
 
 ## Links
 
-- **Courier**: [courier.com](https://www.courier.com), [Documentation](https://www.courier.com/docs), [API Reference](https://www.courier.com/docs/api-reference/), [Build with AI](https://www.courier.com/docs/tools/ai-onboarding)
+- **Courier**: [courier.com](https://www.courier.com), [Documentation](https://www.courier.com/docs), [API Reference](https://www.courier.com/docs/api-reference/), [Build with AI](https://www.courier.com/docs/get-started/build-with-ai)
 - **MCP**: [Courier MCP server docs](https://www.courier.com/docs/mcp), [API server endpoint](https://mcp.courier.com)
 - **SDKs**: [`@trycourier/courier` (Node)](https://www.npmjs.com/package/@trycourier/courier), `trycourier` (Python)
 

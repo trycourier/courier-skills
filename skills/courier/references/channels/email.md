@@ -256,7 +256,7 @@ await client.send.message({
 });
 ```
 
-The **override nesting is provider-specific**. It mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/external-integrations/email/intro-to-email) for the exact field. Attachments aren't part of the template. They're per-send data you supply at call time.
+The **override nesting is provider-specific**. It mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/integrations/email/overview) for the exact field. Attachments aren't part of the template. They're per-send data you supply at call time.
 
 ### Provider Failover
 

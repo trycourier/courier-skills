@@ -26,13 +26,13 @@ claude mcp add --transport http courier-docs https://www.courier.com/docs/mcp
 
 The server indexes from docs navigation, so newly shipped pages appear immediately. It is more current than any snapshot in this skill. When it disagrees with this file about a doc page, it wins.
 
-Cheaper still, when you already know the exact page: append `.md` to any docs URL (`https://www.courier.com/docs/platform/journeys/nodes/batch.md`), plain HTTP, ~1–2k tokens, no MCP connection needed. Bad paths return a real `404`.
+Cheaper still, when you already know the exact page: append `.md` to any docs URL (`https://www.courier.com/docs/journeys/nodes/batch.md`), plain HTTP, ~1–2k tokens, no MCP connection needed. Bad paths return a real `404`.
 
 ---
 
 ## API MCP Server
 
-> The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file**, and re-verify against https://www.courier.com/docs/tools/mcp before quoting specifics. A tool being advertised does not guarantee the endpoint behind it still exists.
+> The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file**, and re-verify against https://www.courier.com/docs/resources/mcp before quoting specifics. A tool being advertised does not guarantee the endpoint behind it still exists.
 
 ## Quick Reference
 
@@ -399,4 +399,4 @@ Not exhaustive. An absent tool is a possible gap, not proof the endpoint doesn't
 - [Reliability](./reliability.md) - Idempotency keys and retry patterns
 - [Patterns](./patterns.md) - Reusable code patterns for common notification tasks
 
-Documentation: [courier.com/docs/tools/mcp](https://www.courier.com/docs/tools/mcp)
+Documentation: [courier.com/docs/resources/mcp](https://www.courier.com/docs/resources/mcp)
