@@ -26,20 +26,20 @@ claude mcp add --transport http courier-docs https://www.courier.com/docs/mcp
 
 The server indexes from docs navigation, so newly shipped pages appear immediately. It is more current than any snapshot in this skill. When it disagrees with this file about a doc page, it wins.
 
-Cheaper still, when you already know the exact page: append `.md` to any docs URL (`https://www.courier.com/docs/platform/journeys/nodes/batch.md`), plain HTTP, ~1–2k tokens, no MCP connection needed. Bad paths return a real `404`.
+Cheaper still, when you already know the exact page: append `.md` to any docs URL (`https://www.courier.com/docs/journeys/nodes/batch.md`), plain HTTP, ~1–2k tokens, no MCP connection needed. Bad paths return a real `404`.
 
 ---
 
 ## API MCP Server
 
-> The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file**, and re-verify against https://www.courier.com/docs/tools/mcp before quoting specifics. A tool being advertised does not guarantee the endpoint behind it still exists.
+> The tool inventory below is a snapshot. Tool names, coverage, installation UI paths, and JSON config shape all drift as Courier ships MCP updates and editors change their settings surface. **Always prefer the server's live tool list over this file**, and re-verify against https://www.courier.com/docs/resources/mcp before quoting specifics. A tool being advertised does not guarantee the endpoint behind it still exists.
 
 ## Quick Reference
 
 ### Rules
 - MCP provides structured tool access; agents discover tools automatically and call them with typed parameters
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- Tools cover most of the Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, inbound, audit. Coverage is not complete: newly shipped endpoints can lag, and template metrics is a known gap (see [Known gaps](#known-gaps)). The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
+- Tools cover most of the Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, inbound, audit. Coverage is not complete: newly shipped endpoints can lag behind the API (see [Known gaps](#known-gaps)). The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
 - Journey management and notification-template writes are both available via MCP
 - Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
@@ -60,7 +60,7 @@ Run this once after setup:
 1. Confirm the server connects in your editor (status is healthy/connected).
 2. Run one read call (for example `list_notifications` or `list_messages`) to confirm auth.
 3. Run one write-safe call in your expected workflow area (for example profile merge or tenant list) to confirm parameter shape expectations.
-4. Verify your needed feature is in MCP; if not (for example template publish/create), route to CLI/REST.
+4. Verify your needed feature is in `tools/list`; if not, route to the SDK, CLI, or REST.
 5. Save a short note in project docs or PR description indicating which path is used (`MCP` vs `CLI/REST`) for repeatability.
 
 ### MCP vs CLI
@@ -203,164 +203,27 @@ const response = await client.beta.messages.create({
 
 ## Available Tools
 
-Tools cover most of the Courier API, all backed by the official `@trycourier/courier` Node SDK with typed error handling, including notification template writes (create/replace/publish/archive/versions/checks) and the full journey lifecycle. Some endpoints have no tool, see [Known gaps](#known-gaps).
+Tools cover most of the Courier API, all backed by the official `@trycourier/courier` Node SDK with typed error handling. **Call the server's `tools/list` for exact names and parameters.** The map below is for orientation: one line per area, naming the tools you reach for first.
 
-> The inventory below is a **snapshot for orientation, not a contract.** Call the MCP server's tool-list endpoint for the authoritative names and coverage. Where this file and the live server disagree, the server is right.
+| Area | Main tools |
+|------|-----------|
+| Send | `send_message`, `send_message_template`, `send_message_to_list`, `send_message_to_list_template` |
+| Messages and delivery debugging | `list_messages`, `get_message`, `get_message_history`, `get_message_content`, `cancel_message`, `resend_message`, `archive_request` |
+| Templates | `list_notifications`, `get_notification`, `create_notification`, `replace_notification`, `put_notification_content`, `publish_notification` (the draft, or a past version), `list_notification_versions`, `get_notification_draft_content`, `archive_notification` |
+| Template metrics | `get_notification_metrics` (same window rules as [metrics.md](./metrics.md)) |
+| Journeys | `create_journey`, `replace_journey`, `publish_journey`, `invoke_journey`, `cancel_journey`, `get_journey`, `list_journeys`, `create_journey_template`, `put_journey_template_content`, `publish_journey_template`. Create makes a DRAFT with no send nodes; add them with `replace_journey` once the journey's templates exist. Prefer these over hand-rolled REST |
+| Users and profiles | `get_user_profile_by_id`, `create_or_merge_user`, `patch_profile`, `replace_profile`, `delete_profile`, `generate_jwt_for_user` |
+| Push tokens | `list_user_push_tokens`, `get_user_push_token`, `create_or_replace_user_push_token`, `patch_user_token`, `delete_user_token`, `bulk_add_user_tokens` |
+| Preferences, per user | `get_user_preferences`, `get_user_preference_topic`, `update_user_preference_topic`, `delete_user_preference_topic`, `bulk_update_user_preferences`, `bulk_replace_user_preferences` |
+| Preferences, workspace | `list_preference_sections`, `create_preference_section`, `list_preference_topics`, `get_preference_topic`, `create_preference_topic`, `replace_preference_topic`, `archive_preference_topic`, `publish_preferences` |
+| Digests | `list_digest_instances`, `release_digest` (whole schedule) |
+| Lists and audiences | `list_lists`, `get_list`, `create_list`, `subscribe_user_to_list`, `unsubscribe_user_from_list`, `get_list_subscribers`, `list_audiences`, `get_audience`, `update_audience`, `list_audience_members` |
+| Bulk | `create_bulk_job` (`message.event` is required) → `add_bulk_users` → `run_bulk_job`, in that order, then `get_bulk_job`, `list_bulk_users`. See [bulk.md](./bulk.md) |
+| Tenants | `get_tenant`, `create_or_update_tenant`, `list_tenants`, `list_tenant_users`, `add_user_to_tenant`, `list_user_tenants`, `list_tenant_templates`, `update_tenant_preference` |
+| Brands, routing, providers | `list_brands`, `get_brand`, `create_brand`, `update_brand`, `list_routing_strategies`, `create_routing_strategy`, `replace_routing_strategy`, `list_providers`, `create_provider`, `list_provider_catalog` |
+| Other | `get_translation`, `update_translation`, `track_inbound_event`, `list_audit_events`, `invoke_automation_template`, `courier_installation_guide` |
 
-### Send
-
-| Tool | Description |
-|------|-------------|
-| `send_message` | Send a message using inline title and body content |
-| `send_message_template` | Send a message using a notification template |
-| `send_message_to_list` | Send inline content to all subscribers of a list |
-| `send_message_to_list_template` | Send a template to all subscribers of a list |
-
-### Messages
-
-| Tool | Description |
-|------|-------------|
-| `list_messages` | List sent messages with filters (status, recipient, provider, tags) |
-| `get_message` | Get full details and delivery status of a message |
-| `get_message_content` | Get the rendered HTML, text, and subject of a sent message |
-| `get_message_history` | Get the event history for a message (enqueued, sent, delivered, etc.) |
-| `cancel_message` | Cancel a message currently being delivered |
-
-### Profiles
-
-| Tool | Description |
-|------|-------------|
-| `get_user_profile_by_id` | Get a user profile by ID |
-| `create_or_merge_user` | Create or merge values into an existing profile |
-| `replace_profile` | Fully replace a user profile (PUT) |
-| `delete_profile` | Delete a user profile |
-| `get_user_list_subscriptions` | Get all list subscriptions for a user |
-| `subscribe_user_to_lists` | Subscribe a user to one or more lists |
-| `delete_user_list_subscriptions` | Remove all list subscriptions for a user |
-
-### Lists
-
-| Tool | Description |
-|------|-------------|
-| `list_lists` | Get all lists, optionally filtered by pattern |
-| `get_list` | Get a list by ID |
-| `get_list_subscribers` | Get all subscribers of a list |
-| `create_list` | Create or update a list |
-| `subscribe_user_to_list` | Subscribe a user to a list |
-| `unsubscribe_user_from_list` | Unsubscribe a user from a list |
-
-### Audiences
-
-| Tool | Description |
-|------|-------------|
-| `get_audience` | Get an audience by ID |
-| `list_audiences` | List all audiences |
-| `list_audience_members` | List members of an audience |
-| `update_audience` | Create or update an audience with a filter definition |
-| `delete_audience` | Delete an audience |
-
-### Bulk
-
-| Tool | Description |
-|------|-------------|
-| `create_bulk_job` | Create a bulk job (`message.event` is required) |
-| `add_bulk_users` | Ingest users into an existing bulk job |
-| `run_bulk_job` | Trigger delivery for a bulk job |
-| `get_bulk_job` | Get a job's status and counts |
-| `list_bulk_users` | List the users ingested into a job, with their per-recipient status |
-
-Workflow order matters: `create_bulk_job` → `add_bulk_users` → `run_bulk_job`. See
-[bulk.md](./bulk.md) for the payload shapes and gotchas.
-
-### Notifications
-
-| Tool | Description |
-|------|-------------|
-| `list_notifications` | List notification templates |
-| `get_notification_content` | Get published content blocks of a template |
-| `get_notification_draft_content` | Get draft content blocks of a template |
-| `list_notification_versions` | List a template's version history |
-| `publish_notification` | Publish a template's draft (or a specific historical version) |
-
-### Brands
-
-| Tool | Description |
-|------|-------------|
-| `create_brand` | Create a new brand |
-| `get_brand` | Get a brand by ID |
-| `list_brands` | List all brands |
-
-### Auth & Tokens
-
-| Tool | Description |
-|------|-------------|
-| `generate_jwt_for_user` | Generate a JWT token for client-side SDK auth |
-| `list_user_push_tokens` | List all push/device tokens for a user |
-| `get_user_push_token` | Get a specific push token |
-| `create_or_replace_user_push_token` | Create or replace a push token |
-
-### Journeys
-
-MCP has full journey coverage, including writes. Prefer these over hand-rolled REST.
-
-| Tool | Description |
-|------|-------------|
-| `create_journey` | Create a journey (DRAFT by default; send nodes are not allowed on create) |
-| `replace_journey` | Replace a journey, this is how you add send nodes after templates exist |
-| `publish_journey` | Publish a draft journey, making it live |
-| `invoke_journey` | Start a journey run for a user |
-| `cancel_journey` | Cancel an in-flight run |
-| `archive_journey` / `get_journey` / `list_journeys` / `list_journey_versions` | Journey lifecycle and inspection |
-| `create_journey_template` / `replace_journey_template` / `publish_journey_template` / `archive_journey_template` | Journey-scoped template writes |
-| `get_journey_template` / `get_journey_template_content` / `put_journey_template_content` / `put_journey_template_locale` | Journey-scoped template content and locales |
-
-See [Journeys](./journeys.md) for the node types, the create-then-replace ordering constraint, and the full DAG shape.
-
-### Digests
-
-| Tool | Description |
-|------|-------------|
-| `list_digest_instances` | Inspect events accumulated for a user against a digest schedule (`sch/{uuid}`) |
-| `release_digest` | Release an accumulated digest early |
-
-### Tenants
-
-| Tool | Description |
-|------|-------------|
-| `get_tenant` | Get a tenant by ID |
-| `create_or_update_tenant` | Create or replace a tenant |
-| `list_tenants` | List all tenants |
-| `delete_tenant` | Delete a tenant |
-
-### Users
-
-| Tool | Description |
-|------|-------------|
-| `get_user_preferences` | Get a user's notification preferences |
-| `update_user_preference_topic` | Update a user's preference for a subscription topic |
-| `list_user_tenants` | List all tenants a user belongs to |
-| `add_user_to_tenant` | Add a user to a tenant |
-| `remove_user_from_tenant` | Remove a user from a tenant |
-
-### Translations
-
-| Tool | Description |
-|------|-------------|
-| `get_translation` | Get a translation for a locale |
-| `update_translation` | Create or update a translation |
-
-### Inbound
-
-| Tool | Description |
-|------|-------------|
-| `track_inbound_event` | Track an inbound event that can trigger a journey |
-
-### Audit Events
-
-| Tool | Description |
-|------|-------------|
-| `get_audit_event` | Get a specific audit event |
-| `list_audit_events` | List audit events |
+See [Journeys](./journeys.md) for the node types and the create-then-replace ordering constraint.
 
 ## Error Handling
 
@@ -377,20 +240,23 @@ All tools return structured error responses:
 | Status | Meaning |
 |--------|---------|
 | `400` | Bad request (missing or invalid parameters) |
-| `401` | Invalid API key |
+| `403` | Missing or invalid API key |
 | `404` | Resource not found |
 | `429` | Rate limited |
 
 
 ## Known gaps
 
-Endpoints with no MCP tool. Use an SDK call or a plain HTTP request for these.
+Check `tools/list` first; coverage grows as Courier ships. When a tool or parameter you need is not
+there, use the SDK, CLI, or REST. Areas that have lagged the API:
 
-| Missing | Use instead |
+| Need | Use instead |
 |---|---|
-| `GET /notifications/{id}/metrics` (template delivery metrics) | `client.notifications.getMetrics(...)` or `courier notifications get-metrics`, see [metrics.md](./metrics.md) |
+| A topic's digest configuration (the `digest` object on topic create or replace) | `client.workspacePreferences.topics.create`/`replace`, see [digests.md](./digests.md#configure-a-topics-digest) |
+| A user's digest schedule (`digest_schedule_id`) | `client.users.preferences.updateOrCreateTopic`, see [digests.md](./digests.md#per-recipient-schedule) |
+| Releasing one recipient's digest | `client.workspacePreferences.topics.releaseDigest` or `courier workspace-preferences:topics release-digest` |
 
-Not exhaustive. An absent tool is a possible gap, not proof the endpoint doesn't exist. Check the [API reference](https://www.courier.com/docs/api-reference/).
+An absent tool is a possible gap, not proof the endpoint doesn't exist. Check the [API reference](https://www.courier.com/docs/api-reference/).
 
 ## Related
 
@@ -399,4 +265,4 @@ Not exhaustive. An absent tool is a possible gap, not proof the endpoint doesn't
 - [Reliability](./reliability.md) - Idempotency keys and retry patterns
 - [Patterns](./patterns.md) - Reusable code patterns for common notification tasks
 
-Documentation: [courier.com/docs/tools/mcp](https://www.courier.com/docs/tools/mcp)
+Documentation: [courier.com/docs/tools/mcp](https://www.courier.com/docs/resources/mcp)

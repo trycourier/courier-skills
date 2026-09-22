@@ -121,7 +121,7 @@ curl https://api.courier.com/bulk/JOB_ID/users -H "Authorization: Bearer $COURIE
 retrieve-job / list-users`.
 
 **MCP:** `create_bulk_job` → `add_bulk_users` → `run_bulk_job`, plus `get_bulk_job` and
-`list_bulk_users`. See [mcp.md](./mcp.md#bulk).
+`list_bulk_users`. See [mcp.md](./mcp.md#available-tools).
 
 ## Gotchas
 
@@ -193,4 +193,4 @@ package's own types rather than this file, per
 - [audiences.md](./audiences.md): dynamic segments, which fan out without a job
 - [cli.md](./cli.md#lists-and-bulk): CLI equivalents and delivery debugging
 - [reliability.md](./reliability.md): delivery statuses and retry semantics
-- [Create a bulk job](https://www.courier.com/docs/api-reference/bulk/create-a-bulk-job) · [Send Bulk Notifications tutorial](https://www.courier.com/docs/tutorials/sending/how-to-send-bulk-notifications)
+- [Create a bulk job](https://www.courier.com/docs/api-reference/bulk/create-a-bulk-job) · [Send Bulk Notifications tutorial](https://www.courier.com/docs/guides/send-in-bulk)

@@ -298,6 +298,6 @@ See [multi-channel.md](./multi-channel.md#provider-failover) for failover semant
 - [Email](../channels/email.md), [SMS](../channels/sms.md), [Push](../channels/push.md), channel-specific deliverability considerations
 - [Create a provider](https://www.courier.com/docs/api-reference/providers/create-a-provider), official endpoint reference
 - [List available provider types](https://www.courier.com/docs/api-reference/providers/list-available-provider-types), `/providers/catalog` reference
-- [Integrations Overview](https://www.courier.com/docs/external-integrations/integrations-overview), human-facing integration docs
+- [Integrations Overview](https://www.courier.com/docs/integrations/overview), human-facing integration docs
 
 <!-- Target line budget: <= 500 lines. -->

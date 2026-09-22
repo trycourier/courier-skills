@@ -8,7 +8,7 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 
 ### Rules
 
-- **Set the window with `lookback`, or with `start`+`end`.** `lookback` is an ISO 8601 duration counted back from now (`P30D`, `P12W`, `PT12H`), default `P30D`. `start`+`end` are ISO 8601 timestamps with an offset and must be supplied together. If you send both forms, `start`/`end` win and `lookback` is ignored.
+- **Set the window with `lookback`, or with `start`+`end`.** `lookback` is an ISO 8601 duration counted back from now (`P30D`, `P12W`, `PT12H`), default `P30D`. `start`+`end` are ISO 8601 timestamps with an offset and must be supplied together. Send one form, never both: `lookback` with `start`/`end` returns `400`.
 - **Label charts with the response's `start` and `end`, not the values you requested.** Courier widens the window outward to whole buckets, so a request for the last 36 hours at `DAY` returns two full days.
 - **Go coarser, don't split the range.** A granularity too fine for the window returns `400`. Switch `HOUR` to `DAY` rather than issuing several calls.
 - **There is no bucket-level total.** Sum the rows in a bucket yourself, and guard the division: a quiet bucket has `sent: 0`.
@@ -24,6 +24,7 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 - Assuming `errors` and `undeliverable` are the same failure. They aren't; see the field table below.
 - Requesting `HOUR` granularity over a month and expecting a truncated result instead of a `400`.
 - Retrying a `429` immediately. Honor `Retry-After`.
+- Reading a low `delivered` count as failed mail. `delivered` needs the provider to report back, through polling or a webhook set up on the provider's integration page. With tracking off, messages stay at `sent`. Check tracking before assuming an outage. See [Analytics: set up delivery tracking](https://www.courier.com/docs/monitor/analytics#why-delivery-rates-read-low).
 
 ### SDK shape
 
@@ -34,6 +35,8 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 Available in all seven server SDKs (Node, Python, Ruby, Go, Java, PHP, C#).
 
 CLI: `courier notifications get-metrics --id <template-id> --lookback P7D --granularity DAY`. See [cli.md](./cli.md#template-metrics).
+
+MCP: `get_notification_metrics`, with the same window rules.
 
 ## Pick a window and granularity
 
@@ -170,14 +173,10 @@ See [templates.md](./templates.md#list-templates) for the list call itself.
 
 | Status | `type` | When |
 |---|---|---|
-| 400 | `invalid_params` | Malformed duration or timestamp, one of `start`/`end` without the other, `start` not earlier than `end`, a granularity too fine for the window, or more than 1000 buckets |
+| 400 | `invalid_params` | Malformed duration or timestamp, `lookback` combined with `start`/`end`, one of `start`/`end` without the other, `start` not earlier than `end`, a granularity too fine for the window, or more than 1000 buckets |
 | 402 | `payment_required` | The window reaches further back than the plan's cap. Not a truncated series |
 | 429 | `rate_limit_exceeded` | Too many requests per second. Wait the seconds in `Retry-After` |
 | 503 | `service_unavailable` | Temporary. Retry after the seconds in `Retry-After` |
-
-## Not available via MCP
-
-The API MCP server at `mcp.courier.com` has **no metrics tool**. Its notification tools cover create, retrieve, content, versions, publish, archive, duplicate, and checks only. Use an SDK call, the CLI (`courier notifications get-metrics`), or a plain HTTP request; see [mcp.md](./mcp.md#known-gaps).
 
 ## Related
 
@@ -185,5 +184,5 @@ The API MCP server at `mcp.courier.com` has **no metrics tool**. Its notificatio
 - [cli.md](./cli.md) - per-message triage when one send failed, rather than aggregates
 - [reliability.md](./reliability.md) - delivery statuses and webhooks for real-time per-message events
 - [multi-channel.md](./multi-channel.md) - acting on what the per-channel numbers tell you
-- [Analytics](https://www.courier.com/docs/platform/analytics/analytics) - the same metrics in the Courier app
-- [Template Metrics API docs](https://www.courier.com/docs/platform/analytics/template-metrics-api)
+- [Analytics](https://www.courier.com/docs/monitor/analytics) - the same metrics in the Courier app
+- [Template Metrics API docs](https://www.courier.com/docs/monitor/template-metrics)

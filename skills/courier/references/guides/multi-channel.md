@@ -245,6 +245,10 @@ Build the escalation as a journey DAG with delay and send nodes. See [Journeys](
 }
 ```
 
+The fetch checks read state in your own app. To escalate on what Courier saw instead, branch on the
+earlier send's status (`["send_status.<nodeId>", "was not", "CLICKED"]`) and drop the fetch. See
+[Branching on an earlier send](./journeys.md#branching-on-an-earlier-send).
+
 Invoke the journey when the event occurs:
 
 ```bash

@@ -3,16 +3,13 @@
 ## Quick Reference
 
 ### Rules
-- **Let Courier aggregate.** Use the journey `batch` node (event rollup) or `add-to-digest` node (scheduled digests). Don't queue and aggregate in your own backend unless the built-in nodes genuinely can't express the logic
+- **Let Courier aggregate.** Use the journey `batch` node for event rollups. For summaries on a schedule the recipient picks (daily, weekly), use a topic digest, see [digests.md](./digests.md). Don't queue and aggregate in your own backend unless neither can express the logic
 - The `batch` node releases on a quiet `wait_period`, a `max_wait_period` ceiling, or `max_items`, whichever comes first
 - `category_key` partitions a batch by target, which is how you get "3 people liked *this* post" instead of one mixed batch per user
-- The `add-to-digest` node keys on a subscription topic, and the recipient's own [digest schedule](./preferences.md#digest-schedules) drives delivery
-- A scheduled digest with nothing accumulated is skipped (Trigger Empty overrides this)
 
 ### Common Mistakes
 - Rebuilding aggregation in your own queue when a `batch` node expresses it
 - Setting `max_wait_period` less than or equal to `wait_period` (it must be greater)
-- Expecting an `add-to-digest` node to deliver anything before a digest template is linked to the topic
 - One mixed batch per user because `category_key` wasn't set
 
 ---
@@ -26,7 +23,7 @@ Combine multiple notifications into single, digestible messages to reduce notifi
 | Need | Use | Releases on |
 |------|-----|-------------|
 | Collect events into one payload, then send | `batch` node | A quiet `wait_period`, a `max_wait_period` ceiling, or `max_items` |
-| Add events to a recurring digest a user subscribes to | `add-to-digest` node | The subscription topic's configured digest schedule |
+| A daily or weekly summary on the recipient's chosen schedule | A topic digest, see [digests.md](./digests.md) | The recipient's schedule for the topic |
 
 ### The `batch` node
 
@@ -70,29 +67,6 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
   }'
 ```
 
-### The `add-to-digest` node
-
-Adds the event to a digest keyed by a subscription topic. The digest releases on that topic's schedule rather than on a per-run timer. This is the right node for "daily summary" and "weekly roundup", and it means the user's own digest-frequency preference controls delivery.
-
-```json
-{ "type": "add-to-digest", "subscription_topic_id": "<topic-id>" }
-```
-
-Inspect and force-release accumulated digests via the `digests` namespace:
-
-```typescript
-// What has piled up for a schedule so far? (schedule ids look like "sch/{uuid}")
-const instances = await client.digests.schedules.listInstances(scheduleId);
-
-// Release early — e.g. a "send me this now" button in your UI
-await client.digests.schedules.release(scheduleId);
-```
-
-```python
-instances = client.digests.schedules.list_instances(schedule_id)
-client.digests.schedules.release(schedule_id)
-```
-
 ### App-side aggregation (only when the nodes don't fit)
 
 If your aggregation needs data or logic that only your backend has, cross-entity rollups, ranking by a computed score, joins against your own tables. Keep the accumulation in your app and use Courier for timing only: a `throttle` node to limit frequency, a `delay` node for the window, and a `fetch` node to pull your precomputed payload at send time.
@@ -108,6 +82,24 @@ If your aggregation needs data or logic that only your backend has, cross-entity
 
 This is strictly more work than the `batch` node. Reach for it only when you've established the built-in nodes can't express what you need.
 
+The same applies to a digest whose payload depends on data Courier doesn't hold (rankings, cross-system joins, computed scores): run your own scheduled job and send once per recipient.
+
+```typescript
+// Scheduled job, runs at the recipient's chosen time
+async function sendDailyDigest(userId: string) {
+  const activity = await getActivitySince(userId, lastDigestTime);
+  if (activity.length === 0) return; // don't send empty digests
+
+  await client.send.message({
+    message: {
+      to: { user_id: userId },
+      template: "nt_01kmrbtm6q9x3c7v1d5w2n8hj",
+      data: { topItems: getTopItems(activity, 3), total: activity.length },
+    },
+  });
+}
+```
+
 ### Batch Data in Templates
 
 Access batched data in your notification template:
@@ -122,62 +114,6 @@ Access batched data in your notification template:
 
 Precompute `is_multiple` (boolean) and `others_count` (batch count minus 1) in your data, since Handlebars does not support comparison operators or arithmetic.
 
-## Digest Implementation
-
-### Preferred: the `add-to-digest` node
-
-Add an `add-to-digest` node keyed to a subscription topic and let the topic's schedule release it. No cron job, no activity table, no empty-digest check. Courier only releases instances that accumulated events, and the user's own digest-frequency preference controls cadence. See [The `add-to-digest` node](#the-add-to-digest-node).
-
-### Fallback: your own scheduled job
-
-Use this only when the digest payload depends on data Courier doesn't hold, rankings, cross-system joins, computed scores.
-
-```typescript
-// Scheduled job runs daily at 9am user's local time
-async function sendDailyDigest(userId: string) {
-  // Fetch activity since last digest
-  const activity = await getActivitySince(userId, lastDigestTime);
-  
-  if (activity.length === 0) return; // Don't send empty digests
-  
-  await client.send.message({
-    message: {
-      to: { user_id: userId },
-      template: "nt_01kmrbtm6q9x3c7v1d5w2n8hj",
-      data: {
-        likes: activity.filter(a => a.type === 'like').length,
-        comments: activity.filter(a => a.type === 'comment').length,
-        followers: activity.filter(a => a.type === 'follow').length,
-        topItems: getTopItems(activity, 3)
-      }
-    }
-  });
-}
-```
-
-### User Preference for Digest Frequency
-
-Let users choose their batching preference:
-
-```typescript
-// Store digest frequency on profile custom data
-const profile = await client.profiles.retrieve(userId);
-const digestFrequency = profile.profile?.custom?.digest_frequency ?? "daily";
-
-// Options: "realtime", "daily", "weekly", "off"
-if (digestFrequency === "realtime") {
-  // Send immediately
-} else {
-  // Queue for digest
-}
-```
-
-### Empty digests
-
-A scheduled digest is skipped when it collected no items, so there is nothing to guard against in
-your own code. Turn on **Trigger Empty** to send it anyway at its scheduled time, which is what you
-want when your own system supplies the data the digest renders rather than Courier accumulating it.
-
 ### Batch Cancellation
 
 If user engages before batch sends, consider canceling. With [Journeys](./journeys.md), build a branch node that checks engagement before the send node, the journey exits early if the user already saw the content. See [Patterns, Sequence Cancellation](./patterns.md#sequence-cancellation).
@@ -188,4 +124,5 @@ If user engages before batch sends, consider canceling. With [Journeys](./journe
 - [Throttling](./throttling.md) - Rate limiting notifications
 - [Preferences](./preferences.md) - User frequency preferences
 - [Inbox](../channels/inbox.md) - In-app notification batching
-- [Journeys](./journeys.md) - The `batch` and `add-to-digest` nodes, plus throttle, delay, branch, and send
+- [Digests](./digests.md) - Recipient-scheduled summaries on a subscription topic
+- [Journeys](./journeys.md) - The `batch` node, plus throttle, delay, branch, and send

@@ -96,7 +96,7 @@ users      workspacePreferences
 
 Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `journeys.runs`, `journeys.templates`, `lists.subscriptions`, `notifications.checks`, `profiles.lists`, `providers.catalog`, `tenants.preferences`, `tenants.preferences.items`, `tenants.templates`, `tenants.templates.versions`, `users.preferences`, `users.tenants`, `users.tokens`, `workspacePreferences.topics`.
 
-`auditEvents`, `digests`, `inbound`, and `requests` have no dedicated guide. Use MCP or the CLI for those.
+`auditEvents`, `inbound`, and `requests` have no dedicated guide. Use MCP or the CLI for those.
 
 ### Common operations
 
@@ -138,6 +138,9 @@ First, separate the two questions. **One message that failed** is this ladder. *
 delivery rate is dropping across the board** is [metrics.md](./references/guides/metrics.md), which
 returns the funnel as a time series. Running the ladder on a sample of messages will not tell you a
 rate is trending down.
+
+A delivered rate that is low while sent looks healthy is usually delivery tracking, not failed mail:
+the provider isn't reporting back. See [metrics.md](./references/guides/metrics.md).
 
 1. **Did Courier accept the request?** A `2xx` from `send` returns a `requestId`. No `requestId` means the call failed, not the delivery.
 2. **What does Courier think happened?** Run `courier messages list --trace-id "<requestId>"`. A list or audience send fans out to one message per recipient, so the `requestId` is the job, not a message id.
@@ -198,12 +201,13 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **First notification / addressing (`to` field) / inline vs template** | [quickstart.md](./references/guides/quickstart.md) |
 | **Transactional**: password reset, OTP, orders, receipts, dunning, appointments, security alerts | [transactional.md](./references/transactional.md) |
 | **Lifecycle marketing**: onboarding, adoption, engagement, win-back, referral, campaigns | [lifecycle-marketing.md](./references/lifecycle-marketing.md) |
-| **Multi-step sequences**: delays, branches, batching, digests, A/B, cancellation, Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
+| **Multi-step sequences**: delays, branches, batching, A/B, cancellation, Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
 | Channel routing, fallbacks, escalation, provider failover | [multi-channel.md](./references/guides/multi-channel.md) |
 | Idempotency, retries, delivery statuses, webhook verification | [reliability.md](./references/guides/reliability.md) |
 | Preference topics, opt-out, preference centers, workspace preference sections | [preferences.md](./references/guides/preferences.md) |
 | **Scheduling a send**: delay, exact timestamp, delivery windows (business/quiet hours) | [scheduling.md](./references/guides/scheduling.md) |
-| Aggregation and digests (`batch`, `add-to-digest`) | [batching.md](./references/guides/batching.md) |
+| **Digests**: daily or weekly summaries, a topic's digest schedule, letting users pick how often, releasing a digest now | [digests.md](./references/guides/digests.md) |
+| Rolling up bursts of events in a journey (`batch` node) | [batching.md](./references/guides/batching.md) |
 | **Branding**: logo, colors, email/in-app theme, attaching a brand to sends/tenants, sending unbranded | [brands.md](./references/guides/brands.md) |
 | **Audiences**: dynamic segments, filter rules, sending to a segment | [audiences.md](./references/guides/audiences.md) |
 | **Multi-tenant / B2B**: tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |

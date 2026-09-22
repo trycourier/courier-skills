@@ -7,7 +7,7 @@ checks them on every send, so the enforcement lives in Courier rather than in yo
 
 ### Rules
 - **A user preference is an override on a topic's default**, not a standalone value. Topics are defined in the Preferences Editor with a default; a user falls back to it until they set their own choice
-- **Two levels, easy to conflate.** A topic's `default_status` is `OPTED_IN`, `OPTED_OUT`, or `REQUIRED`. A user's own `status` is only `OPTED_IN` or `OPTED_OUT`. `REQUIRED` is a topic default that no user status overrides
+- **Two levels, easy to conflate.** A topic's `default_status` is `OPTED_IN`, `OPTED_OUT`, or `REQUIRED`. A user's own `status` is only `OPTED_IN` or `OPTED_OUT`. `REQUIRED` is a topic default that no user status overrides. Writing `OPTED_OUT` to a REQUIRED topic returns 400
 - **Mapping a template to a topic is what makes enforcement happen.** An unmapped template sends regardless of preferences. Each template maps to exactly one topic
 - **An opted-out send is skipped silently.** No error, no message. Check the logs, not the response
 - **Channel selection is enabled per section**, not per topic
@@ -99,7 +99,7 @@ Embedded preferences render whatever is published, so use Preview Page to check 
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/users/{user_id}/preferences` | List the user's overrides |
+| `GET` | `/users/{user_id}/preferences` | List every topic with the user's status (their override, or the topic default) |
 | `PUT` | `/users/{user_id}/preferences` | Replace the entire override set (bulk) |
 | `POST` | `/users/{user_id}/preferences` | Create or update without touching others (bulk) |
 | `GET` | `/users/{user_id}/preferences/{topic_id}` | Read one topic |
@@ -168,6 +168,8 @@ differ from the default. It's idempotent, so the import is safe to re-run.
 | `custom_routing` | `email`, `sms`, `push`, `inbox`, `direct_message`, `webhook` |
 | `default_status` | The topic's default, returned on reads. Applies when the user has no override |
 | `topic_name` | Display name, returned on reads |
+| `section_id` / `section_name` | The section the topic belongs to, returned on reads |
+| `digest_schedule_id` | The user's digest schedule for the topic. Omit to keep, `null` to reset. See [digests.md](./digests.md#per-recipient-schedule) |
 
 ## Channel Selection
 
@@ -175,7 +177,7 @@ Enabling channel selection on a **section** lets users pick channels for the top
 choices land in `custom_routing`, which only populates for sections where it's enabled. Users see the
 channel display names configured in page settings, not the raw enum values.
 
-> Template [send conditions](https://www.courier.com/docs/platform/content/template-settings/send-conditions)
+> Template [send conditions](https://www.courier.com/docs/design/templates/template-settings)
 > do not override a user's `custom_routing`. To drop a channel when required data is missing, use
 > variable guardrails instead.
 
@@ -244,55 +246,12 @@ your email provider's own settings (SendGrid, Mailgun, and so on).
 
 ## Digest Schedules
 
-Digests are configured per topic in the Preferences Editor under **Digest settings**, and recipients
-pick their frequency in the preference center. Add up to four delivery schedules; the first is the
-default and they can be reordered.
+A topic can deliver its messages as a digest: collected and sent as one message on a schedule the
+recipient picks (Instant, Daily, Every weekday, Multiple days, Weekly, Monthly). Recipients choose in
+the hosted or embedded preference page, or your backend sets `digest_schedule_id`. Configure it in the
+Preferences Editor under **Digest settings**, or with the `digest` object on the topics API.
 
-| Frequency | Delivers |
-|---|---|
-| Instant | Immediately, not collected. This is how a recipient opts out of batching |
-| Daily | Once a day (time, timezone) |
-| Every weekday | Monday to Friday (time, timezone) |
-| Multiple days | On the days you choose (time, timezone) |
-| Weekly | Once a week (day, time, timezone) |
-| Monthly | Once a month (day of month, time, timezone) |
-
-Two different templates are involved: the ones **mapped to the topic** are what get collected, and
-the **digest template** set in Digest settings renders them as one message. **Until you link a digest
-template, the topic's notifications send individually instead of batching.** Collected requests show
-a `DIGESTED` status in the logs.
-
-### Categories and the template payload
-
-Categories are optional and separate different kinds of item within one digest, so a single digest
-can group, say, comments and mentions under distinct sections. Up to five. Each has a name and a
-**retain** setting deciding which items survive when more arrive than the digest shows:
-
-| Retain | Keeps |
-|---|---|
-| First 10 | The first items received in the window |
-| Last 10 | The most recent items received |
-| 10 Highest / 10 Lowest | Top or bottom by a data attribute (needs a sort key) |
-
-The digest template receives the collected items grouped by category name, each with a `count` and
-the retained `items`:
-
-```json
-{ "category_name": { "count": 25, "items": [ /* up to 10 events, per the retain setting */ ] } }
-```
-
-Reference `category_name.count` for the total and loop over `category_name.items` to render each event.
-
-**Trigger Empty** sends the digest on schedule even when nothing was collected, which is what you
-want when your own system supplies the data the digest renders. Off by default.
-
-Digest settings are part of the preference page, so **publish the preferences** for changes to reach
-recipients.
-
-> Two different digest mechanisms share a name. This one is **preference-driven**: the recipient
-> picks a frequency and Courier collects the topic's sends. The `batch` and `add-to-digest`
-> **journey nodes** in [batching.md](./batching.md) aggregate inside a single journey run and are not
-> recipient-selectable. Reach for this one when the user should control cadence.
+Setup, the send payload, what the digest template receives, and release are in **[digests.md](./digests.md)**.
 
 ## Embedded Preferences
 
@@ -417,8 +376,12 @@ Topics within a section live under `client.workspacePreferences.topics.*`:
 `create(sectionId, {...})`, `list(sectionId)`, and `retrieve`/`replace`/`archive(topicId, {...})`.
 
 A section carries `name` (required), an optional `description` (shown under the section on the hosted
-page), and `has_custom_routing`. Confirm topic-body shapes against the installed types under
-`resources/workspace-preferences/`.
+page), and `has_custom_routing`.
+
+A topic carries `name` and `default_status` (both required), `description`, `routing_options` (default
+channels), `allowed_preferences` (`snooze`, `channel_preferences`), `include_unsubscribe_header`,
+`topic_data` (arbitrary metadata), and `digest` (see [digests.md](./digests.md#configure-a-topics-digest)).
+`replace` is a full replacement: optional fields you omit are cleared, except `digest`, which is left as is.
 
 ## Related
 
@@ -426,4 +389,4 @@ page), and `has_custom_routing`. Confirm topic-body shapes against the installed
 - [Brands](./brands.md) - what drives the hosted page's appearance
 - [Tenants](./tenants.md) - tenant defaults that override workspace defaults
 - [Batching](./batching.md) - digest and batch nodes inside journeys
-- [Hosted Preference Center](https://www.courier.com/docs/platform/preferences/hosted-page) · [Preferences Editor](https://www.courier.com/docs/platform/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/platform/preferences/user-preference-management) · [Embedding](https://www.courier.com/docs/platform/preferences/embedding-preferences)
+- [Hosted Preference Center](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page) · [Preferences Editor](https://www.courier.com/docs/recipients/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/recipients/preferences/api) · [Embedding](https://www.courier.com/docs/guides/build-a-preference-center#embedded-component)
