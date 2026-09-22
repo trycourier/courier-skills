@@ -32,4 +32,4 @@ Agents only learn what the skill routes them to. For every new public endpoint o
 - a row in `references/sdk-reference.md` (Node and Python)
 - a row in `references/guides/cli.md` if the CLI has a command
 
-Don't write that MCP lacks a tool. Tell the agent to check `tools/list` and fall back to the SDK or CLI.
+Don't state that MCP lacks a tool as a fact anywhere in the skill. The one place for lagging coverage is `mcp.md` **Known gaps**, phrased as "check `tools/list` first, then fall back to the SDK or CLI", and remove a row as soon as the tool ships.

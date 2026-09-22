@@ -718,9 +718,8 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 - [CLI](./cli.md) - CLI for ad-hoc template operations (`courier notifications list`)
 - [Reliability](./reliability.md) - Idempotency keys for sends using templates
 - [Elemental Overview](https://www.courier.com/docs/design/elemental/overview) - Full Elemental documentation
-- [Elements Reference](https://www.courier.com/docs/design/elemental/overview) - Complete element type reference
+- [Elements Reference](https://www.courier.com/docs/design/elemental/elements/text) - One page per element type
 - [Templates API](https://www.courier.com/docs/design/templates/api) - API endpoint reference
-- [Templates API Tutorial](https://www.courier.com/docs/design/templates/api) - Step-by-step walkthrough
 
 <!-- Target line budget: <= 750 lines. If you are about to push this past 800, split further rather than letting it grow. Elemental reference lives in elemental.md. -->
 <!-- Target line budget (elemental.md): see the footer comment in elemental.md itself. -->

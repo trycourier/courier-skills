@@ -265,4 +265,4 @@ An absent tool is a possible gap, not proof the endpoint doesn't exist. Check th
 - [Reliability](./reliability.md) - Idempotency keys and retry patterns
 - [Patterns](./patterns.md) - Reusable code patterns for common notification tasks
 
-Documentation: [courier.com/docs/tools/mcp](https://www.courier.com/docs/resources/mcp)
+Documentation: [courier.com/docs/resources/mcp](https://www.courier.com/docs/resources/mcp)

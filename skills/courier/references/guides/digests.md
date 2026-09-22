@@ -13,7 +13,7 @@ and the categories.
 - **A send is only held if it carries the topic**, through the template's `subscription.topic_id` or the send's `message.preferences.subscription_topic_id`.
 - **The send's `data` needs a top-level key named exactly like a category**, including case. A send with no matching key is delivered immediately as a normal message, with no error.
 - **One `/send` call is one item.** Never send `count` or `items` yourself. Courier builds them at release.
-- **The digest template is set on the topic's digest configuration**, separately from the templates you send. Removing it turns digesting off for the topic.
+- **The digest template is set on the topic's digest configuration**, separately from the templates you send. Removing it turns digesting off for the topic. If it is a separate template, **don't link it to the topic**, or it gets collected like any other send and the digest contains a copy of itself.
 - **Include an Instant schedule** so recipients can opt out, but don't make it the default: a recipient who never chose a schedule falls back to the default (or the first schedule), and Instant never holds anything.
 - **`schedules` needs at least one entry.** `schedules: []` returns 400. Turn a digest off with `digest: null` or `deleteDigest`.
 - **Events past a category's `limit` are discarded** at release, not carried into the next digest.
@@ -173,8 +173,10 @@ The total, outside the loop, depends on the template's scope:
 
 With no categories, the key is `digest` and each item is the send's `data` unwrapped.
 
-Instant recipients get the same template with one event and no `items`, so branch on whether items
-exist if one template serves both. A value that is the same on every event (a build number) still
+If you offer Instant, use a separate digest template that is not linked to the topic. Instant
+recipients then get the per-event template you sent, and the digest template only ever renders the
+list. A single template serving both receives one event with no `items` for Instant recipients, and
+the list above renders nothing for them. A value that is the same on every event (a build number) still
 arrives per item. Read it inside the loop, not positionally from `items.[0]`, which vanishes silently
 when the first item lacks it.
 
@@ -229,7 +231,7 @@ template is set.
 the item field skips the category key, or the sender wrapped events in their own `count` and
 `items`. Sends and releases use the **published** template, so publish template edits first.
 
-**The same item appears twice.** The event carried two category keys.
+**The same item appears twice.** The event carried two category keys, or a separate digest template is linked to the topic.
 
 **An event just after the scheduled time waits a full cycle.** Expected. Release manually while
 developing instead of using a short schedule.

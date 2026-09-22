@@ -447,7 +447,7 @@ The `conditions` field accepts one of three shapes:
 `was DELIVERED` is also true once the message was opened or clicked. `UNDELIVERABLE` matches only itself.
 
 Node ids are server-generated, and send nodes can't be added on create, so wire it in two `PUT`s: add
-the email send node, read its `id` from that response, then `PUT` again with the delay and branch. Escalate to SMS when an email is not clicked within a day. Key on `CLICKED`, not `OPENED`, because image-proxy prefetch fires opens nobody saw:
+the email send node, read its `id` from that response, then `PUT` again with the delay and branch. Escalate to SMS when an email is not clicked within a day. Key on `CLICKED`, not `OPENED`, because image-proxy prefetch fires opens nobody saw. `CLICKED` needs click tracking on and a tracked link in the message; without them the condition is always true and everyone gets the SMS:
 
 ```json
 [
@@ -870,7 +870,7 @@ The Cancel node is configured in the journey builder. It is **not currently part
 
 ## Debugging Runs
 
-Every invoke returns a `runId`. Use **[Run Inspection](https://www.courier.com/docs/monitor/journey-metrics)** to step through a run node-by-node: a delay shows `Waiting` until it releases; a branch shows every condition evaluated, the actual values compared, and which path was taken; a fetch shows the response and merged fields. Start here when a journey "ran but nothing sent."
+Every invoke returns a `runId`. Use **[Run Inspection](https://www.courier.com/docs/monitor/journey-metrics#run-inspection)** to step through a run node-by-node: a delay shows `Waiting` until it releases; a branch shows every condition evaluated, the actual values compared, and which path was taken; a fetch shows the response and merged fields. Start here when a journey "ran but nothing sent."
 
 ---
 
@@ -891,4 +891,4 @@ The models are near-identical: a flow a user enters, moves through step by step,
 - [Reliability](./reliability.md), retries, idempotency, webhook handling
 - [Building Journeys via API](https://www.courier.com/docs/journeys/build), official Courier documentation
 - [Journeys API Reference](https://www.courier.com/docs/api-reference/journeys/create-a-journey), endpoint reference
-- [Run Inspection](https://www.courier.com/docs/monitor/journey-metrics), step through runs to debug
+- [Run Inspection](https://www.courier.com/docs/monitor/journey-metrics#run-inspection), step through runs to debug

@@ -558,6 +558,6 @@ Reach for hand-written `locales` (or the [Translations API](https://www.courier.
 - [Multi-Channel](./multi-channel.md), routing strategies for the top-level `channel` elements
 - [Quickstart](./quickstart.md). Send your first notification
 - [Elemental Overview](https://www.courier.com/docs/design/elemental/overview), official reference
-- [Elements Reference](https://www.courier.com/docs/design/elemental/overview), complete element type reference
+- [Elements Reference](https://www.courier.com/docs/design/elemental/elements/text), one page per element type, starting with `text`
 
 <!-- Target line budget: <= 550 lines. If you are about to push this past 575, split (e.g., control flow + localization out) rather than letting it grow. -->
