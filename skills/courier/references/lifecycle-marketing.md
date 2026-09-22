@@ -18,8 +18,8 @@ Notifications Courier sends proactively rather than in response to a user action
 |---|---|
 | Onboarding / activation sequence | [Journey](./guides/journeys.md): `send` → `delay` → `branch` on activated? → `exit`. Cancel on activation. |
 | Feature announcement | Send to an [audience](./guides/patterns.md) (`to: { audience_id }`) so targeting is a filter, not a query you maintain |
-| Activity notification | Single send, or an [`add-to-digest`](./guides/batching.md) node if the user prefers a summary |
-| Activity digest (daily / weekly) | [`add-to-digest`](./guides/batching.md) node + a subscription topic schedule, the user's own frequency preference drives delivery |
+| Activity notification | Single send, mapped to a topic with a [digest](./guides/digests.md) so users who prefer a summary get one |
+| Activity digest (daily / weekly) | A [topic digest](./guides/digests.md): send once per event, the recipient's chosen schedule drives delivery |
 | Aggregated activity ("Jane and 5 others") | [`batch`](./guides/batching.md) node with `category_key` to group by target |
 | Re-engagement / win-back | [Journey](./guides/journeys.md) with `delay` + `branch` on returned?, cancelled the moment they come back |
 | Referral invite and reward | Single sends triggered by your referral service; reward send on qualification |
@@ -28,7 +28,7 @@ Notifications Courier sends proactively rather than in response to a user action
 | Letting users choose frequency | [Subscription topics + preferences](./guides/preferences.md), including a hosted or embedded preference center |
 | One-off broadcast to a list or audience | Broadcasts, configured in the dashboard |
 
-**The two things people rebuild unnecessarily** are frequency capping and digest scheduling. Both are Courier nodes. See [Batching](./guides/batching.md) and [Throttling](./guides/throttling.md).
+**The two things people rebuild unnecessarily** are frequency capping and digest scheduling. Courier does both: a `throttle` node caps frequency, and a topic digest collects sends on the recipient's schedule. See [Digests](./guides/digests.md), [Batching](./guides/batching.md), and [Throttling](./guides/throttling.md).
 
 ### Cancel the sequence when its goal is met
 
@@ -90,7 +90,8 @@ Courier offers a hosted preference page and embeddable React / Web Components. S
 ## Related
 
 - [Journeys](./guides/journeys.md), the engine behind every multi-step sequence, plus cancellation and A/B experiments
-- [Batching](./guides/batching.md), `batch` and `add-to-digest` nodes for aggregation and digests
+- [Digests](./guides/digests.md), recipient-scheduled summaries
+- [Batching](./guides/batching.md), the `batch` node for aggregation
 - [Throttling](./guides/throttling.md), frequency caps and fatigue control
 - [Preferences](./guides/preferences.md), subscription topics, preference centers, opt-out handling
 - [Patterns](./guides/patterns.md), lists, audiences, tenants, bulk targeting

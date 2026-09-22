@@ -42,11 +42,14 @@ the method doesn't exist.
 | Resend a message | `client.messages.resend(messageId)` | `client.messages.resend(message_id)` |
 | Rendered content of a sent message | `client.messages.content(messageId)` | `client.messages.content(message_id)` |
 | Delivery event history | `client.messages.history(messageId)` | `client.messages.history(message_id)` |
-| Release a digest early | `client.digests.schedules.release(scheduleId)` | `client.digests.schedules.release(schedule_id)` |
+| Configure a topic's digest | `client.workspacePreferences.topics.create(sectionId, { name, default_status, digest })` · also `replace(topicId, { section_id, ... })` | `client.workspace_preferences.topics.create(section_id, name=..., default_status=..., digest=...)` |
+| Turn off a topic's digest | `client.workspacePreferences.topics.deleteDigest(topicId, { section_id })` | `client.workspace_preferences.topics.delete_digest(topic_id, section_id=...)` |
+| Release one recipient's digest | `client.workspacePreferences.topics.releaseDigest(topicId, { section_id, user_id })` | `client.workspace_preferences.topics.release_digest(topic_id, section_id=..., user_id=...)` |
+| Release a schedule's digests early | `client.digests.schedules.release(scheduleId)` | `client.digests.schedules.release(schedule_id)` |
 | Inspect digest accumulation | `client.digests.schedules.listInstances(scheduleId)` | `client.digests.schedules.list_instances(schedule_id)` |
 | Create/update a profile (merge) | `client.profiles.create(userId, { profile })` | `client.profiles.create(user_id, profile=...)` |
 | Get a user's preferences | `client.users.preferences.retrieve(userId)` | `client.users.preferences.retrieve(user_id)` |
-| Update a user's preference for a topic | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic: { status, ... } })` | `client.users.preferences.update_or_create_topic(topic_id, user_id=..., topic=...)` |
+| Update a user's preference for a topic (status, channels, digest schedule) | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic: { status, digest_schedule_id?, ... } })` | `client.users.preferences.update_or_create_topic(topic_id, user_id=..., topic=...)` |
 | Register a user's device token | `client.users.tokens.addSingle(token, { user_id, provider_key, device })` | `client.users.tokens.add_single(token, user_id=..., provider_key=..., device=...)` |
 | Create a journey | `client.journeys.create({ name, nodes, enabled })` | `client.journeys.create(name=..., nodes=..., enabled=...)` |
 | Replace a journey (draft) | `client.journeys.replace(id, { name, nodes, enabled })` | `client.journeys.replace(id, name=..., nodes=..., enabled=...)` |

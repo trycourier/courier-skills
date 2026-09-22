@@ -202,6 +202,9 @@ await client.send.message({
 
 ### With Email-Specific Overrides
 
+`message.channels.email.override` changes parts of an email at send time, for every email provider
+on the send. A `message.providers.<key>.override` targets one provider and wins when both set a field.
+
 ```typescript
 await client.send.message({
   message: {
@@ -211,21 +214,30 @@ await client.send.message({
     channels: {
       email: {
         override: {
-          from: {
-            email: "orders@t.acme.com",
-            name: "Acme Orders"
-          },
+          from: "Acme Orders <orders@t.acme.com>",
           reply_to: "support@acme.com",
           bcc: "records@acme.com",
-          headers: {
-            "X-Order-ID": "12345"
-          }
-        }
-      }
-    }
-  }
+        },
+      },
+    },
+  },
 });
 ```
+
+| Field | Does |
+|---|---|
+| `subject` | Replaces the subject line |
+| `from`, `reply_to` | A plain address or `"Display Name <email>"` |
+| `cc`, `bcc` | Comma-separated addresses |
+| `html`, `text` | Replaces the rendered body entirely |
+| `attachments` | Files, in the provider's shape (below) |
+| `brand` | Brand settings, same schema as the Brands API |
+| `tracking` | `{ "open": false }` turns off open tracking |
+
+Overrides apply **after** rendering, so the Rendered tab in message logs doesn't show them; check the
+Raw provider request. They are passed to the provider as-is: an override `subject` or `html` is not
+a template and variables in it are not filled in. On a send held for a [digest](../guides/digests.md),
+overrides are dropped at release.
 
 ### Attachments
 
@@ -256,7 +268,7 @@ await client.send.message({
 });
 ```
 
-The **override nesting is provider-specific**. It mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/external-integrations/email/intro-to-email) for the exact field. Attachments aren't part of the template. They're per-send data you supply at call time.
+The **override nesting is provider-specific**. It mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/integrations/email/overview) for the exact field. Attachments aren't part of the template. They're per-send data you supply at call time.
 
 ### Provider Failover
 

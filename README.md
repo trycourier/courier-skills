@@ -8,7 +8,7 @@ npx skills add trycourier/courier-skills
 
 > **What is this?** A packaged, verified knowledge base that teaches an AI agent how to use Courier well: the right primitive for each use case, the exact SDK shapes for the installed version, and the rules you cannot get wrong (never batch an OTP, mask PII in security alerts, recorded opt-in for marketing). Every API claim is checked against the installed SDK, so the code your agent writes actually runs.
 
-**New to building notifications with AI?** Start with Courier's [Build with AI onboarding guide](https://www.courier.com/docs/tools/ai-onboarding), which covers the CLI, the [Courier MCP server](https://www.courier.com/docs/mcp), agent skills, and machine-readable docs.
+**New to building notifications with AI?** Start with Courier's [Build with AI onboarding guide](https://www.courier.com/docs/get-started/build-with-ai), which covers the CLI, the [Courier MCP server](https://www.courier.com/docs/mcp), agent skills, and machine-readable docs.
 
 ## What you can build with it
 
@@ -16,7 +16,7 @@ Ask your assistant in plain English. The skill routes the request to the right C
 
 - "Send a welcome email from my Node backend" gives you a single `client.send.message` with a template.
 - "Add an in-app notification center to my React app" gives you the Courier Inbox with JWT auth and real-time updates.
-- "Batch these into a daily digest so users are not spammed" gives you a journey with an `add-to-digest` node.
+- "Batch these into a daily digest so users are not spammed" gives you a topic digest: one send per event, released on the schedule each user picks.
 - "Fall back from push to email if push fails" gives you a routing strategy with ordered channels.
 - "Let users choose which notifications they get" gives you preference topics and a hosted preference page.
 - "Why did this message not deliver?" gives you the CLI delivery ladder: `messages list`, then `history`, then `content`.
@@ -77,7 +77,7 @@ The same shape sends email, SMS, push, Slack, Teams, WhatsApp, or in-app. The ch
 
 **Notification types.** [Transactional](./skills/courier/references/transactional.md) (password reset, OTP, orders, receipts, dunning, security alerts) and [lifecycle marketing](./skills/courier/references/lifecycle-marketing.md) (onboarding, adoption, digests, win-back, campaigns). Each is mapped to the Courier primitive that implements it.
 
-**Core platform.** Quickstart, journeys (delays, branches, batching, digests, throttling, A/B experiments, cancellation), templates and Elemental, multi-channel routing, preferences and preference sections, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses), webhooks in both directions (outbound events and signature verification, inbound webhooks and journey triggers), sending to many recipients (list and audience fan-out, the Bulk API), routing strategies, and provider configuration.
+**Core platform.** Quickstart, journeys (delays, branches, batching, throttling, A/B experiments, cancellation), templates and Elemental, multi-channel routing, preferences and preference sections, digests (topic schedules, categories, and early release), template delivery metrics, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses), webhooks in both directions (outbound events and signature verification, inbound webhooks and journey triggers), sending to many recipients (list and audience fan-out, the Bulk API), routing strategies, and provider configuration.
 
 **Tooling.** The CLI for ad-hoc operations and delivery debugging, and MCP: the [API server](https://mcp.courier.com) to operate a workspace and the [docs server](https://www.courier.com/docs/mcp) to look things up.
 
@@ -103,13 +103,13 @@ Use the Courier Inbox. Send to the `inbox` channel server-side, then render it c
 Transactional notifications are triggered by a user action (password reset, order confirmation) and should never be batched or delayed. Marketing notifications are sent proactively and require recorded opt-in. See the [transactional guide](./skills/courier/references/transactional.md) and the [lifecycle marketing guide](./skills/courier/references/lifecycle-marketing.md) for patterns and the rules for each.
 
 **How do I handle notification preferences?**
-See [`references/guides/preferences.md`](./skills/courier/references/guides/preferences.md) for per-user subscription topics, opt-out, hosted [preference pages](https://www.courier.com/docs/platform/preferences/hosted-page), and workspace-level preference sections.
+See [`references/guides/preferences.md`](./skills/courier/references/guides/preferences.md) for per-user subscription topics, opt-out, hosted [preference pages](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page), and workspace-level preference sections.
 
 **How do I debug why a message was not delivered?**
 Start from the delivery ladder in the skill. Confirm Courier accepted the request (it returns a `requestId`), then run `courier messages list --trace-id`, `history`, and `content` to see where it stopped and what rendered, before touching the channel.
 
 **How do I build multi-step flows like onboarding, escalation, or win-back?**
-Use [Journeys](https://www.courier.com/docs/platform/journeys/building-journeys-via-api), a JSON graph of send, delay, branch, fetch, throttle, and batch nodes that you create, publish, and invoke over the API.
+Use [Journeys](https://www.courier.com/docs/journeys/build), a JSON graph of send, delay, branch, fetch, throttle, and batch nodes that you create, publish, and invoke over the API.
 
 ## Repository structure
 
@@ -127,7 +127,7 @@ courier-skills/
         └── guides/    (quickstart, journeys, templates, templates-as-code, elemental,
                         multi-channel, preferences, batching, throttling, brands,
                         audiences, tenants, patterns, routing-strategies, providers,
-                        reliability, webhooks, bulk, scheduling, metrics, cli, mcp)
+                        reliability, webhooks, bulk, scheduling, metrics, digests, cli, mcp)
 ```
 
 Open `skills/courier/SKILL.md`. Its **Where to Look** table routes you to the one or two references that match your task.
@@ -145,11 +145,11 @@ Courier is provider-agnostic. You write one `send` call and Courier delivers thr
 | Messaging | WhatsApp Business API |
 | In-app | Courier Inbox |
 
-Courier supports 50+ providers in total. For the complete, current list see the [Courier integrations docs](https://www.courier.com/docs/platform/channels/), or call `client.providers.catalog.list()` for the live catalog in your workspace.
+Courier supports 50+ providers in total. For the complete, current list see the [Courier integrations docs](https://www.courier.com/docs/integrations/overview), or call `client.providers.catalog.list()` for the live catalog in your workspace.
 
 ## Links
 
-- **Courier**: [courier.com](https://www.courier.com), [Documentation](https://www.courier.com/docs), [API Reference](https://www.courier.com/docs/api-reference/), [Build with AI](https://www.courier.com/docs/tools/ai-onboarding)
+- **Courier**: [courier.com](https://www.courier.com), [Documentation](https://www.courier.com/docs), [API Reference](https://www.courier.com/docs/api-reference/), [Build with AI](https://www.courier.com/docs/get-started/build-with-ai)
 - **MCP**: [Courier MCP server docs](https://www.courier.com/docs/mcp), [API server endpoint](https://mcp.courier.com)
 - **SDKs**: [`@trycourier/courier` (Node)](https://www.npmjs.com/package/@trycourier/courier), `trycourier` (Python)
 

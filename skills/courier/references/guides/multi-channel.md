@@ -245,6 +245,11 @@ Build the escalation as a journey DAG with delay and send nodes. See [Journeys](
 }
 ```
 
+The fetch checks inbox read state in your own app, so keep it for an in-app first step: a read is not
+a click. When the earlier step is an email, push, or SMS and a click is the engagement you care about,
+branch on its send status instead (`["send_status.<nodeId>", "was not", "CLICKED"]`). See
+[Branching on an earlier send](./journeys.md#branching-on-an-earlier-send).
+
 Invoke the journey when the event occurs:
 
 ```bash

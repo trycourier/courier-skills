@@ -100,7 +100,7 @@ Timestamp fields accumulate as the message progresses, so a `CLICKED` event stil
 | `UNROUTABLE` | `reason` (e.g. `NO_PROVIDERS`) and `error`. `providers` is empty. |
 | `UNDELIVERABLE` | `reason` (e.g. `UNSUBSCRIBED`) and `error`, plus `error` on the failing provider entry |
 
-`data` matches what [`GET /messages/{id}`](https://www.courier.com/docs/api-reference/sent-messages/get-message)
+`data` matches what [`GET /messages/{id}`](https://www.courier.com/docs/api-reference/messages/get-message)
 returns, and carries any metadata on the message: `trace_id`, `tags`, `event`, and `utm`.
 
 ```json
@@ -367,4 +367,4 @@ journeys in the UI. See [journeys.md](./journeys.md#triggers).
 - [reliability.md](./reliability.md): delivery statuses, idempotency, retries
 - [patterns.md](./patterns.md#webhook-handler): copy-paste handler skeleton
 - [journeys.md](./journeys.md): trigger types and journey structure
-- [Outbound Webhooks](https://www.courier.com/docs/platform/workspaces/outbound-webhooks) · [Inbound Webhooks](https://www.courier.com/docs/platform/workspaces/inbound-webhooks)
+- [Outbound Webhooks](https://www.courier.com/docs/monitor/webhooks/outbound) · [Inbound Webhooks](https://www.courier.com/docs/monitor/webhooks/inbound)

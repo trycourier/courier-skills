@@ -5,7 +5,7 @@
 ### Rules
 - **Courier's native rate limiter is the journey `throttle` node**: `scope: "user"`, `"global"`, or `"dynamic"` with a `throttle_key`, plus `max_allowed` and an ISO 8601 `period`
 - **Courier does not throttle plain `send.message` calls server-side.** A frequency cap on direct sends is either a journey in front of the send or logic in your application
-- **For user-facing cadence control, prefer [digest schedules](./preferences.md#digest-schedules)** over your own throttle: the recipient picks the frequency and Courier does the collecting
+- **For user-facing cadence control, prefer [digest schedules](./digests.md)** over your own throttle: the recipient picks the frequency and Courier does the collecting
 - **The SDK already handles provider `429`s** on your call to Courier (see [reliability.md](./reliability.md#retry-logic)); provider-side rate limits are Courier's job during delivery
 
 ### Common Mistakes
@@ -45,7 +45,7 @@ await client.send.message({
 });
 ```
 
-Provider-level rate limits (e.g. SendGrid/Twilio caps) are enforced per provider. See [Provider Rate Limits](#provider-rate-limits) below for the 429 retry pattern. For user-facing cadence control, use [digest schedules](./preferences.md#digest-schedules) on a subscription topic, where the recipient picks the frequency. For quiet hours, use a [delivery window](./scheduling.md#delivery-window-business-hours-quiet-hours).
+Provider-level rate limits (e.g. SendGrid/Twilio caps) are enforced per provider. See [Provider Rate Limits](#provider-rate-limits) below for the 429 retry pattern. For user-facing cadence control, use [digest schedules](./digests.md) on a subscription topic, where the recipient picks the frequency. For quiet hours, use a [delivery window](./scheduling.md#delivery-window-business-hours-quiet-hours).
 
 ### Journey Throttling (Recommended)
 

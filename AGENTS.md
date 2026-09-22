@@ -22,3 +22,14 @@ node -e 's=require("fs").readFileSync("skills/courier/SKILL.md","utf8");require(
 ```
 
 **A skill's `name:` equals its directory name**, and each `SKILL.md` stays lean (~5,000 tokens, ~500 lines). Depth lives in `references/`, pulled on demand; the entry point routes, it doesn't document everything.
+
+## When Courier ships an endpoint
+
+Agents only learn what the skill routes them to. For every new public endpoint or SDK method, the same PR adds:
+
+- a section in the reference file that owns the resource, or a new reference file
+- a row in SKILL.md's **Where to Look**, in the words a user would ask with
+- a row in `references/sdk-reference.md` (Node and Python)
+- a row in `references/guides/cli.md` if the CLI has a command
+
+Don't state that MCP lacks a tool as a fact anywhere in the skill. The one place for lagging coverage is `mcp.md` **Known gaps**, phrased as "check `tools/list` first, then fall back to the SDK or CLI", and remove a row as soon as the tool ships.

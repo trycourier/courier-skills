@@ -143,9 +143,9 @@ Clickable button or link.
 | `content` | `string` | Yes | Button/link label |
 | `href` | `string` | Yes | Target URL |
 | `action_id` | `string` | No | Unique ID for tracking clicks |
-| `style` | `"button"` \| `"link"` | No | Render as button (default) or text link |
+| `style` | `"button"` \| `"secondary"` \| `"tertiary"` \| `"link"` | No | `button` (default) is filled, `secondary` outlined, `tertiary` the quietest, `link` inline text. Each channel draws them as closely as it can. The SDK type lists only `button` and `link`, so the other two need `// @ts-expect-error` in TypeScript |
 | `align` | `"center"` \| `"left"` \| `"right"` \| `"full"` | No | Alignment (default: `"center"`) |
-| `background_color` | `string` | No | Button background CSS color |
+| `background_color` | `string` | No | The fill for `button`; the border and label for `secondary`; the label for `tertiary` |
 
 ### image
 
@@ -193,7 +193,7 @@ Channel-specific content branches. When present at the top level, **all** siblin
 
 **`inbox` is a valid value and Design Studio writes it.** A template built in the designer for the in-app inbox stores `{ "type": "channel", "channel": "inbox", "elements": [...] }`, so wrap inbox content the same way. Channel-wrapped is the expected shape, not malformed.
 
-**SDK typing gap.** The public OpenAPI spec omits `elements` on the channel node and omits the `group` node entirely, so the generated SDK types don't declare either. In TypeScript, `elements` inside a `type: "channel"` object fails with TS2353, and `type: "group"` fails with TS2322, even though the API accepts both and Design Studio produces both. Keep the shape and add `// @ts-expect-error accepted by the API, missing from the SDK type` on the offending line, or cast the node. Python accepts both at runtime. Do not unwrap or drop `group` to satisfy the compiler. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
+**SDK typing gap.** The generated SDK types have no `group` node, so `type: "group"` fails in TypeScript with TS2322 even though the API accepts it and Design Studio produces it. Keep the shape and add `// @ts-expect-error accepted by the API, missing from the SDK type` on that line, or cast the node. Python accepts it at runtime. Do not drop `group` to satisfy the compiler. Channel `elements` are typed; if an older SDK rejects them with TS2353, upgrade. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
 
 #### The channel element vs the three other places a channel is named
 
@@ -391,7 +391,7 @@ Ordered and unordered lists with nesting support (up to 5 levels deep).
 
 ### html
 
-Raw HTML content for custom formatting not available through other element types. Primarily renders in email.
+Raw HTML for formatting the other elements can't express. Renders in email only. Variables work (`{{order_id}}`), and so do Handlebars helpers such as `{{#each}}`. Put loops here or use `loop` on an element (see [Iteration](#iteration-loop)), never `{{#each}}` in a text element, which renders but can't be edited in the designer. `$.item` is loop syntax for `loop`, not Handlebars.
 
 ```json
 {
@@ -539,7 +539,7 @@ The `meta` element carries `title` (used as the email subject and push/chat titl
 }
 ```
 
-For full localization setup, see the official [Locales](https://www.courier.com/docs/platform/content/elemental/locales) docs and the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation) for workspace-wide string management.
+For full localization setup, see the official [Locales](https://www.courier.com/docs/design/elemental/locales) docs and the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation) for workspace-wide string management.
 
 ### AI Translation (Design Studio)
 
@@ -550,14 +550,14 @@ For templates built in Design Studio, you don't have to write the `locales` bloc
 - **Outdated strings are flagged.** When you change the default-locale template, Courier marks which translations are now stale; re-translate only those with **Translate all**, leaving unchanged strings and overrides intact.
 - **Not used for model training**: templates, customer data, and variables stay within Courier's infrastructure.
 
-Reach for hand-written `locales` (or the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation)) when a template is defined in code rather than Design Studio, or when you localize as part of a deploy pipeline. Docs: [AI Translation](https://www.courier.com/docs/platform/content/design-studio/ai-translations).
+Reach for hand-written `locales` (or the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation)) when a template is defined in code rather than Design Studio, or when you localize as part of a deploy pipeline. Docs: [AI Translation](https://www.courier.com/docs/design/elemental/locales).
 
 ## Related
 
 - [Templates](./templates.md), template lifecycle (create, publish, version, archive) and inline-vs-templated decisions
 - [Multi-Channel](./multi-channel.md), routing strategies for the top-level `channel` elements
 - [Quickstart](./quickstart.md). Send your first notification
-- [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview), official reference
-- [Elements Reference](https://www.courier.com/docs/platform/content/elemental/elements/index), complete element type reference
+- [Elemental Overview](https://www.courier.com/docs/design/elemental/overview), official reference
+- [Elements Reference](https://www.courier.com/docs/design/elemental/elements/text), one page per element type, starting with `text`
 
 <!-- Target line budget: <= 550 lines. If you are about to push this past 575, split (e.g., control flow + localization out) rather than letting it grow. -->

@@ -386,7 +386,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 | Throttle (static) | `type: "throttle"`, `scope: "user"` or `"global"` | `max_allowed`, `period`. Optional: `conditions`. |
 | Throttle (dynamic) | `type: "throttle"`, `scope: "dynamic"` | `max_allowed`, `period`, `throttle_key`. Optional: `conditions`. |
 | Batch | `type: "batch"`, `scope: "user"` | `wait_period` (ISO 8601 quiet window), `max_wait_period` (ISO 8601 hard ceiling; must be > `wait_period`), `retain` (`{ type: "first"\|"last"\|"highest"\|"lowest", count: 0–25, sort_key }`; `sort_key` required for `highest`/`lowest`). Optional: `max_items` (1–1000, default 100), `category_key` (partition key, ≤256 chars), `conditions`. |
-| Add to digest | `type: "add-to-digest"` | `subscription_topic_id`. Optional: `conditions`. |
+| Send to Digest | `type: "add-to-digest"` | `subscription_topic_id`. Optional: `conditions`. |
 | AI | `type: "ai"` | `output_schema` (JSON Schema for the structured result). Optional: `model`, `user_prompt`, `web_search`, `conditions`. |
 | Exit | `type: "exit"` | None. Optional: `id`. |
 
@@ -438,6 +438,37 @@ The `conditions` field accepts one of three shapes:
 |------|-----------|
 | Binary | `is equal`, `is not equal`, `contains`, `does not contain`, `starts with`, `ends with`, `greater than`, `greater than or equal`, `less than`, `less than or equal` |
 | Unary | `exists`, `does not exist` |
+| Send status | `was`, `was not` |
+
+### Branching on an earlier send
+
+`was` and `was not` compare `send_status.<nodeId>` against `SENT`, `DELIVERED`, `OPENED`, `CLICKED`, or
+`UNDELIVERABLE`, where `<nodeId>` is an earlier send node's id. The first four are cumulative, so
+`was DELIVERED` is also true once the message was opened or clicked. `UNDELIVERABLE` matches only itself.
+
+Node ids are server-generated, and send nodes can't be added on create, so wire it in two `PUT`s: add
+the email send node, read its `id` from that response, then `PUT` again with the delay and branch.
+`PUT` is a full replacement, so the second one repeats every node, trigger included. Escalate to SMS when an email is not clicked within a day. Key on `CLICKED`, not `OPENED`, because image-proxy prefetch fires opens nobody saw. `CLICKED` needs click tracking on and a tracked link in the message; without them the condition is always true and everyone gets the SMS:
+
+The `nodes` of the second `PUT`:
+
+```json
+[
+  { "id": "trigger-1", "type": "trigger", "trigger_type": "api-invoke" },
+  { "id": "P9Z3VCRJG647M7QNJZR3548HW741", "type": "send", "message": { "template": "<email-template-id>" } },
+  { "type": "delay", "mode": "duration", "duration": "P1D" },
+  {
+    "type": "branch",
+    "paths": [
+      {
+        "label": "Email not clicked",
+        "conditions": ["send_status.P9Z3VCRJG647M7QNJZR3548HW741", "was not", "CLICKED"],
+        "nodes": [{ "type": "send", "message": { "template": "<sms-template-id>" } }]
+      }
+    ]
+  }
+]
+```
 
 Condition paths reference the journey context: `data.*` (invocation `data` + merged fetch responses), `profile.*`, and `user.*`.
 
@@ -718,9 +749,9 @@ Collect multiple invocations for the same user into one aggregated payload, then
 - `retain.type`, which collected events to keep: `first`, `last`, `highest`, or `lowest` (the latter two require `sort_key`). `count` is 0–25.
 - `category_key`, events sharing this value batch together; different values batch separately.
 
-### Add to Digest Node
+### Send to Digest Node
 
-Add the event to a digest keyed by a subscription topic; the digest releases on the topic's configured schedule (rather than per-journey timing):
+Add the event to a subscription topic's digest. The topic controls the schedule, categories, and digest template, not the journey. If the topic has no digest template when the first event arrives, the run is marked `ERROR` and stops. Runs scoped to different tenants collect separate digests. Setup is in [digests.md](./digests.md):
 
 ```json
 { "type": "add-to-digest", "subscription_topic_id": "<topic-id>" }
@@ -843,7 +874,7 @@ The Cancel node is configured in the journey builder. It is **not currently part
 
 ## Debugging Runs
 
-Every invoke returns a `runId`. Use **[Run Inspection](https://www.courier.com/docs/platform/journeys/run-inspection)** to step through a run node-by-node: a delay shows `Waiting` until it releases; a branch shows every condition evaluated, the actual values compared, and which path was taken; a fetch shows the response and merged fields. Start here when a journey "ran but nothing sent."
+Every invoke returns a `runId`. Use **[Run Inspection](https://www.courier.com/docs/monitor/journey-metrics#run-inspection)** to step through a run node-by-node: a delay shows `Waiting` until it releases; a branch shows every condition evaluated, the actual values compared, and which path was taken; a fetch shows the response and merged fields. Start here when a journey "ran but nothing sent."
 
 ---
 
@@ -862,6 +893,6 @@ The models are near-identical: a flow a user enters, moves through step by step,
 - [Multi-Channel](./multi-channel.md), channel routing and escalation patterns
 - [Patterns](./patterns.md), reusable code patterns (idempotency, cancellation, masking)
 - [Reliability](./reliability.md), retries, idempotency, webhook handling
-- [Building Journeys via API](https://www.courier.com/docs/platform/journeys/building-journeys-via-api), official Courier documentation
+- [Building Journeys via API](https://www.courier.com/docs/journeys/build), official Courier documentation
 - [Journeys API Reference](https://www.courier.com/docs/api-reference/journeys/create-a-journey), endpoint reference
-- [Run Inspection](https://www.courier.com/docs/platform/journeys/run-inspection), step through runs to debug
+- [Run Inspection](https://www.courier.com/docs/monitor/journey-metrics#run-inspection), step through runs to debug

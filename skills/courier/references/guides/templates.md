@@ -13,7 +13,7 @@
 - Elemental version string is always `"2022-01-01"`
 - ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
-- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected**: `400 Template content must place its elements inside a channel block`. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type is missing `elements` on the channel node and has no `group` node; suppress with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
+- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected**: `400 Template content must place its elements inside a channel block`. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type has no `group` node; suppress that with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
 - **Elemental blocks by default, raw HTML by exception.** Blocks stay editable in Design Studio's drag-and-drop editor; a `raw` HTML or MJML email only shows there and must be edited as HTML. See [elemental.md](./elemental.md#channel).
 - A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
   1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
@@ -208,7 +208,7 @@ curl -X POST "https://api.courier.com/notifications" \
   }'
 ```
 
-**Minimal create** (empty template, DRAFT):
+**Minimal create** (DRAFT, one channel with a subject):
 
 **TypeScript:**
 ```typescript
@@ -219,10 +219,18 @@ await client.notifications.create({
     brand: null,
     subscription: null,
     routing: null,
-    content: { version: "2022-01-01", elements: [] }
-  }
+    content: {
+      version: "2022-01-01",
+      elements: [
+        { type: "channel", channel: "email", elements: [{ type: "meta", title: "Placeholder" }] },
+      ],
+    },
+  },
 });
 ```
+
+Content with no elements is accepted, and a message rendered from it goes out with subject
+`(no subject)` and an empty body, with no error. Fill in the content before publishing.
 
 ### Replace a Template
 
@@ -432,7 +440,7 @@ Sends always use the published version — drafts iterate freely, and publish is
 
 ### Submission Checks (Approval Workflows)
 
-Templates support approval workflows via submission checks. When enabled, publishing requires external review. Courier emits webhooks on submission, locks the draft, and publishes only after checks are resolved via the checks API (`GET/PUT/DELETE /notifications/{id}/{submissionId}/checks`). See [Template Approval Workflow](https://www.courier.com/docs/platform/content/template-approval-workflow) for setup.
+Templates support approval workflows via submission checks. When enabled, publishing requires external review. Courier emits webhooks on submission, locks the draft, and publishes only after checks are resolved via the checks API (`GET/PUT/DELETE /notifications/{id}/{submissionId}/checks`). See [Template Approval Workflow](https://www.courier.com/docs/design/templates/api#approval-workflow) for setup.
 
 ---
 
@@ -496,7 +504,7 @@ Conditional rendering (`if`), iteration (`loop`), element references (`ref`), an
 
 ## Localization (reference moved)
 
-The `locales` property on `text`, `action`, `quote`, and `meta` elements is documented in [Elemental](./elemental.md). For full localization setup, see the official [Locales](https://www.courier.com/docs/platform/content/elemental/locales) docs.
+The `locales` property on `text`, `action`, `quote`, and `meta` elements is documented in [Elemental](./elemental.md). For full localization setup, see the official [Locales](https://www.courier.com/docs/design/elemental/locales) docs.
 
 ---
 
@@ -694,7 +702,7 @@ output = client.messages.content(send_response.request_id)
 
 This guide covers **workspace templates**, the `/notifications/...` endpoints. These are the templates visible in your Courier dashboard and shared across all tenants.
 
-For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/templates/...` endpoints. See the [Courier Create API](https://www.courier.com/docs/platform/create/courier-create-api) and [Courier Create tutorial](https://www.courier.com/docs/tutorials/content/how-to-use-courier-create-api) for those routes.
+For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/templates/...` endpoints. See the [Courier Create API](https://www.courier.com/docs/design/embedded-designer/api) and [Courier Create tutorial](https://www.courier.com/docs/design/embedded-designer/api) for those routes.
 
 ## Related
 
@@ -709,10 +717,9 @@ For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/tem
 - [Template Metrics](./metrics.md) - Delivery metrics for a template as a time series (sent, delivered, opened, clicked)
 - [CLI](./cli.md) - CLI for ad-hoc template operations (`courier notifications list`)
 - [Reliability](./reliability.md) - Idempotency keys for sends using templates
-- [Elemental Overview](https://www.courier.com/docs/platform/content/elemental/elemental-overview) - Full Elemental documentation
-- [Elements Reference](https://www.courier.com/docs/platform/content/elemental/elements/index) - Complete element type reference
-- [Templates API](https://www.courier.com/docs/platform/content/templates-api) - API endpoint reference
-- [Templates API Tutorial](https://www.courier.com/docs/tutorials/content/how-to-use-templates-api) - Step-by-step walkthrough
+- [Elemental Overview](https://www.courier.com/docs/design/elemental/overview) - Full Elemental documentation
+- [Elements Reference](https://www.courier.com/docs/design/elemental/elements/text) - One page per element type
+- [Templates API](https://www.courier.com/docs/design/templates/api) - API endpoint reference
 
 <!-- Target line budget: <= 750 lines. If you are about to push this past 800, split further rather than letting it grow. Elemental reference lives in elemental.md. -->
 <!-- Target line budget (elemental.md): see the footer comment in elemental.md itself. -->
