@@ -34,7 +34,7 @@ and the categories.
 
 ## How it works
 
-1. Link the templates you send to the topic (`subscription: { topic_id }`, see [preferences.md](./preferences.md#setting-it-up)). Each renders one event.
+1. Link (map) the templates you send to the topic (`subscription: { topic_id }`, see [preferences.md](./preferences.md#setting-it-up)). Each renders one event.
 2. Build a separate digest template that renders the collected list. Don't link it to the topic.
 3. Configure the topic's digest: that digest template, at least one schedule, and optional categories.
 4. Send once per event. What happens depends on the recipient's schedule for the topic:
