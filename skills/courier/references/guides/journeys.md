@@ -447,10 +447,14 @@ The `conditions` field accepts one of three shapes:
 `was DELIVERED` is also true once the message was opened or clicked. `UNDELIVERABLE` matches only itself.
 
 Node ids are server-generated, and send nodes can't be added on create, so wire it in two `PUT`s: add
-the email send node, read its `id` from that response, then `PUT` again with the delay and branch. Escalate to SMS when an email is not clicked within a day. Key on `CLICKED`, not `OPENED`, because image-proxy prefetch fires opens nobody saw. `CLICKED` needs click tracking on and a tracked link in the message; without them the condition is always true and everyone gets the SMS:
+the email send node, read its `id` from that response, then `PUT` again with the delay and branch.
+`PUT` is a full replacement, so the second one repeats every node, trigger included. Escalate to SMS when an email is not clicked within a day. Key on `CLICKED`, not `OPENED`, because image-proxy prefetch fires opens nobody saw. `CLICKED` needs click tracking on and a tracked link in the message; without them the condition is always true and everyone gets the SMS:
+
+The `nodes` of the second `PUT`:
 
 ```json
 [
+  { "id": "trigger-1", "type": "trigger", "trigger_type": "api-invoke" },
   { "id": "P9Z3VCRJG647M7QNJZR3548HW741", "type": "send", "message": { "template": "<email-template-id>" } },
   { "type": "delay", "mode": "duration", "duration": "P1D" },
   {

@@ -11,9 +11,9 @@ and the categories.
 
 - **Collect with the Send API by default.** Link a template to the topic, then `POST /send` it once per event. Use the Send to Digest journey node only when the events already flow through a journey. **Never feed one topic both ways** (Send API and Send to Digest node): mixing them produces `INCOMPLETE_PROFILE_DATA` or `UNROUTABLE` errors.
 - **A send is only held if it carries the topic**, through the template's `subscription.topic_id` or the send's `message.preferences.subscription_topic_id`.
-- **The send's `data` needs a top-level key named exactly like a category**, including case. A send with no matching key is delivered immediately as a normal message, with no error.
+- **When the topic has categories, the send's `data` needs a top-level key named exactly like one**, including case. A send with no matching key is delivered immediately as a normal message, with no error. A topic with no categories collects any payload under one key, `digest`.
 - **One `/send` call is one item.** Never send `count` or `items` yourself. Courier builds them at release.
-- **The digest template is set on the topic's digest configuration**, separately from the templates you send. Removing it turns digesting off for the topic. If it is a separate template, **don't link it to the topic**, or it gets collected like any other send and the digest contains a copy of itself.
+- **Use two kinds of template.** The templates you send are linked to the topic, and Instant recipients get them as-is. The digest template renders the collected list: set it in the topic's digest configuration and **don't link it to the topic**, or it gets collected like any other send and the digest contains a copy of itself. Removing the digest template turns digesting off.
 - **Include an Instant schedule** so recipients can opt out, but don't make it the default: a recipient who never chose a schedule falls back to the default (or the first schedule), and Instant never holds anything.
 - **`schedules` needs at least one entry.** `schedules: []` returns 400. Turn a digest off with `digest: null` or `deleteDigest`.
 - **Events past a category's `limit` are discarded** at release, not carried into the next digest.
@@ -34,10 +34,11 @@ and the categories.
 
 ## How it works
 
-1. Link the templates you send to the topic (`subscription: { topic_id }`, see [preferences.md](./preferences.md#setting-it-up)).
-2. Configure the topic's digest: the digest template, at least one schedule, and optional categories.
-3. Send once per event. What happens depends on the recipient's schedule for the topic:
-   - **Instant:** delivered now as an ordinary message.
+1. Link the templates you send to the topic (`subscription: { topic_id }`, see [preferences.md](./preferences.md#setting-it-up)). Each renders one event.
+2. Build a separate digest template that renders the collected list. Don't link it to the topic.
+3. Configure the topic's digest: that digest template, at least one schedule, and optional categories.
+4. Send once per event. What happens depends on the recipient's schedule for the topic:
+   - **Instant:** delivered now with the template you sent.
    - **Any other schedule:** held as `DIGESTED`. At the scheduled time Courier renders the digest template once with everything held for that recipient.
 
 A recipient who never picked a schedule is on the topic's default schedule, or its first schedule
@@ -56,7 +57,7 @@ const topic = await client.workspacePreferences.topics.create(sectionId, {
   default_status: "OPTED_IN",
   routing_options: ["email"],
   digest: {
-    template_id: "nt_01kmrbtm6q9x3c7v1d5w2n8hj",
+    template_id: "nt_01kmrbwx4c8p2n6v0d3j7t9qf", // renders the list; not linked to the topic
     schedules: [
       { frequency: "daily", time: "09:00", timezone: "America/New_York", is_default: true },
       { frequency: "instant" },
@@ -76,7 +77,7 @@ topic = client.workspace_preferences.topics.create(
     default_status="OPTED_IN",
     routing_options=["email"],
     digest={
-        "template_id": "nt_01kmrbtm6q9x3c7v1d5w2n8hj",
+        "template_id": "nt_01kmrbwx4c8p2n6v0d3j7t9qf",  # renders the list; not linked to the topic
         "schedules": [
             {"frequency": "daily", "time": "09:00", "timezone": "America/New_York", "is_default": True},
             {"frequency": "instant"},
@@ -91,7 +92,7 @@ schedule_ids = [s.schedule_id for s in topic.digest.schedules]
 
 | Field | Notes |
 |---|---|
-| `template_id` | Required. The template that renders the digest. |
+| `template_id` | Required. The template that renders the digest, separate from the templates you send. |
 | `schedules[].frequency` | `instant`, `daily`, `weekdays`, `weekly`, `custom_days`, `monthly`. |
 | `schedules[].time` | `HH:MM`, 24-hour. Required for everything except `instant`. |
 | `schedules[].timezone` | IANA name, DST aware. Absent means UTC. The schedule's own zone, not each recipient's. |
@@ -116,7 +117,7 @@ as `%2F` in a raw URL. The SDKs escape both.
 
 ## Send events
 
-Send a linked template once per event, keyed by the category name:
+Send a linked per-event template (not the digest template) once per event, keyed by the category name:
 
 ```typescript
 await client.send.message({
@@ -173,12 +174,8 @@ The total, outside the loop, depends on the template's scope:
 
 With no categories, the key is `digest` and each item is the send's `data` unwrapped.
 
-If you offer Instant, use a separate digest template that is not linked to the topic. Instant
-recipients then get the per-event template you sent, and the digest template only ever renders the
-list. A single template serving both receives one event with no `items` for Instant recipients, and
-the list above renders nothing for them. A value that is the same on every event (a build number) still
-arrives per item. Read it inside the loop, not positionally from `items.[0]`, which vanishes silently
-when the first item lacks it.
+A value that is the same on every event (a build number) still arrives per item. Read it inside the
+loop, not positionally from `items.[0]`, which vanishes silently when the first item lacks it.
 
 ## Per-recipient schedule
 
