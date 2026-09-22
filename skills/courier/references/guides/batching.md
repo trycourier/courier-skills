@@ -18,7 +18,7 @@ Combine multiple notifications into single, digestible messages to reduce notifi
 
 ## Server-Side Batching
 
-**Courier aggregates events for you. Do not build this in your application.** Journeys have two purpose-built nodes for it. Reach for app-side queueing only when you need aggregation logic Courier can't express (see "App-side aggregation" below).
+**Courier aggregates events for you. Do not build this in your application.** Use the journey `batch` node, or a topic digest when recipients choose the cadence. Reach for app-side queueing only when you need aggregation logic Courier can't express (see "App-side aggregation" below).
 
 | Need | Use | Releases on |
 |------|-----|-------------|
@@ -82,7 +82,7 @@ If your aggregation needs data or logic that only your backend has, cross-entity
 
 This is strictly more work than the `batch` node. Reach for it only when you've established the built-in nodes can't express what you need.
 
-The same applies to a digest whose payload depends on data Courier doesn't hold (rankings, cross-system joins, computed scores): run your own scheduled job and send once per recipient.
+The same applies to a digest whose payload depends on data Courier doesn't hold (rankings, cross-system joins, computed scores): run your own scheduled job and send once per recipient. Use a template that isn't linked to a topic with a digest, or Courier holds your summary and folds it into its own.
 
 ```typescript
 // Scheduled job, runs at the recipient's chosen time
@@ -93,7 +93,7 @@ async function sendDailyDigest(userId: string) {
   await client.send.message({
     message: {
       to: { user_id: userId },
-      template: "nt_01kmrbtm6q9x3c7v1d5w2n8hj",
+      template: "nt_01kmrc3v8q2x6n0d4j7t1wbpe", // not linked to a digest topic
       data: { topItems: getTopItems(activity, 3), total: activity.length },
     },
   });
@@ -122,7 +122,7 @@ If user engages before batch sends, consider canceling. With [Journeys](./journe
 
 - [Engagement](../lifecycle-marketing.md) - Activity notification patterns
 - [Throttling](./throttling.md) - Rate limiting notifications
-- [Preferences](./preferences.md) - User frequency preferences
+- [Preferences](./preferences.md) - Topics and opt-out
 - [Inbox](../channels/inbox.md) - In-app notification batching
 - [Digests](./digests.md) - Recipient-scheduled summaries on a subscription topic
 - [Journeys](./journeys.md) - The `batch` node, plus throttle, delay, branch, and send

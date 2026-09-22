@@ -19,6 +19,7 @@ checks them on every send, so the enforcement lives in Courier rather than in yo
 - Using the wrong variable syntax for the editing context, which renders nothing at all (see [Linking to the page](#linking-to-the-page))
 - Putting an unsubscribe link on a template mapped to a `REQUIRED` topic, where the opt-out silently does nothing
 - Setting `custom_routing` without `has_custom_routing: true`, so the channel list is ignored
+- Assuming channel selection works on every plan. On a plan without it, a single-topic write with `custom_routing` returns 402 ("Channel delivery customization is not available for your plan"), and a bulk write lists that topic in `errors`
 - Using bulk `PUT` when you meant `POST`, which resets every override you did not send
 - Reimplementing suppression in application code instead of letting topic status gate the send
 

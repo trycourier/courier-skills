@@ -28,7 +28,7 @@ Notifications Courier sends proactively rather than in response to a user action
 | Letting users choose frequency | [Subscription topics + preferences](./guides/preferences.md), including a hosted or embedded preference center |
 | One-off broadcast to a list or audience | Broadcasts, configured in the dashboard |
 
-**The two things people rebuild unnecessarily** are frequency capping and digest scheduling. Both are Courier nodes. See [Digests](./guides/digests.md), [Batching](./guides/batching.md), and [Throttling](./guides/throttling.md).
+**The two things people rebuild unnecessarily** are frequency capping and digest scheduling. Courier does both: a `throttle` node caps frequency, and a topic digest collects sends on the recipient's schedule. See [Digests](./guides/digests.md), [Batching](./guides/batching.md), and [Throttling](./guides/throttling.md).
 
 ### Cancel the sequence when its goal is met
 
