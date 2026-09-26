@@ -16,7 +16,7 @@ local files → validate → diff → push → publish → verify → (rollback 
 - Sends always use the published version, so drafts are free to iterate. Publishing is the release.
 - Rollback is `publish { "version": "v001" }`. History is append-only, so the rollback itself lands as a new version.
 - Resolve aliases to `nt_...` before calling Courier.
-- Keep element `id`s and `locales` in the repo files. A push replaces the whole draft, translations included.
+- Keep element `id`s and `locales` in the repo files. A push replaces the draft's whole content, translations included.
 
 ### Common Mistakes
 - Pushing without diffing and overwriting dashboard edits.
@@ -34,9 +34,8 @@ Save a draft in that format with one jq filter, reused for every diff below:
 
 ```bash
 NORMALIZE='{version, elements}
-  | del(.. | .checksum?)
-  | walk(if type == "object" and has("locales")
-         then .locales |= map_values(with_entries(select(.key | startswith("_") | not)))
+  | walk(if type == "object"
+         then with_entries(select(.key != "checksum" and (.key | startswith("_") | not)))
          else . end)'
 
 curl -sf "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
@@ -91,7 +90,7 @@ So fetch the draft (`?version=draft`), run it through the same `$NORMALIZE` filt
 it to your local file before writing:
 
 ```bash
-diff order-shipped.json \
+diff <(jq -S "$NORMALIZE" order-shipped.json) \
      <(curl -sf "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
          -H "Authorization: Bearer $COURIER_API_KEY" | jq -S "$NORMALIZE")
 ```
@@ -105,9 +104,10 @@ changes (usually new `locales`) into your file, then push. Pulling before you st
 avoids the merge. To audit what's *live* rather than
 what's in-progress, run the same diff with `?version=published`.
 
-**If a translation tool owns the translations** rather than the repo, add `| del(.. | .locales?)`
-to both sides of the diff, and before each push copy the draft's current `locales` into the
-file. A push without `locales` deletes them. See [localization.md](./localization.md).
+**If a translation tool owns the translations** rather than the repo, diff with
+`"$NORMALIZE | del(.. | .locales?)"` on both sides. A push without `locales` deletes them, so
+after each push re-apply the tool's translations with `putLocale`, then publish. See
+[localization.md](./localization.md).
 
 ## 4. Push
 

@@ -14,8 +14,8 @@ Examples assume an initialized `client`. Install and API key setup are in [quick
 - **Write translations with `putLocale`**, one locale per call. It merges: it touches only the locale in the path, only the elements you list, and only the fields you send.
 - **Keep element `id`s.** Translations are addressed by element `id`. A content write that leaves ids out gives every element a new one.
 - **A full content write replaces `locales` too.** `putContent` (or `replace`) with content that has no `locales` deletes every translation, including ones made in Design Studio.
-- **`putElement` replaces the whole element.** Leave out `locales` and they're gone. Don't use it for text or translation changes.
-- **Writes land on the draft; sends use the published version.** Publish after writing, or pass `state: "PUBLISHED"` on the locale write (it publishes the whole draft, including other people's edits).
+- **`putElement` replaces the whole element.** Leave out `locales` and they're gone. For text changes, edit the template in place instead ([templates.md](./templates.md#edit-a-template-in-place)).
+- **Writes land on the draft; sends use the published version.** Publish when the user says so, or pass `state: "PUBLISHED"` on the locale write. Either one publishes the whole draft, including other people's edits.
 - Keep `{{variables}}` exactly as written in every translation.
 
 ### Common Mistakes
@@ -25,7 +25,7 @@ Examples assume an initialized `client`. Install and API key setup are in [quick
 - Storing `es-MX` on profiles when the template is translated as `es` (or `es-mx`). Make the two strings identical: change the profiles to the template's code, or write a locale under the profiles' exact code (`putLocale("es-MX", ...)`). To see which codes a live template has, read the published content (`retrieveContent` without `version`) and check the keys of `locales`
 - Writing translations and never publishing
 - Translating a subject with `content`. The subject is `title` on the `meta` element; `content` returns a `400` naming the field
-- Uploading a `.po` file with the SDK's `translations.update`. It JSON-encodes the string. Upload with a raw HTTP `PUT` (see [Workspace translation strings](#workspace-translation-strings))
+- Uploading a `.po` file with the Node SDK's `translations.update` and no `Content-Type` header. It JSON-encodes the string, which stores a broken file (see [Workspace translation strings](#workspace-translation-strings))
 - Using `{{t}}` for recipients who have no locale. The send fails
 
 ## How it works
@@ -91,7 +91,9 @@ Every element comes back with an `id` and a `checksum`, plus any `locales` alrea
 }
 ```
 
-Templates from the legacy designer return `blocks` and `channels` instead of `elements`. This workflow is for Elemental templates.
+Templates from the legacy designer return `blocks` and `channels` instead of `elements`. This workflow is for Elemental templates. In Python the response is a plain dict (`content["elements"]`).
+
+Courier assigns every element an `id`. When you create a template you can set your own instead (`"id": "subject"`), unique within the template, which gives a translation tool stable, readable keys.
 
 ### 2. Translate
 
@@ -99,17 +101,17 @@ Walk every `elements` array and skip the `locales` maps. Take `title` from `meta
 
 ```json
 [
-  { "id": "elem_01kx4h2jdafq8bk9b0a8x3rt5n", "field": "title", "text": "Order confirmed", "note": "Email subject" },
-  { "id": "elem_01kx4h2jdafq8bk9b0d2c6yv9p", "field": "content", "text": "Order {{order_number}} is confirmed.", "note": "Email body" },
-  { "id": "elem_01kx4h2jdafq8bk9b0g5k7hs1e", "field": "content", "text": "View order", "note": "Button label" }
+  { "id": "elem_01kx4h2jdafq8bk9b0a8x3rt5n", "field": "title", "text": "Order confirmed", "checksum": "ec7f…", "note": "Email subject" },
+  { "id": "elem_01kx4h2jdafq8bk9b0d2c6yv9p", "field": "content", "text": "Order {{order_number}} is confirmed.", "checksum": "5114…", "note": "Email body" },
+  { "id": "elem_01kx4h2jdafq8bk9b0g5k7hs1e", "field": "content", "text": "View order", "checksum": "88d1…", "note": "Button label" }
 ]
 ```
 
-When the agent translates the strings itself, keep `{{variables}}`, Handlebars helpers, and URLs unchanged, and match the tone of the source. A text element built from inline nodes needs its translation written as nodes too, see [Formatted text](#formatted-text).
+When the agent translates the strings itself, keep `{{variables}}`, Handlebars helpers, and URLs unchanged, and match the tone of the source.
 
 ### 3. Write each locale
 
-One call per locale. Each entry names an element by `id` and carries its translated fields. Add localized links yourself.
+Each entry names an element by `id` and carries its translated fields. Add localized links yourself.
 
 **Node:**
 ```typescript
@@ -138,11 +140,13 @@ client.notifications.put_locale(
 
 **CLI:** `courier notifications put-locale --id nt_01abc123 --locale-id es --element '{id: elem_01kx4h2jdafq8bk9b0a8x3rt5n, title: Pedido confirmado}'`. **MCP:** `put_notification_locale`.
 
-- **It merges.** Other locales, other elements, and fields you leave out keep their values, so you can send only the strings that changed. Leave untranslated strings out and they send in the default language.
+- **It merges.** Other locales, other elements, and fields you leave out keep their values, so you can send only the strings that changed.
 - **Every `id` must exist.** An unknown id returns a `400` and nothing is written, not even the valid entries.
 - **Fields depend on the element type**, see [Which fields a locale can override](#which-fields-a-locale-can-override). A field the type doesn't take returns a `400` naming it.
 
-### 4. Publish and send
+### 4. Preview, publish, and send
+
+Check each language before it goes live: a [localized Device Preview](./device-preview.md#localized-previews) renders the draft on real email clients. Longer languages (German, French) are where buttons wrap and Outlook tables break. Then publish when the user says so.
 
 **Node:**
 ```typescript
@@ -170,7 +174,7 @@ client.send.message(
 )
 ```
 
-Or store `locale` on the profile so every send picks it up. Check the result with `client.messages.content(messageId)` (see [Verify the Rendered Output](./templates.md#verify-the-rendered-output)), and see how each language lays out on real email clients with a [localized Device Preview](./device-preview.md#localized-previews). Longer languages (German, French) are where buttons wrap and Outlook tables break.
+Or store `locale` on the profile so every send picks it up. Check what was sent with `client.messages.content(messageId)` (see [Verify the Rendered Output](./templates.md#verify-the-rendered-output)).
 
 ### 5. Re-translate only what changed
 
@@ -199,26 +203,27 @@ Until you write the new translation, recipients in that locale keep getting the 
 
 ### Formatted text
 
-A text element can hold its copy as a `content` string or as an `elements` array of inline nodes. If the default uses `elements` (bold, italic, links), give each translation as `elements` too. A translation given as `content` renders as one plain node and loses the formatting.
+A text element can hold its copy as a `content` string or as an `elements` array of inline nodes. If the default uses `elements` (bold, italic, links), give each translation as `elements` too. A translation given as `content` renders as one plain node and loses the formatting. The reverse works: an element with only `content` can take a locale `elements` array, and the array renders.
 
 ## Other write paths
 
 ### Replace all content
 
-`putContent` writes the whole element tree, translations included. To round-trip a draft (for example from a repo), read it with `version=draft`, then:
+`putContent` writes the whole element tree, translations included. To round-trip a draft, read it with `version=draft`, then:
 
 - remove every `checksum`, on elements and inside `locales`
-- remove `_`-prefixed keys inside `locales` (Design Studio adds them)
+- remove the `_`-prefixed keys Design Studio adds inside `locales`
 - keep every element's `id` and `locales`
 
+[Edit a Template in Place](./templates.md#edit-a-template-in-place) has Node and Python code. For files, this jq filter does the same:
+
 ```bash
-jq 'del(.. | .checksum?)
-    | walk(if type == "object" and has("locales")
-           then .locales |= map_values(with_entries(select(.key | startswith("_") | not)))
-           else . end)'
+jq 'walk(if type == "object"
+         then with_entries(select(.key != "checksum" and (.key | startswith("_") | not)))
+         else . end)'
 ```
 
-[templates-as-code.md](./templates-as-code.md) uses this filter for repo sync.
+[templates-as-code.md](./templates-as-code.md) builds its repo-sync filter from it.
 
 ### Remove a locale
 
@@ -226,13 +231,13 @@ jq 'del(.. | .checksum?)
 
 ### Journey templates
 
-A template that belongs to a journey takes the same bodies under the journey: `client.journeys.templates.retrieveContent`, `client.journeys.templates.putLocale`, and `client.journeys.templates.publish`. See [journeys.md](./journeys.md).
+A template that belongs to a journey takes the same `elements` body under the journey, with the journey and template ids as parameters: `client.journeys.templates.putLocale("es", { templateId: journeyId, notificationId, elements })` (Python: `put_locale("es", template_id=journey_id, notification_id=..., elements=[...])`). Export with `client.journeys.templates.retrieveContent` and publish with `client.journeys.templates.publish`. See [journeys.md](./journeys.md).
 
 ## Design Studio AI Translation
 
 In Design Studio, open the template, click the globe icon, and add a language. With **Translate with AI** checked (the default), Courier translates every string: subject, headings, body, buttons. Review it side by side with the default and edit any string. When the default changes, Courier flags translations that may be out of date, and you re-translate them one at a time or all together. Publish to send them.
 
-AI Translation uses AI credits, available on the Business and Enterprise plans. Each translation request costs credits, and a long template can take more than one request per locale. Reach for the API path when templates live in code, when translations come from a translation tool, or when the agent is doing the translating.
+AI Translation uses AI credits, available on the Business and Enterprise plans. Each translation request costs credits ([per-request cost](https://www.courier.com/docs/design/elemental/locales#translate-in-design-studio)), and a long template can take more than one request per locale. Reach for the API path when templates live in code, when translations come from a translation tool, or when the agent is doing the translating.
 
 ## Workspace translation strings
 
@@ -245,9 +250,9 @@ curl -X PUT "https://api.courier.com/translations/default/es" \
   --data-binary @es.po
 ```
 
-- **Send the `.po` file as the raw body with `Content-Type: text/plain`.** The SDK's `translations.update` JSON-encodes the string, which stores a broken file.
+- **Send the `.po` file as the raw body with `Content-Type: text/plain`.** Without that header, the Node SDK's `translations.update` JSON-encodes the string and stores a broken file. To use the SDK, pass the header: `client.translations.update("es", { domain: "default", body: po }, { headers: { "Content-Type": "text/plain" } })`. From Python, use a raw HTTP `PUT` like the one above.
 - **The domain is always `default`.** Anything else returns a `400`.
-- Read a locale's file back with `client.translations.retrieve("es", { domain: "default" })` (Python: `client.translations.retrieve("es", domain="default")`) to compare it with your translation system.
+- Read a locale's file back with `client.translations.retrieve("es", { domain: "default" })` (Python: `client.translations.retrieve("es", domain="default")`) to compare it with your translation system. It comes back as a JSON string, so decode it first (`JSON.parse`, `json.loads`). A file that needs decoding twice was uploaded JSON-encoded and is broken.
 - **`{{t}}` needs a recipient locale with an uploaded file.** With no locale, or a locale that has no file, the send fails with `translate helper: Could not find translations`. A key missing from an uploaded file renders as the key itself.
 - Translations are per workspace. A tenant that needs different wording needs a different template.
 

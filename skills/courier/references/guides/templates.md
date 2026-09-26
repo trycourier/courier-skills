@@ -270,6 +270,8 @@ await client.notifications.replace("nt_01abc123", {
 
 `putContent` replaces just the **content** of a template, its Elemental `elements`, without touching name, tags, brand, subscription, or routing. Reach for it when you're syncing template bodies from code (a CMS export, a generated layout) and don't want to resend the whole `notification` object as `replace` requires. It writes to the **draft** by default (`state` defaults to `"DRAFT"`), so publish afterward to go live.
 
+It replaces the whole element tree, translations included. The example below builds content from scratch, which is right for a new template. For a template that already has translations or Design Studio edits, [edit it in place](#edit-a-template-in-place) instead.
+
 **TypeScript:**
 ```typescript
 await client.notifications.putContent("nt_01abc123", {
@@ -291,7 +293,64 @@ await client.notifications.putContent("nt_01abc123", {
 await client.notifications.publish("nt_01abc123");
 ```
 
-`client.notifications.putElement(elementId, { id, type, ... })` replaces one element, addressed by its `id`, with exactly the body you send. Anything left out is gone, including the element's `locales`, and the body isn't validated (a misspelled key is stored and silently ignored). To change text, edit the content and `putContent` it; to change translations, use `client.notifications.putLocale(...)` ([localization.md](./localization.md)). Element checksums tell you a teammate changed an element since you last read it: compare them before you overwrite.
+### Edit a Template in Place
+
+To change part of an existing template, read the draft, change the element, and write the whole tree back. This keeps every element's `id` and `locales`. Strip what the write rejects first: every `checksum` (on elements and inside `locales`) and the `_`-prefixed keys Design Studio adds to translations (`_sourceHash` returns a `400`). Element checksums also tell you a teammate changed an element since you last read it.
+
+**TypeScript:**
+```typescript
+const draft = await client.notifications.retrieveContent("nt_01abc123", { version: "draft" });
+if (!("elements" in draft)) throw new Error("Legacy template: no Elemental elements to edit");
+
+// Drop what the write rejects: checksums anywhere, and `_` keys (Design Studio's, inside locales).
+const strip = (node: any): void => {
+  if (Array.isArray(node)) return node.forEach(strip);
+  if (node && typeof node === "object") {
+    for (const key of Object.keys(node)) {
+      if (key === "checksum" || key.startsWith("_")) delete node[key];
+      else strip(node[key]);
+    }
+  }
+};
+const edit = (els: any[]): void => els.forEach((el) => {
+  if (el.id === "elem_01kx4h2jdafq8bk9b0g5k7hs1e") el.content = "Track your order"; // the change
+  if (el.elements) edit(el.elements);
+});
+
+strip(draft.elements);
+edit(draft.elements);
+await client.notifications.putContent("nt_01abc123", { content: { version: draft.version, elements: draft.elements as any } });
+```
+
+**Python:**
+```python
+content = client.notifications.retrieve_content("nt_01abc123", version="draft")  # a plain dict
+
+def strip(node):
+    if isinstance(node, list):
+        for n in node:
+            strip(n)
+    elif isinstance(node, dict):
+        for key in list(node):
+            if key == "checksum" or key.startswith("_"):
+                del node[key]
+            else:
+                strip(node[key])
+
+def edit(els):
+    for el in els:
+        if el.get("id") == "elem_01kx4h2jdafq8bk9b0g5k7hs1e":
+            el["content"] = "Track your order"  # the change
+        edit(el.get("elements") or [])
+
+strip(content["elements"])
+edit(content["elements"])
+client.notifications.put_content("nt_01abc123", content={"version": content["version"], "elements": content["elements"]})
+```
+
+If the element you changed has translations, they still hold the old text. Update them with `putLocale` ([localization.md](./localization.md)).
+
+`client.notifications.putElement(elementId, { id: templateId, type, ... })` also exists, but it replaces the element with exactly the body you send: anything left out is gone, including `locales`, and the body isn't validated (a misspelled key is stored and ignored). Its typed parameters cover only `type`, `data`, `channels`, `if`, `loop`, and `ref`, so text and translations would go through untyped extra fields. Prefer the read-modify-write above, and `putLocale` for translations.
 
 ### Publish
 

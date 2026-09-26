@@ -1,6 +1,6 @@
 ---
 name: courier
-description: "Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp: sends, templates, Elemental, journeys, preferences, routing, CLI and MCP."
+description: "Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp: sends, templates, translations, email client previews, Elemental, journeys, preferences, routing, CLI and MCP."
 license: MIT
 ---
 
@@ -212,7 +212,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **Audiences**: dynamic segments, filter rules, sending to a segment | [audiences.md](./references/guides/audiences.md) |
 | **Multi-tenant / B2B**: tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |
 | Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
-| Template CRUD, publishing, versioning, rollback, verify rendered output, locales | [templates.md](./references/guides/templates.md) |
+| Template CRUD, editing a template in place, publishing, versioning, rollback, verify rendered output | [templates.md](./references/guides/templates.md) |
 | **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, template aliases, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
 | **Delivery metrics for a template**: sent/delivered/opened/clicked as a time series, dashboards, alerting on delivery rate | [metrics.md](./references/guides/metrics.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md), or read the installed package's own types |

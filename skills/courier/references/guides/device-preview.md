@@ -8,35 +8,34 @@ Examples assume an initialized `client`. Install and API key setup are in [quick
 
 ### Rules
 
-- **It's a paid add-on, billed per device.** Each device in a run is one preview; the Courier Recommended set is 8. Tell the user how many previews a run will use before starting it.
-- **A `402` means the add-on isn't enabled.** Stop and tell the user to enable it in the console under **Settings → Billing**. Don't retry.
-- **Rejected requests aren't billed.** A `400`, `402`, `404`, `409`, or `422` never creates a run.
+- **It's a paid add-on, counted per device.** Each device in a run uses one preview from the plan's monthly allowance, then overage; the Courier Recommended set is 8. Tell the user how many previews a run will use before starting it.
+- **A `402` means the add-on isn't enabled or its billing is suspended.** Stop and tell the user to check the console under **Settings → Billing**. Don't retry.
+- **Rejected run requests aren't billed.** A `400`, `402`, `404`, or `422` never creates a run.
 - **Only Design Studio templates with an email channel.** Anything else returns a `422`. To preview HTML from another platform, wrap it in a template first ([below](#preview-html-from-another-platform)).
 - **It renders the latest draft by default.** Pass `template_version: "published"` for the live version, or a zero-padded published version such as `v002` (`v2` returns a `400`).
 - **Name the devices with exactly one of `device_set_id` or `device_ids`.**
 - **Look up Courier Recommended by name.** Every workspace has one, with a different `pvs_` id in each environment.
-- **Pass test values in `data`**: `data.profile` fills `{{profile.*}}`, `data.tenant` fills `{{tenant.*}}`, and other keys fill the template's own variables. A variable with no value renders as nothing.
-- **Send a new `Idempotency-Key` per run.** A key reused within 25 hours returns the earlier run instead of starting one.
-- **Runs finish asynchronously.** Read the run every 10 seconds for up to 5 minutes. It's done at `COMPLETED` or `FAILED`; each device settles on its own, and one failing device doesn't fail the run.
+- **Pass test values in `data`**: `data.profile` fills `{{profile.*}}`, `data.tenant` fills `{{tenant.*}}`, and other keys fill the template's own variables.
+- **Send an `Idempotency-Key`: a new one per run, the same one when retrying a create.** A key reused within 25 hours returns the earlier run; a retry with a new key starts, and bills, a second run.
+- **Runs finish asynchronously**, in 10 to 120 seconds; Outlook clients usually report last. Read the run every 10 seconds for up to 5 minutes. It's done at `COMPLETED` or `FAILED`; each device settles on its own, and one failing device doesn't fail the run.
 - **Screenshot URLs are short-lived signed links**, re-signed on every read. Download the images when you read the run, and read it again for fresh links later.
-- Runs can't be cancelled or deleted. History is kept for a year and shows in the editor's **Preview history**.
+- Runs can't be cancelled or deleted. History is kept for a year: `client.notifications.previews.runs.list(templateId)` (MCP: `list_preview_runs`) and the editor's **Preview history**.
 
 ### Common Mistakes
 
-- Running without `data`, so the screenshot reads "Hi , your order has shipped." That's the most common "broken" preview
+- Running without `data`. A variable with no value renders as nothing, so the screenshot reads "Hi , your order has shipped." That's the most common "broken" preview
 - Hardcoding a `pvs_` id copied from another environment
 - Putting `template_id` in the body. The template is the path parameter; the body key is a `400`
 - Filtering devices with `app === "outlook"` for Outlook desktop. That's the iPhone app; desktop versions are `outlook_2019`, `outlook_microsoft_365`, and so on
 - Storing `screenshot_url` to show later. It expires
 - Re-running the full set after every small fix. Re-run only the devices that looked wrong, then do one full pass
-- Using Device Preview to check exact HTML or merge values. `messages.content` after a test send is free and exact
 
 ## Device Preview or rendered output?
 
 | Need | Use |
 |---|---|
-| The exact subject, HTML, and text Courier handed the provider | `client.messages.content(messageId)` after a test send ([templates.md](./templates.md#verify-the-rendered-output)). Free |
-| How that email looks in Outlook, Gmail, Apple Mail, dark mode, mobile | Device Preview. Paid, and no send needed |
+| The exact subject, HTML, and text Courier handed the provider | `client.messages.content(messageId)` after a test send ([templates.md](./templates.md#verify-the-rendered-output)). No preview charge, but the test send is a real message |
+| How that email looks in Outlook, Gmail, Apple Mail, dark mode, mobile | Device Preview. Uses previews, and needs no send |
 
 ## Run a preview
 
@@ -52,7 +51,9 @@ if (!recommended) throw new Error("No Courier Recommended set in this workspace"
 **Python:**
 ```python
 sets = client.previews.list_device_sets().results
-recommended = next(s for s in sets if s.name == "Courier Recommended")
+recommended = next((s for s in sets if s.name == "Courier Recommended"), None)
+if recommended is None:
+    raise RuntimeError("No Courier Recommended set in this workspace")
 ```
 
 ### 2. Start the run
@@ -105,10 +106,16 @@ while (!["COMPLETED", "FAILED"].includes(detail.status) && Date.now() < deadline
   detail = await client.notifications.previews.runs.retrieve(run.id, { id: run.template_id });
 }
 
+if (!["COMPLETED", "FAILED"].includes(detail.status)) {
+  console.warn(`Run ${run.id} is still ${detail.status} after 5 minutes; report the devices with no result yet`);
+}
+
 for (const r of detail.results) {
   if (r.status !== "COMPLETED" || !r.screenshot_url) continue;
   const res = await fetch(r.screenshot_url); // download now; the link expires
-  await writeFile(`preview-${r.device_id}.png`, Buffer.from(await res.arrayBuffer()));
+  if (!res.ok) throw new Error(`Download failed (${res.status}); read the run again for a fresh link`);
+  const ext = (res.headers.get("content-type") ?? "image/png").split("/")[1];
+  await writeFile(`preview-${r.device_id}.${ext}`, Buffer.from(await res.arrayBuffer()));
 }
 ```
 
@@ -122,14 +129,20 @@ while detail.status not in ("COMPLETED", "FAILED") and time.monotonic() < deadli
     time.sleep(10)
     detail = client.notifications.previews.runs.retrieve(run.id, id=run.template_id)
 
+if detail.status not in ("COMPLETED", "FAILED"):
+    print(f"Run {run.id} is still {detail.status} after 5 minutes; report the devices with no result yet")
+
 for r in detail.results:
     if r.status == "COMPLETED" and r.screenshot_url:
-        urllib.request.urlretrieve(r.screenshot_url, f"preview-{r.device_id}.png")  # download now
+        with urllib.request.urlopen(r.screenshot_url) as resp:  # download now; raises on an expired link
+            ext = resp.headers.get_content_subtype()
+            with open(f"preview-{r.device_id}.{ext}", "wb") as f:
+                f.write(resp.read())
 ```
 
 **MCP:** `get_preview_run` with the template id and run id.
 
-`results` can be empty while the run is in progress; entries appear as devices report, in no fixed order, so match them by `device_id`. Most screenshots are PNG; check each file's `Content-Type` rather than trusting the extension.
+`results` can be empty while the run is in progress; entries appear as devices report, in no fixed order, so match them by `device_id`. Each finished result has a full-size `screenshot_url` and a grid-size `thumbnail_url`. Most screenshots are PNG, but take the file type from `Content-Type`, as above. `detail.template_version` records what was rendered: the published version if the draft matches it, otherwise `draft`.
 
 | Run `status` | Meaning |
 |---|---|
@@ -157,48 +170,17 @@ for r in detail.results:
    - Outlook desktop layout: collapsed columns, oversized images, lost padding
    - mobile: columns that don't stack, text too small, buttons off-screen
    - dark mode: unreadable text, logos that disappear on dark backgrounds
-4. **Fix the draft you read, in place.** Read it with `retrieveContent(id, { version: "draft" })`, change the one element that's wrong, drop the `checksum` fields, and `putContent` the whole tree back. Don't rebuild content from scratch: a write without the elements' `id`s and `locales` deletes the translations. For one language's text, use `putLocale` instead ([localization.md](./localization.md)).
-
-   **Node:**
-   ```typescript
-   const draft = await client.notifications.retrieveContent("nt_01abc123", { version: "draft" });
-   if (!("elements" in draft)) throw new Error("Legacy template: no Elemental elements to edit");
-   const fix = (els: any[]) => els.forEach((el) => {
-     delete el.checksum;
-     if (el.locales) Object.values(el.locales).forEach((l: any) => delete l.checksum);
-     if (el.id === "elem_01kx4h2jdafq8bk9b0g5k7hs1e") el.content = "Track your order"; // the change
-     if (el.elements) fix(el.elements);
-   });
-   fix(draft.elements);
-   await client.notifications.putContent("nt_01abc123", { content: { version: draft.version, elements: draft.elements as any } });
-   ```
-
-   **Python:**
-   ```python
-   content = client.notifications.retrieve_content("nt_01abc123", version="draft")  # a plain dict
-
-   def fix(els):
-       for el in els:
-           el.pop("checksum", None)
-           for l in (el.get("locales") or {}).values():
-               l.pop("checksum", None)
-           if el.get("id") == "elem_01kx4h2jdafq8bk9b0g5k7hs1e":
-               el["content"] = "Track your order"  # the change
-           fix(el.get("elements") or [])
-
-   fix(content["elements"])
-   client.notifications.put_content("nt_01abc123", content={"version": content["version"], "elements": content["elements"]})
-   ```
+4. **Fix the draft you read, in place**: read it, change the element that's wrong, and write the whole tree back, keeping every `id` and `locales` ([Edit a Template in Place](./templates.md#edit-a-template-in-place) has the Node and Python code). Don't rebuild content from scratch: that deletes the translations. If the element you fixed has translations, update them with `putLocale` too ([localization.md](./localization.md)).
 5. **Re-run only the devices that looked wrong** with `device_ids`, then one final run on the full set.
 6. **Publish only when the user says so.** Previews render the draft, so nothing reaches recipients until then.
 
 ## Localized previews
 
-Pass `locale` to render a translation. It must be the exact locale key the template uses (case included), the same rule as sends; see [localization.md](./localization.md). Run once per language that matters. Longer translations are where buttons wrap and Outlook tables overflow.
+Pass `locale` to render a translation. Use the key exactly as the template stores it (sends match locale codes case-sensitively; see [localization.md](./localization.md)), and check that the screenshot is actually in that language. A key that doesn't match likely renders the default content and still uses previews. Run once per language that matters: longer translations are where buttons wrap and Outlook tables overflow.
 
-**Node:** `client.notifications.previews.runs.create("nt_01abc123", { device_ids, locale: "de", data, "Idempotency-Key": crypto.randomUUID() })`
+**Node:** `client.notifications.previews.runs.create("nt_01abc123", { device_ids: ["pvd_0rk8bz6ywhbydvhfh6xv0bw8ep"], locale: "de", data: { order_id: "1042" }, "Idempotency-Key": crypto.randomUUID() })`
 
-**Python:** `client.notifications.previews.runs.create("nt_01abc123", device_ids=device_ids, locale="de", data=data, idempotency_key=str(uuid.uuid4()))`
+**Python:** `client.notifications.previews.runs.create("nt_01abc123", device_ids=["pvd_0rk8bz6ywhbydvhfh6xv0bw8ep"], locale="de", data={"order_id": "1042"}, idempotency_key=str(uuid.uuid4()))`
 
 ## Choose devices
 
@@ -207,12 +189,12 @@ Pass `locale` to render a translation. It must be the exact locale key the templ
 | Field | Values |
 |---|---|
 | `category` | `desktop`, `mobile`, `webmail` |
-| `app` | One per client and version: `apple_mail`, `gmail` (the mobile app), `gmail_com` (webmail), `outlook` (the iPhone app), `outlook_2016` … `outlook_2024`, `outlook_microsoft_365`, `outlook_office_365`, `outlook_com`, `yahoo_com`, and more |
-| `platform` | Hardware or browser: `iphone`, `pixel`, `chrome`, `edge`, `firefox`; `null` on desktop |
-| `os`, `os_version` | `windows`, `macos`, `ios`, `android` |
+| `app` | Mobile: the app (`apple_mail`, `gmail`, `outlook`). Desktop: the app with its version (`apple_mail_16`, `outlook_2016` … `outlook_2024`, `outlook_microsoft_365`, `outlook_office_365`). Webmail: the service (`gmail_com`, `outlook_com`, `yahoo_com`, `aol_com`, and more) |
+| `platform`, `platform_version` | Phone or browser (`iphone`, `pixel`, `chrome`, `edge`, `firefox`) and its model or version; `null` on desktop |
+| `os`, `os_version` | `windows`, `macos`, `ios`, `android`, and the OS version |
 | `theme` | `light`, `dark` |
 
-Match app families by prefix, since each Outlook version is its own `app`. A filter can match many devices (there are 14 Outlook desktop ones), and each device in a run is billed, so pick the ones you mean and check the count before running:
+Always filter on `category` as well as `app`: `outlook` alone is the iPhone app, and an `outlook` prefix also matches `outlook_com` webmail. A filter can match many devices (there are 14 Outlook desktop ones), so pick the ones you mean and check the count before running. The two 120-dpi Outlook devices match their 100% siblings on every field except `name`:
 
 ```typescript
 const { results: devices } = await client.previews.listDevices();
@@ -262,7 +244,7 @@ Send that body with `client.notifications.create(...)` (see [templates.md](./tem
 | Status | When |
 |---|---|
 | `400` | Both or neither of `device_set_id` and `device_ids`; an unknown body key such as `template_id`; a malformed version such as `v2` |
-| `402` | The add-on isn't enabled |
+| `402` | The add-on isn't enabled, or its billing is suspended |
 | `404` | The template, device set, or run doesn't exist. A run is only readable under the template it previewed |
 | `409` | Changing or archiving Courier Recommended |
 | `422` | A device id not in the catalog; a version the template doesn't have; not a Design Studio template or no email channel |
