@@ -7,7 +7,7 @@
 | URL | `https://mcp.courier.com` | `https://www.courier.com/docs/mcp` |
 | Auth | `api_key` header (required) | **None**, public docs |
 | Purpose | **Do things**: send, manage templates, journeys, profiles, preferences | **Look things up**: search docs, read pages, read the OpenAPI specs |
-| Tools | ~144 (see inventory below) | `search_courier`, `query_docs_filesystem_courier`, `submit_feedback` |
+| Tools | ~170 (see inventory below) | `search_courier`, `query_docs_filesystem_courier`, `submit_feedback` |
 | Reach for it when | You're operating on a workspace | You need semantics, a parameter shape, or a page you can't name |
 
 Most agent sessions want **both**: the docs MCP to learn the correct shape, the API MCP to execute it.
@@ -39,7 +39,7 @@ Cheaper still, when you already know the exact page: append `.md` to any docs UR
 ### Rules
 - MCP provides structured tool access; agents discover tools automatically and call them with typed parameters
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- Tools cover most of the Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, inbound, audit. Coverage is not complete: newly shipped endpoints can lag behind the API (see [Known gaps](#known-gaps)). The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
+- Tools cover most of the Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, email previews, inbound, audit. Coverage is not complete: newly shipped endpoints can lag behind the API (see [Known gaps](#known-gaps)). The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
 - Journey management and notification-template writes are both available via MCP
 - Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
@@ -211,6 +211,8 @@ Tools cover most of the Courier API, all backed by the official `@trycourier/cou
 | Messages and delivery debugging | `list_messages`, `get_message`, `get_message_history`, `get_message_content`, `cancel_message`, `resend_message`, `archive_request` |
 | Templates | `list_notifications`, `get_notification`, `create_notification`, `replace_notification`, `put_notification_content`, `publish_notification` (the draft, or a past version), `list_notification_versions`, `get_notification_draft_content`, `archive_notification` |
 | Template metrics | `get_notification_metrics` (same window rules as [metrics.md](./metrics.md)) |
+| Template translations | `put_notification_locale` (one locale, merges), `get_notification_draft_content` to export strings. See [localization.md](./localization.md) |
+| Device Preview | `list_preview_device_sets`, `list_preview_devices`, `create_preview_run`, `get_preview_run`, `list_preview_runs`, `create_preview_device_set`, `replace_preview_device_set`, `archive_preview_device_set`. Runs are billed per device; see [device-preview.md](./device-preview.md) |
 | Journeys | `create_journey`, `replace_journey`, `publish_journey`, `invoke_journey`, `cancel_journey`, `get_journey`, `list_journeys`, `create_journey_template`, `put_journey_template_content`, `publish_journey_template`. Create makes a DRAFT with no send nodes; add them with `replace_journey` once the journey's templates exist. Prefer these over hand-rolled REST |
 | Users and profiles | `get_user_profile_by_id`, `create_or_merge_user`, `patch_profile`, `replace_profile`, `delete_profile`, `generate_jwt_for_user` |
 | Push tokens | `list_user_push_tokens`, `get_user_push_token`, `create_or_replace_user_push_token`, `patch_user_token`, `delete_user_token`, `bulk_add_user_tokens` |
@@ -221,7 +223,7 @@ Tools cover most of the Courier API, all backed by the official `@trycourier/cou
 | Bulk | `create_bulk_job` (`message.event` is required) → `add_bulk_users` → `run_bulk_job`, in that order, then `get_bulk_job`, `list_bulk_users`. See [bulk.md](./bulk.md) |
 | Tenants | `get_tenant`, `create_or_update_tenant`, `list_tenants`, `list_tenant_users`, `add_user_to_tenant`, `list_user_tenants`, `list_tenant_templates`, `update_tenant_preference` |
 | Brands, routing, providers | `list_brands`, `get_brand`, `create_brand`, `update_brand`, `list_routing_strategies`, `create_routing_strategy`, `replace_routing_strategy`, `list_providers`, `create_provider`, `list_provider_catalog` |
-| Other | `get_translation`, `update_translation`, `track_inbound_event`, `list_audit_events`, `invoke_automation_template`, `courier_installation_guide` |
+| Other | `get_translation`, `update_translation` (workspace `.po` strings for `{{t}}`, not template translations), `track_inbound_event`, `list_audit_events`, `invoke_automation_template`, `courier_installation_guide` |
 
 See [Journeys](./journeys.md) for the node types and the create-then-replace ordering constraint.
 

@@ -22,6 +22,8 @@
 - **Check what `routing` actually came back as.** The create body accepts `routing` in exactly one shape, `{ "strategy_id": "rs_..." }`. Anything else is rejected, and a strategy id that doesn't exist is a `400` (`Routing strategy rs_... not found`). Templates nonetheless turn up with `routing: null` in practice, including ones built in Design Studio, and a template with `routing: null` **is not sendable by id** on channels that need a provider named by a strategy. Read it back with `GET /notifications/{id}` rather than trusting the create response, and attach one with `PUT /notifications/{id}` (`notifications.replace`) if it's null. On the inbox this surfaces as `UNROUTABLE` / `PROVIDER_ERROR` "No provider(s) courier ... : undefined", see [inbox.md](../channels/inbox.md#troubleshooting).
 - Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404, the archive operation uses the `DELETE` method.
 - Confirm final visuals from a rendered test send — `GET /messages/{id}/output` returns the exact email recipients receive (see [Verify the Rendered Output](#verify-the-rendered-output))
+- To see the email on real clients (Outlook, Gmail, Apple Mail, dark mode) before sending, run a [Device Preview](./device-preview.md) on the draft
+- Keep element `id`s and `locales` when you write content back. A `putContent` without `locales` deletes the template's translations; see [localization.md](./localization.md)
 - Managing templates from a repo (CI, drift detection, promotion): see [Templates as Code](./templates-as-code.md)
 
 ### Common Mistakes
@@ -289,7 +291,7 @@ await client.notifications.putContent("nt_01abc123", {
 await client.notifications.publish("nt_01abc123");
 ```
 
-To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). Element `id`s and checksums make templates safe to share between agents and Design Studio users: `putElement` targets exactly one element by `id`, and a changed checksum tells you a teammate edited it since you last read — so you can detect their edits before overwriting them. For per-locale content, `client.notifications.putLocale(...)`. See [Localization](./elemental.md#localization).
+`client.notifications.putElement(elementId, { id, type, ... })` replaces one element, addressed by its `id`, with exactly the body you send. Anything left out is gone, including the element's `locales`, and the body isn't validated (a misspelled key is stored and silently ignored). To change text, edit the content and `putContent` it; to change translations, use `client.notifications.putLocale(...)` ([localization.md](./localization.md)). Element checksums tell you a teammate changed an element since you last read it: compare them before you overwrite.
 
 ### Publish
 
@@ -325,6 +327,10 @@ The same operation in each interface: REST `GET /messages/{id}/output` · SDK `c
 Rendered output becomes available once the message renders — a send is accepted as `ENQUEUED` first, so if the call 404s or `results` is empty immediately after sending, re-check after a few seconds (see [Reliability](./reliability.md) for status semantics).
 
 Tip: a stored template's plain-text part is delivered as stored — Handlebars variables are not rendered in it — so write the text part as final copy and keep `{{variables}}` in the Elemental/HTML content.
+
+### Preview on Real Email Clients
+
+Rendered output shows the HTML, not how Outlook or Gmail draws it. [Device Preview](./device-preview.md) renders the template's draft (or a published version) on real email clients and returns screenshots, with no send. It's a paid add-on billed per device, so size the run first.
 
 ### List Templates
 
@@ -504,7 +510,7 @@ Conditional rendering (`if`), iteration (`loop`), element references (`ref`), an
 
 ## Localization (reference moved)
 
-The `locales` property on `text`, `action`, `quote`, and `meta` elements is documented in [Elemental](./elemental.md). For full localization setup, see the official [Locales](https://www.courier.com/docs/design/elemental/locales) docs.
+Translating a template (the `locales` property, `putLocale`, how Courier picks a locale, Design Studio AI Translation) is in [localization.md](./localization.md).
 
 ---
 

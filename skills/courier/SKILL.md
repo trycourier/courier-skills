@@ -84,17 +84,17 @@ client.send.message(
 
 Full method-name lookup for both SDKs: **[sdk-reference.md](./references/sdk-reference.md)**.
 
-**The 22 namespaces are the complete SDK surface.** If an operation isn't here, it isn't in the SDK:
+**The 23 namespaces are the complete SDK surface.** If an operation isn't here, it isn't in the SDK:
 
 ```
 audiences  auditEvents  auth      automations  brands
 broadcasts  bulk        digests   inbound      journeys
-lists      messages     notifications  profiles  providers
-requests   routingStrategies  send  tenants  translations
-users      workspacePreferences
+lists      messages     notifications  previews  profiles
+providers  requests     routingStrategies  send  tenants
+translations  users     workspacePreferences
 ```
 
-Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `journeys.runs`, `journeys.templates`, `lists.subscriptions`, `notifications.checks`, `profiles.lists`, `providers.catalog`, `tenants.preferences`, `tenants.preferences.items`, `tenants.templates`, `tenants.templates.versions`, `users.preferences`, `users.tenants`, `users.tokens`, `workspacePreferences.topics`.
+Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `journeys.runs`, `journeys.templates`, `lists.subscriptions`, `notifications.checks`, `notifications.previews`, `notifications.previews.runs`, `profiles.lists`, `providers.catalog`, `tenants.preferences`, `tenants.preferences.items`, `tenants.templates`, `tenants.templates.versions`, `users.preferences`, `users.tenants`, `users.tokens`, `workspacePreferences.topics`.
 
 `auditEvents`, `inbound`, and `requests` have no dedicated guide. Use MCP or the CLI for those.
 
@@ -217,7 +217,8 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **Delivery metrics for a template**: sent/delivered/opened/clicked as a time series, dashboards, alerting on delivery rate | [metrics.md](./references/guides/metrics.md) |
 | Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md), or read the installed package's own types |
 | Elemental content format, elements, control flow | [elemental.md](./references/guides/elemental.md) |
-| **Localization**: per-locale content, and AI Translation in Design Studio (add a language, AI translates every field) | [elemental.md](./references/guides/elemental.md#localization) |
+| **Translating a template**: add languages, sync with a translation tool (export strings, `putLocale`), how the recipient's locale is picked, Design Studio AI Translation, `.po` strings for `{{t}}` | [localization.md](./references/guides/localization.md) |
+| **See an email on real clients before sending**: Outlook, Gmail, Apple Mail, mobile, dark mode screenshots (Device Preview), an agent review loop | [device-preview.md](./references/guides/device-preview.md) |
 | Routing strategies (`rs_...`, provider priority) | [routing-strategies.md](./references/guides/routing-strategies.md) |
 | Configuring providers via API, catalog discovery | [providers.md](./references/guides/providers.md) |
 | Lists and bulk targeting (subscribe, list/pattern sends) | [patterns.md](./references/guides/patterns.md) |

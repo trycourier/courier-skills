@@ -16,16 +16,35 @@ local files → validate → diff → push → publish → verify → (rollback 
 - Sends always use the published version, so drafts are free to iterate. Publishing is the release.
 - Rollback is `publish { "version": "v001" }`. History is append-only, so the rollback itself lands as a new version.
 - Resolve aliases to `nt_...` before calling Courier.
+- Keep element `id`s and `locales` in the repo files. A push replaces the whole draft, translations included.
 
 ### Common Mistakes
 - Pushing without diffing and overwriting dashboard edits.
+- Stripping `id`s or `locales` from the repo files. Pushing them back gives every element a new id and deletes every translation made in Design Studio or with `putLocale`.
 - Treating a push as a release. Nothing changes for recipients until you publish.
 
 ## 1. Local files are the source of truth
 
-Keep one Elemental JSON file per template in your repo — the bare content document
-(`version` + `elements`, the same document `GET /notifications/{id}/content` returns, minus
-the server-managed `id`/`checksum` fields it adds):
+Keep one Elemental JSON file per template in your repo: the bare content document
+(`version` + `elements`), as `GET /notifications/{id}/content?version=draft` returns it, minus
+every `checksum` and the `_`-prefixed keys Design Studio adds inside `locales`. **Keep each
+element's `id` and `locales`.** Translations are addressed by element id, and a push replaces
+`locales` along with everything else (see [localization.md](./localization.md#replace-all-content)).
+Save a draft in that format with one jq filter, reused for every diff below:
+
+```bash
+NORMALIZE='{version, elements}
+  | del(.. | .checksum?)
+  | walk(if type == "object" and has("locales")
+         then .locales |= map_values(with_entries(select(.key | startswith("_") | not)))
+         else . end)'
+
+curl -sf "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
+  -H "Authorization: Bearer $COURIER_API_KEY" | jq -S "$NORMALIZE" > order-shipped.json
+```
+
+A brand-new template's file has no ids yet: create the template, then save it back through
+`$NORMALIZE` so the repo holds the ids Courier assigned. The file looks like this:
 
 ```jsonc
 // order-shipped.json
@@ -68,23 +87,25 @@ step passes green on broken content.
 ## 3. Diff against the draft before pushing
 
 A push overwrites the template's **draft** — which is also where Design Studio edits land.
-So fetch the draft (`?version=draft`) and compare it to your local file before writing.
-Normalize both sides: sort keys and drop the server-managed `id` and `checksum` fields so
-the diff shows only real content changes:
+So fetch the draft (`?version=draft`), run it through the same `$NORMALIZE` filter, and compare
+it to your local file before writing:
 
 ```bash
-diff <(jq -S 'del(.. | .id?, .checksum?)' order-shipped.json) \
+diff order-shipped.json \
      <(curl -sf "https://api.courier.com/notifications/$TEMPLATE_ID/content?version=draft" \
-         -H "Authorization: Bearer $COURIER_API_KEY" | jq -S 'del(.. | .id?, .checksum?)')
+         -H "Authorization: Bearer $COURIER_API_KEY" | jq -S "$NORMALIZE")
 ```
 
 `-f` makes the fetch fail loudly on an HTTP error — a bad key or template id should stop the
 check, not be diffed as if it were content. A non-empty diff on a *successful* fetch before
 you've changed anything means the draft moved since your last sync — usually a teammate's
-Design Studio edits. Pull those into the repo by saving the response *through the same jq
-filter* (stripping the server-managed `id`/`checksum` fields restores your file format)
-instead of overwriting them. To audit what's *live* rather than what's in-progress, run the
-same diff with `?version=published`.
+Design Studio edits or new translations. Pull those into the repo by saving the response
+through `$NORMALIZE` instead of overwriting them. To audit what's *live* rather than
+what's in-progress, run the same diff with `?version=published`.
+
+**If a translation tool owns the translations** rather than the repo, add `| del(.. | .locales?)`
+to both sides of the diff, and before each push copy the draft's current `locales` into the
+file. A push without `locales` deletes them. See [localization.md](./localization.md).
 
 ## 4. Push
 

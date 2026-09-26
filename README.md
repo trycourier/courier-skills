@@ -125,9 +125,10 @@ courier-skills/
         ├── channels/  (email, sms, push, inbox, slack, ms-teams, whatsapp)
         ├── inbox/     (rendering, auth, react, web-components, react-native, legacy-v7)
         └── guides/    (quickstart, journeys, templates, templates-as-code, elemental,
-                        multi-channel, preferences, batching, throttling, brands,
-                        audiences, tenants, patterns, routing-strategies, providers,
-                        reliability, webhooks, bulk, scheduling, metrics, digests, cli, mcp)
+                        localization, device-preview, multi-channel, preferences,
+                        batching, throttling, brands, audiences, tenants, patterns,
+                        routing-strategies, providers, reliability, webhooks, bulk,
+                        scheduling, metrics, digests, cli, mcp)
 ```
 
 Open `skills/courier/SKILL.md`. Its **Where to Look** table routes you to the one or two references that match your task.

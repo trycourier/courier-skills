@@ -365,7 +365,7 @@ To land in Primary (not Promotions):
 - [ ] Unsubscribe link present
 - [ ] Physical address in footer
 - [ ] Links tested and working
-- [ ] Mobile preview checked
+- [ ] Rendered on real clients (Outlook, Gmail, Apple Mail, mobile, dark mode) with [Device Preview](../guides/device-preview.md)
 - [ ] Plain text version included
 - [ ] Personalization tokens have fallbacks
 
