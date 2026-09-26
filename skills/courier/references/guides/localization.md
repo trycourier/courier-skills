@@ -2,6 +2,8 @@
 
 A template holds its content once, in the default language, and each element carries a translation per locale in a `locales` map. At send time Courier picks the recipient's locale and swaps in the matching text, element by element.
 
+Examples assume an initialized `client`. Install and API key setup are in [quickstart.md](./quickstart.md).
+
 ## Quick Reference
 
 ### Rules
@@ -20,7 +22,7 @@ A template holds its content once, in the default language, and each element car
 
 - Stripping `locales` or element ids before `putContent`. Remove only `checksum` fields and Design Studio's `_`-prefixed keys (see [Replace all content](#replace-all-content))
 - Sending a Design Studio read back unchanged. Its `locales` carry keys like `_sourceHash`, and the write returns `400 Unrecognized key: "_sourceHash"`
-- Storing `es-MX` on profiles when the template is translated as `es`
+- Storing `es-MX` on profiles when the template is translated as `es` (or `es-mx`). Make the two strings identical: change the profiles to the template's code, or write a locale under the profiles' exact code (`putLocale("es-MX", ...)`). To see which codes a live template has, read the published content (`retrieveContent` without `version`) and check the keys of `locales`
 - Writing translations and never publishing
 - Translating a subject with `content`. The subject is `title` on the `meta` element; `content` returns a `400` naming the field
 - Uploading a `.po` file with the SDK's `translations.update`. It JSON-encodes the string. Upload with a raw HTTP `PUT` (see [Workspace translation strings](#workspace-translation-strings))
@@ -93,7 +95,7 @@ Templates from the legacy designer return `blocks` and `channels` instead of `el
 
 ### 2. Translate
 
-Walk every `elements` array and skip the `locales` maps. Take `title` from `meta`, and `content` from `text`, `action`, `quote`, and `html`. Each channel holds its own copy, so a template that sends email and inbox has two of each string. Keep each string's element `id`, field, and `checksum`:
+Walk every `elements` array and skip the `locales` maps. Take `title` from `meta`, and `content` from `text`, `action`, `quote`, and `html`. A `text` element with no `content` holds its copy in inline `elements` nodes: translate each node's `content` and write the translation back as `elements` ([Formatted text](#formatted-text)). Each channel holds its own copy, so a template that sends email and inbox has two of each string. Keep each string's element `id`, field, and `checksum`:
 
 ```json
 [
@@ -179,6 +181,8 @@ An element's `checksum` changes when its own content changes, and a container's 
 | Same `id`, changed `checksum` | Re-translate it |
 | New `id` | New string, translate it |
 | `id` gone | Nothing |
+
+Until you write the new translation, recipients in that locale keep getting the old one.
 
 ## Which fields a locale can override
 

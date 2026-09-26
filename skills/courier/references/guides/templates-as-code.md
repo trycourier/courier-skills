@@ -99,8 +99,10 @@ diff order-shipped.json \
 `-f` makes the fetch fail loudly on an HTTP error — a bad key or template id should stop the
 check, not be diffed as if it were content. A non-empty diff on a *successful* fetch before
 you've changed anything means the draft moved since your last sync — usually a teammate's
-Design Studio edits or new translations. Pull those into the repo by saving the response
-through `$NORMALIZE` instead of overwriting them. To audit what's *live* rather than
+Design Studio edits or new translations. Don't overwrite either side. With no local changes
+yet, save the draft through `$NORMALIZE` over your file. When both changed, merge the draft's
+changes (usually new `locales`) into your file, then push. Pulling before you start editing
+avoids the merge. To audit what's *live* rather than
 what's in-progress, run the same diff with `?version=published`.
 
 **If a translation tool owns the translations** rather than the repo, add `| del(.. | .locales?)`

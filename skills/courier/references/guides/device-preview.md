@@ -2,6 +2,8 @@
 
 Device Preview renders a template's email on real email clients (Outlook, Gmail, Apple Mail, webmail, light and dark mode) and returns a screenshot from each. An agent can start a run, read the screenshots, fix what it sees, and run again, all before anything is sent.
 
+Examples assume an initialized `client`. Install and API key setup are in [quickstart.md](./quickstart.md).
+
 ## Quick Reference
 
 ### Rules
@@ -210,12 +212,15 @@ Pass `locale` to render a translation. It must be the exact locale key the templ
 | `os`, `os_version` | `windows`, `macos`, `ios`, `android` |
 | `theme` | `light`, `dark` |
 
-Match app families by prefix, since each Outlook version is its own `app`:
+Match app families by prefix, since each Outlook version is its own `app`. A filter can match many devices (there are 14 Outlook desktop ones), and each device in a run is billed, so pick the ones you mean and check the count before running:
 
 ```typescript
 const { results: devices } = await client.previews.listDevices();
-const outlookDesktop = devices.filter((d) => d.category === "desktop" && d.app.startsWith("outlook")).map((d) => d.id);
-const gmailDark = devices.filter((d) => d.app.startsWith("gmail") && d.theme === "dark").map((d) => d.id);
+const picks = [
+  devices.find((d) => d.app === "outlook_microsoft_365" && d.os === "windows" && d.theme === "light"),
+  devices.find((d) => d.app === "gmail_com" && d.theme === "dark"),
+].filter((d) => d !== undefined);
+const device_ids = picks.map((d) => d.id); // 2 devices = 2 previews
 ```
 
 - **One-off run:** pass `device_ids` instead of `device_set_id` (CLI: repeat `--device-id pvd_...` once per device). An id not in the catalog returns a `422`.
