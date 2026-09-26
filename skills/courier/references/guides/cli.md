@@ -41,6 +41,10 @@
 | Send to many recipients | `courier send message --message.to '{"list_id":"beta-testers"}' --message.template "nt_01kmrbq6ypf25tsge12qek41r0"` |
 | List templates | `courier notifications list` |
 | Template delivery metrics | `courier notifications get-metrics --id "nt_01kmrbq6ypf25tsge12qek41r0" --lookback P7D --granularity DAY` |
+| Write one locale's translations | `courier notifications put-locale --id "nt_01kmrbq6ypf25tsge12qek41r0" --locale-id es --element '{id: elem_..., content: Hola}'` |
+| List preview device sets | `courier previews list-device-sets` |
+| Start a Device Preview run (billed per device) | `courier notifications:previews:runs create --id "nt_01kmrbq6ypf25tsge12qek41r0" --device-set-id "pvs_..." --idempotency-key "$(uuidgen)"` |
+| Read a preview run | `courier notifications:previews:runs retrieve --id "nt_01kmrbq6ypf25tsge12qek41r0" --preview-run-id "pvr_..."` |
 
 ### Output Formats
 

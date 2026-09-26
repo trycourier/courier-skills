@@ -511,46 +511,22 @@ Show an element only on specific channels without using a `channel` container:
 
 ## Localization
 
-Elements that support text content (`text`, `action`, `quote`, `meta`) accept a `locales` property for multi-language content. Courier serves the right locale based on the recipient's profile.
+Elements carry translations in a `locales` map keyed by locale code. Each locale stores only the fields it translates:
 
 ```json
 {
   "type": "text",
   "content": "Welcome, {{name}}!",
-  "align": "left",
   "locales": {
     "es": { "content": "¡Bienvenido, {{name}}!" },
-    "fr": { "content": "Bienvenue, {{name}} !" },
-    "de": { "content": "Willkommen, {{name}}!" }
+    "fr": { "content": "Bienvenue, {{name}} !" }
   }
 }
 ```
 
-The `meta` element carries `title` (used as the email subject and push/chat title), so its `locales` entries override `title`, not `content`:
+The translatable field depends on the type: `content` on `text`, `action`, `quote`, and `html`; `title` on `meta` (the subject); `href` on `action` and `image`; `src` on `image`; `raw` on `channel`; and `elements` on `text`, `list-item`, and containers. `divider`, `jsonnet`, `partial`, and `comment` take none.
 
-```json
-{
-  "type": "meta",
-  "title": "Your order has shipped",
-  "locales": {
-    "es": { "title": "Tu pedido ha sido enviado" },
-    "fr": { "title": "Votre commande a été expédiée" }
-  }
-}
-```
-
-For full localization setup, see the official [Locales](https://www.courier.com/docs/design/elemental/locales) docs and the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation) for workspace-wide string management.
-
-### AI Translation (Design Studio)
-
-For templates built in Design Studio, you don't have to write the `locales` blocks above by hand. Open a template, click the globe icon, pick a language, and Courier translates every string, subject lines, headings, body copy, button text, into that locale automatically. This is the fastest way to localize and the one to reach for first.
-
-- **Variables are preserved.** Placeholders like `{user.name}` or `{order.total}` are repositioned for the target language's grammar, not dropped.
-- **Manual edits stick.** Override any translated string by typing your own; the override survives future re-translations of that locale.
-- **Outdated strings are flagged.** When you change the default-locale template, Courier marks which translations are now stale; re-translate only those with **Translate all**, leaving unchanged strings and overrides intact.
-- **Not used for model training**: templates, customer data, and variables stay within Courier's infrastructure.
-
-Reach for hand-written `locales` (or the [Translations API](https://www.courier.com/docs/api-reference/translations/get-a-translation)) when a template is defined in code rather than Design Studio, or when you localize as part of a deploy pipeline. Docs: [AI Translation](https://www.courier.com/docs/design/elemental/locales).
+Courier picks the locale from `message.to.locale`, else the profile's `locale`, and matches it exactly (`es-MX` doesn't fall back to `es`). To translate a stored template, use `putLocale` rather than hand-editing `locales` into a full content write. Workflow, rules, and Design Studio AI Translation: [localization.md](./localization.md).
 
 ## Related
 

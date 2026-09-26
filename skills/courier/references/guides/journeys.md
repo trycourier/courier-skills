@@ -77,6 +77,8 @@ Argument order differs by method: `create` and `list` take the **journey** id fi
 | Draft content | `GET /journeys/{jid}/templates/{tid}/content?version=draft` |
 | A specific version | `GET /journeys/{jid}/templates/{tid}/content?version=v001` |
 
+`putLocale` on a journey template takes the same `elements` body as on a workspace template, with `templateId` (the journey) and `notificationId` as parameters; see [localization.md](./localization.md#journey-templates).
+
 `?version=` works the same way on workspace templates (`GET /notifications/{id}/content?version=draft`) and reads any published version on either.
 
 Workspace templates under `/notifications` are a separate namespace with their own full SDK support. See [templates.md](./templates.md).

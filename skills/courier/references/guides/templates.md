@@ -22,6 +22,8 @@
 - **Check what `routing` actually came back as.** The create body accepts `routing` in exactly one shape, `{ "strategy_id": "rs_..." }`. Anything else is rejected, and a strategy id that doesn't exist is a `400` (`Routing strategy rs_... not found`). Templates nonetheless turn up with `routing: null` in practice, including ones built in Design Studio, and a template with `routing: null` **is not sendable by id** on channels that need a provider named by a strategy. Read it back with `GET /notifications/{id}` rather than trusting the create response, and attach one with `PUT /notifications/{id}` (`notifications.replace`) if it's null. On the inbox this surfaces as `UNROUTABLE` / `PROVIDER_ERROR` "No provider(s) courier ... : undefined", see [inbox.md](../channels/inbox.md#troubleshooting).
 - Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404, the archive operation uses the `DELETE` method.
 - Confirm final visuals from a rendered test send — `GET /messages/{id}/output` returns the exact email recipients receive (see [Verify the Rendered Output](#verify-the-rendered-output))
+- To see the email on real clients (Outlook, Gmail, Apple Mail, dark mode) before sending, run a [Device Preview](./device-preview.md) on the draft
+- Keep element `id`s and `locales` when you write content back. A `putContent` without `locales` deletes the template's translations; see [localization.md](./localization.md)
 - Managing templates from a repo (CI, drift detection, promotion): see [Templates as Code](./templates-as-code.md)
 
 ### Common Mistakes
@@ -268,6 +270,8 @@ await client.notifications.replace("nt_01abc123", {
 
 `putContent` replaces just the **content** of a template, its Elemental `elements`, without touching name, tags, brand, subscription, or routing. Reach for it when you're syncing template bodies from code (a CMS export, a generated layout) and don't want to resend the whole `notification` object as `replace` requires. It writes to the **draft** by default (`state` defaults to `"DRAFT"`), so publish afterward to go live.
 
+It replaces the whole element tree, translations included. The example below builds content from scratch, which is right for a new template. For a template that already has translations or Design Studio edits, [edit it in place](#edit-a-template-in-place) instead.
+
 **TypeScript:**
 ```typescript
 await client.notifications.putContent("nt_01abc123", {
@@ -289,7 +293,64 @@ await client.notifications.putContent("nt_01abc123", {
 await client.notifications.publish("nt_01abc123");
 ```
 
-To change a single element instead of the whole body, `client.notifications.putElement(elementId, { id, type, data, state })` updates one element in place (V2/Elemental templates only). Element `id`s and checksums make templates safe to share between agents and Design Studio users: `putElement` targets exactly one element by `id`, and a changed checksum tells you a teammate edited it since you last read — so you can detect their edits before overwriting them. For per-locale content, `client.notifications.putLocale(...)`. See [Localization](./elemental.md#localization).
+### Edit a Template in Place
+
+To change part of an existing template, read the draft, change the element, and write the whole tree back. This keeps every element's `id` and `locales`. Strip what the write rejects first: every `checksum` (on elements and inside `locales`) and the `_`-prefixed keys Design Studio adds to translations (`_sourceHash` returns a `400`). Element checksums also tell you a teammate changed an element since you last read it.
+
+**TypeScript:**
+```typescript
+const draft = await client.notifications.retrieveContent("nt_01abc123", { version: "draft" });
+if (!("elements" in draft)) throw new Error("Legacy template: no Elemental elements to edit");
+
+// Drop what the write rejects: checksums anywhere, and `_` keys (Design Studio's, inside locales).
+const strip = (node: any): void => {
+  if (Array.isArray(node)) return node.forEach(strip);
+  if (node && typeof node === "object") {
+    for (const key of Object.keys(node)) {
+      if (key === "checksum" || key.startsWith("_")) delete node[key];
+      else strip(node[key]);
+    }
+  }
+};
+const edit = (els: any[]): void => els.forEach((el) => {
+  if (el.id === "elem_01kx4h2jdafq8bk9b0g5k7hs1e") el.content = "Track your order"; // the change
+  if (el.elements) edit(el.elements);
+});
+
+strip(draft.elements);
+edit(draft.elements);
+await client.notifications.putContent("nt_01abc123", { content: { version: draft.version, elements: draft.elements as any } });
+```
+
+**Python:**
+```python
+content = client.notifications.retrieve_content("nt_01abc123", version="draft")  # a plain dict
+
+def strip(node):
+    if isinstance(node, list):
+        for n in node:
+            strip(n)
+    elif isinstance(node, dict):
+        for key in list(node):
+            if key == "checksum" or key.startswith("_"):
+                del node[key]
+            else:
+                strip(node[key])
+
+def edit(els):
+    for el in els:
+        if el.get("id") == "elem_01kx4h2jdafq8bk9b0g5k7hs1e":
+            el["content"] = "Track your order"  # the change
+        edit(el.get("elements") or [])
+
+strip(content["elements"])
+edit(content["elements"])
+client.notifications.put_content("nt_01abc123", content={"version": content["version"], "elements": content["elements"]})
+```
+
+If the element you changed has translations, they still hold the old text. Update them with `putLocale` ([localization.md](./localization.md)).
+
+`client.notifications.putElement(elementId, { id: templateId, type, ... })` also exists, but it replaces the element with exactly the body you send: anything left out is gone, including `locales`, and the body isn't validated (a misspelled key is stored and ignored). Its typed parameters cover only `type`, `data`, `channels`, `if`, `loop`, and `ref`, so text and translations would go through untyped extra fields. Prefer the read-modify-write above, and `putLocale` for translations.
 
 ### Publish
 
@@ -325,6 +386,10 @@ The same operation in each interface: REST `GET /messages/{id}/output` · SDK `c
 Rendered output becomes available once the message renders — a send is accepted as `ENQUEUED` first, so if the call 404s or `results` is empty immediately after sending, re-check after a few seconds (see [Reliability](./reliability.md) for status semantics).
 
 Tip: a stored template's plain-text part is delivered as stored — Handlebars variables are not rendered in it — so write the text part as final copy and keep `{{variables}}` in the Elemental/HTML content.
+
+### Preview on Real Email Clients
+
+Rendered output shows the HTML, not how Outlook or Gmail draws it. [Device Preview](./device-preview.md) renders the template's draft (or a published version) on real email clients and returns screenshots, with no send. It's a paid add-on billed per device, so size the run first.
 
 ### List Templates
 
@@ -504,7 +569,7 @@ Conditional rendering (`if`), iteration (`loop`), element references (`ref`), an
 
 ## Localization (reference moved)
 
-The `locales` property on `text`, `action`, `quote`, and `meta` elements is documented in [Elemental](./elemental.md). For full localization setup, see the official [Locales](https://www.courier.com/docs/design/elemental/locales) docs.
+Translating a template (the `locales` property, `putLocale`, how Courier picks a locale, Design Studio AI Translation) is in [localization.md](./localization.md).
 
 ---
 
