@@ -34,6 +34,7 @@
 | Create a user profile | `courier profiles create --user-id "user-123" --profile '{"email": "a@b.com"}'` |
 | Get a user profile | `courier profiles retrieve --user-id "user-123"` |
 | Check user preferences | `courier users:preferences retrieve --user-id "user-123"` |
+| When a user changed a preference | `courier workspace-preferences list-logs --user-id "user-123"` |
 | See what a digest is holding | `courier digests:schedules list-instances --schedule-id "sch_..."` |
 | Release one user's digest now | `courier workspace-preferences:topics release-digest --section-id "$SECTION_ID" --topic-id "$TOPIC_ID" --user-id "user-123"` |
 | Turn off a topic's digest | `courier workspace-preferences:topics delete-digest --section-id "$SECTION_ID" --topic-id "$TOPIC_ID"` |

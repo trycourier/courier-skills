@@ -19,7 +19,7 @@ Neither is a send path. To *send* a notification over an HTTP callback, that's t
 ### Rules
 - Webhooks are scoped to the environment they're created in. A test webhook never fires for production events.
 - Respond 2xx within 10 seconds and do the work async.
-- Events can arrive more than once. Deduplicate on `data.id` plus `data.status`, never on `data.id` alone.
+- Events can arrive more than once. Deduplicate on `data.id` plus `data.status` (or the event type), never on `data.id` alone.
 - Verify signatures against the raw request bytes, not a re-serialized object.
 - Inbound events need a `userId` that matches an existing Courier user, or nothing starts.
 
@@ -51,10 +51,13 @@ values, since more types get added over time.
 | `notification:submitted` | A template is submitted for review |
 | `notification:submission_canceled` | A pending submission is canceled before publishing |
 | `notification:published` | A template is published (directly, or when a submission is approved) |
-| `audiences:updated` | An audience is created or updated |
+| `audiences:created` | An audience is created |
+| `audiences:updated` | An audience's definition changes |
+| `audiences:deleted` | An audience is deleted |
 | `audiences:user:matched` | A user starts matching an audience filter |
 | `audiences:user:unmatched` | A user stops matching an audience filter |
 | `audiences:calculated` | Courier finishes recalculating an audience |
+| `preferences:user:updated` | A user opts in, opts out, or changes a topic's channels, from any surface ([payload](#preference-events)) |
 
 There is no `message:bounced` or `message:complained`. Hard bounces and spam complaints arrive as
 `message:updated` with `data.status` of `UNDELIVERABLE`, the aggregate cause in `data.reason`, and
@@ -84,6 +87,7 @@ Retries continue for roughly a day, then Courier gives up.
 **Events can arrive more than once, so handlers must be idempotent.** Note that `data.id` identifies
 the *resource*, not the event. One message emits several events that all carry the same `data.id`.
 Deduplicate on `data.id` **plus** `data.status` (or the event type), never on `data.id` alone.
+`preferences:user:updated` is simpler: its `data.id` is unique per change.
 
 ### message:updated Payloads
 
@@ -134,6 +138,42 @@ arrive before delivery confirmation, or without it ever arriving.** Don't write 
 assumes `DELIVERED` precedes `OPENED`.
 
 For the full status list and what each one means, see [reliability.md](./reliability.md#message-status-glossary).
+
+<a id="preference-events"></a>
+
+### preferences:user:updated Payloads
+
+One event type covers opting in, opting out, and editing a topic's channels, from any surface.
+`data` is one change to one topic:
+
+```json
+{
+  "type": "preferences:user:updated",
+  "data": {
+    "id": "eb4023e3-62cc-4488-a4fc-d98230994f6a",
+    "timestamp": "2026-09-24T18:12:04.442Z",
+    "user_id": "user_123",
+    "tenant_id": "acme-corp",
+    "topic_id": "pt_01kx4h2jdafq8bk996nn92357r",
+    "topic_name": "Product updates",
+    "status": "OPTED_OUT",
+    "custom_routing": [],
+    "has_custom_routing": false,
+    "previous": {
+      "status": "OPTED_IN",
+      "custom_routing": ["email"],
+      "has_custom_routing": true
+    }
+  }
+}
+```
+
+- `data` is the same entry `GET /preferences/logs` returns, with the same `id`.
+- `previous` holds the value the change replaced, and is left out when that isn't known (a user's first change to a topic).
+- `tenant_id` is left out for changes made outside a tenant. `custom_routing` is empty unless `has_custom_routing` is `true`.
+
+Resetting a topic to its default sends no event. For how resets work and how to keep a copy of
+preferences in your own system, see [preferences.md](./preferences.md#mirroring-preferences-in-another-system).
 
 <a id="verify-webhook-signatures"></a>
 

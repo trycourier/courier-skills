@@ -42,6 +42,7 @@ the method doesn't exist.
 | Resend a message | `client.messages.resend(messageId)` | `client.messages.resend(message_id)` |
 | Rendered content of a sent message | `client.messages.content(messageId)` | `client.messages.content(message_id)` |
 | Delivery event history | `client.messages.history(messageId)` | `client.messages.history(message_id)` |
+| List preference changes | `client.workspacePreferences.listLogs({ user_id, since, limit, cursor })` → `{ items, paging }` | `client.workspace_preferences.list_logs(user_id=..., since=...)` |
 | Configure a topic's digest | `client.workspacePreferences.topics.create(sectionId, { name, default_status, digest })` · also `replace(topicId, { section_id, ... })` | `client.workspace_preferences.topics.create(section_id, name=..., default_status=..., digest=...)` |
 | Turn off a topic's digest | `client.workspacePreferences.topics.deleteDigest(topicId, { section_id })` | `client.workspace_preferences.topics.delete_digest(topic_id, section_id=...)` |
 | Release one recipient's digest | `client.workspacePreferences.topics.releaseDigest(topicId, { section_id, user_id })` | `client.workspace_preferences.topics.release_digest(topic_id, section_id=..., user_id=...)` |

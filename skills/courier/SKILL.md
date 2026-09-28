@@ -205,6 +205,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | Channel routing, fallbacks, escalation, provider failover | [multi-channel.md](./references/guides/multi-channel.md) |
 | Idempotency, retries, delivery statuses, webhook verification | [reliability.md](./references/guides/reliability.md) |
 | Preference topics, opt-out, preference centers, workspace preference sections | [preferences.md](./references/guides/preferences.md) |
+| **Tracking preference changes**: when a user opted out and of what, the `preferences:user:updated` webhook, syncing preferences into a CRM or database | [preferences.md](./references/guides/preferences.md#tracking-preference-changes) |
 | **Scheduling a send**: delay, exact timestamp, delivery windows (business/quiet hours) | [scheduling.md](./references/guides/scheduling.md) |
 | **Digests**: daily or weekly summaries, a topic's digest schedule, letting users pick how often, releasing a digest now | [digests.md](./references/guides/digests.md) |
 | Rolling up bursts of events in a journey (`batch` node) | [batching.md](./references/guides/batching.md) |

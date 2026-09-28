@@ -105,8 +105,9 @@ Embedded preferences render whatever is published, so use Preview Page to check 
 | `GET` | `/users/{user_id}/preferences/{topic_id}` | Read one topic |
 | `PUT` | `/users/{user_id}/preferences/{topic_id}` | Create or update one topic |
 | `DELETE` | `/users/{user_id}/preferences/{topic_id}` | Reset one topic to its default |
+| `GET` | `/preferences/logs` | List preference changes, newest first, for the whole environment or one `user_id`. See [Tracking preference changes](#tracking-preference-changes) |
 
-Add a `tenant_id` query parameter to any of these to scope preferences to one tenant.
+Add a `tenant_id` query parameter to any of the `/users` calls to scope preferences to one tenant.
 
 **Read:**
 ```typescript
@@ -347,15 +348,60 @@ the same JWT scopes, and renders whatever is published in the Preferences Editor
 
 See [inbox/auth.md](../inbox/auth.md) for JWT issuing and refresh.
 
-## Auditing: Who Changed What, When
+<a id="tracking-preference-changes"></a>
+
+## Tracking Preference Changes
+
+Courier records every time a user opts in, opts out, or changes a topic's channels, wherever it
+happened: the hosted page, an unsubscribe link, the embedded preference center, or the API. See them
+in the dashboard ([Users](https://app.courier.com/users) → select the user → preference log), list
+them with `GET /preferences/logs`, or get each one pushed to you as a `preferences:user:updated`
+[webhook](./webhooks.md#preference-events).
 
 "The user says they unsubscribed but still gets email" is a preferences question before it is a
-delivery question. The dashboard keeps a per-user preference log: [Users](https://app.courier.com/users)
-→ select the user → preference log shows every opt-in, opt-out, and change with timestamps. The API
-returns current state only, so the history lives in the dashboard.
+delivery question. Look up their changes, then check the template is mapped to the topic they opted
+out of. An unmapped template ignores preferences entirely.
 
-While there, check the template is actually mapped to the topic the user opted out of. An unmapped
-template ignores preferences entirely, which looks identical from the outside.
+### Listing changes
+
+```typescript
+const changes = await client.workspacePreferences.listLogs({ user_id: "user-123" });
+// changes.items: newest first. changes.paging: { more, cursor? }
+```
+```python
+changes = client.workspace_preferences.list_logs(user_id="user-123")
+```
+```bash
+courier workspace-preferences list-logs --user-id "user-123"
+```
+
+| Param | Notes |
+|---|---|
+| `user_id` | One user's changes. Omit for every change in the environment |
+| `tenant_id` | One tenant context. Used together with `user_id` |
+| `since` | Changes at or after this time. ISO 8601 date or date-time; a bare date is the start of that day in UTC |
+| `limit` | 1 to 100, default 25 |
+| `cursor` | `paging.cursor` from the previous page, while `paging.more` is `true` |
+
+Each entry is one change to one topic, with `previous` holding the value it replaced. The fields
+match the [webhook payload](./webhooks.md#preference-events), including the `id`. The endpoint allows
+one request every two seconds, so page through it one request at a time. New changes appear within
+about a minute.
+
+### Mirroring preferences in another system
+
+To keep a copy of users' choices in your CRM or database:
+
+1. Load each user's current preferences with `GET /users/{user_id}/preferences`.
+2. Apply each `preferences:user:updated` event as it arrives.
+3. If your endpoint was down, list changes with `since` set a few minutes before the last change you applied, and skip any `id` you already have.
+
+Resetting a topic to its default (`DELETE /users/{user_id}/preferences/{topic_id}`, or the topics a
+bulk replace lists in `deleted`) removes the user's override rather than recording a change, so
+it has no entry or event. Update your copy when your code makes those calls.
+
+Your team's changes to the preference *configuration* (a topic created, its channels or default
+changed) are in the workspace [audit trail](https://www.courier.com/docs/workspaces/audit-trail).
 
 ## Workspace Sections and Topics API
 
@@ -389,4 +435,5 @@ channels), `allowed_preferences` (`snooze`, `channel_preferences`), `include_uns
 - [Brands](./brands.md) - what drives the hosted page's appearance
 - [Tenants](./tenants.md) - tenant defaults that override workspace defaults
 - [Batching](./batching.md) - digest and batch nodes inside journeys
-- [Hosted Preference Center](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page) · [Preferences Editor](https://www.courier.com/docs/recipients/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/recipients/preferences/api) · [Embedding](https://www.courier.com/docs/guides/build-a-preference-center#embedded-component)
+- [Webhooks](./webhooks.md#preference-events) - the `preferences:user:updated` event, signatures, retries
+- [Hosted Preference Center](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page) · [Preferences Editor](https://www.courier.com/docs/recipients/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/recipients/preferences/api) · [Track Preference Changes](https://www.courier.com/docs/recipients/preferences/api#track-preference-changes) · [Embedding](https://www.courier.com/docs/guides/build-a-preference-center#embedded-component)

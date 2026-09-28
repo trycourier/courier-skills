@@ -217,7 +217,7 @@ Tools cover most of the Courier API, all backed by the official `@trycourier/cou
 | Users and profiles | `get_user_profile_by_id`, `create_or_merge_user`, `patch_profile`, `replace_profile`, `delete_profile`, `generate_jwt_for_user` |
 | Push tokens | `list_user_push_tokens`, `get_user_push_token`, `create_or_replace_user_push_token`, `patch_user_token`, `delete_user_token`, `bulk_add_user_tokens` |
 | Preferences, per user | `get_user_preferences`, `get_user_preference_topic`, `update_user_preference_topic`, `delete_user_preference_topic`, `bulk_update_user_preferences`, `bulk_replace_user_preferences` |
-| Preferences, workspace | `list_preference_sections`, `create_preference_section`, `list_preference_topics`, `get_preference_topic`, `create_preference_topic`, `replace_preference_topic`, `archive_preference_topic`, `publish_preferences` |
+| Preferences, workspace | `list_preference_sections`, `create_preference_section`, `list_preference_topics`, `get_preference_topic`, `create_preference_topic`, `replace_preference_topic`, `archive_preference_topic`, `publish_preferences`, `list_preference_logs` (preference changes, for one user or the environment) |
 | Digests | `list_digest_instances`, `release_digest` (whole schedule) |
 | Lists and audiences | `list_lists`, `get_list`, `create_list`, `subscribe_user_to_list`, `unsubscribe_user_from_list`, `get_list_subscribers`, `list_audiences`, `get_audience`, `update_audience`, `list_audience_members` |
 | Bulk | `create_bulk_job` (`message.event` is required) → `add_bulk_users` → `run_bulk_job`, in that order, then `get_bulk_job`, `list_bulk_users`. See [bulk.md](./bulk.md) |
