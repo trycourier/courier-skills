@@ -1,0 +1,256 @@
+# Courier Inbox Web Components
+
+## Quick Reference
+
+### Rules
+- Import `Courier` from `@trycourier/courier-ui-inbox`, then `Courier.shared.signIn()` and `listenForUpdates()`.
+- Wire click handlers with the element methods or `CustomEvent`s, not the HTML string attributes.
+- Loading from a CDN needs `script-src https://unpkg.com` and a pinned version.
+
+### Common Mistakes
+
+- Using the `message-click` / `message-action-click` / `message-long-press` **HTML attributes**. They compile with `new Function()`, need `script-src 'unsafe-eval'`, and fail silently without it. Use the element methods or the `CustomEvent`s, see [Event Handling](#event-handling).
+- Loading from the CDN without `script-src https://unpkg.com` in the CSP, or shipping `@latest` to production.
+- Omitting `style-src 'unsafe-inline'`, which renders the inbox unstyled with no error, see [Content Security Policy](./rendering.md#content-security-policy).
+- Calling element methods before the custom element is defined. Await the module import first.
+- Skipping `listenForUpdates()` after `signIn()`.
+
+Framework-agnostic custom elements, Vue, Angular, Svelte, or plain JavaScript.
+
+Web Components work with **any framework or no framework at all**, Vue, Angular, Svelte, vanilla JS, server-rendered HTML, WordPress, etc. They use the same v8 SDK and real-time infrastructure as the React components.
+
+### Installation
+
+**With a bundler (npm):**
+
+```bash
+npm install @trycourier/courier-ui-inbox @trycourier/courier-ui-toast
+```
+
+**Without a bundler (CDN script tag):**
+
+```html
+<script type="module" src="https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/index.mjs"></script>
+<script type="module" src="https://unpkg.com/@trycourier/courier-ui-toast@latest/dist/index.mjs"></script>
+```
+
+The CDN approach requires no build step. Add the script tags and use the custom elements immediately.
+Two caveats: a CSP needs `script-src https://unpkg.com` for these to load at all, and `@latest` means a
+future release can change behavior without a deploy on your side. Pin an exact version for anything
+beyond a prototype. A bundled npm install needs no `script-src` host, see
+[Content Security Policy](./rendering.md#content-security-policy).
+
+### Basic Setup
+
+**With npm / bundler:**
+
+```html
+<body>
+  <courier-inbox id="inbox"></courier-inbox>
+
+  <script type="module">
+    import { Courier } from '@trycourier/courier-ui-inbox';
+
+    Courier.shared.signIn({
+      userId: 'user-123',
+      jwt: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    });
+  </script>
+</body>
+```
+
+**With CDN (no build step):**
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="module" src="https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/index.mjs"></script>
+</head>
+<body>
+  <courier-inbox id="inbox"></courier-inbox>
+
+  <script type="module">
+    const { Courier } = await import('https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/index.mjs');
+
+    const jwt = await fetch('/api/courier-token')
+      .then(r => r.json())
+      .then(d => d.token);
+
+    Courier.shared.signIn({ userId: 'user-123', jwt });
+  </script>
+</body>
+</html>
+```
+
+### Popup Menu
+
+```html
+<courier-inbox-popup-menu></courier-inbox-popup-menu>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-inbox';
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Toast Notifications
+
+```html
+<courier-toast auto-dismiss="true" auto-dismiss-timeout-ms="5000"></courier-toast>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-toast';
+
+  const toast = document.querySelector('courier-toast');
+
+  toast.onToastItemClick(({ message }) => {
+    window.location.href = message.data?.deepLink;
+  });
+
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Feeds, Tabs, and Theming
+
+```html
+<courier-inbox id="inbox"></courier-inbox>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-inbox';
+
+  const inbox = document.getElementById('inbox');
+
+  inbox.setFeeds([
+    {
+      feedId: 'notifications',
+      title: 'Notifications',
+      tabs: [
+        { datasetId: 'all', title: 'All', filter: {} },
+        { datasetId: 'unread', title: 'Unread', filter: { status: 'unread' } }
+      ]
+    }
+  ]);
+
+  inbox.setLightTheme({
+    inbox: {
+      list: { item: { unreadIndicatorColor: "#9121C2" } }
+    }
+  });
+
+  inbox.setDarkTheme({
+    inbox: {
+      list: { item: { unreadIndicatorColor: "#bb86fc" } }
+    }
+  });
+
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Event Handling
+
+All the same callbacks available in React are available on the Web Component elements:
+
+```html
+<courier-inbox id="inbox"></courier-inbox>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-inbox';
+
+  const inbox = document.getElementById('inbox');
+
+  inbox.onMessageClick(({ message, index }) => {
+    window.location.href = message.data?.deepLink;
+  });
+
+  inbox.onMessageActionClick(({ message, action, index }) => {
+    window.open(action.href);
+  });
+
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+The elements also dispatch `CustomEvent`s of the same names, which is the right hook for frameworks that
+bind declaratively:
+
+```html
+<courier-inbox id="inbox"></courier-inbox>
+
+<script type="module">
+  document.getElementById('inbox').addEventListener('message-click', (e) => {
+    const { message, index } = e.detail;
+    window.location.href = message.data?.deepLink;
+  });
+</script>
+```
+
+**Use the methods or the events, not the HTML string attributes.** `<courier-inbox>` and
+`<courier-inbox-popup-menu>` also accept `message-click`, `message-action-click`, and `message-long-press`
+as HTML attributes containing a JavaScript string, but those are compiled with `new Function()`, so they
+need `script-src 'unsafe-eval'`. Under a normal CSP the failure is silent: the throw is caught and logged
+and the handler never runs. The methods and the `CustomEvent`s have no such requirement. Vue's
+`@message-click` already uses the event path. See
+[Content Security Policy](./rendering.md#content-security-policy).
+
+### Unread Badge (Vanilla JS)
+
+Build a custom notification bell with unread count without any framework:
+
+```html
+<button id="notif-bell">
+  🔔 <span id="badge" style="display:none;"></span>
+</button>
+<courier-inbox id="inbox" style="display:none;"></courier-inbox>
+
+<script type="module">
+  import { Courier } from '@trycourier/courier-ui-inbox';
+
+  const inbox = document.getElementById('inbox');
+  const badge = document.getElementById('badge');
+  const bell = document.getElementById('notif-bell');
+
+  // Toggle inbox visibility
+  bell.addEventListener('click', () => {
+    inbox.style.display = inbox.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Poll for unread count updates
+  function updateBadge() {
+    const count = inbox.unreadMessageCount ?? 0;
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = count > 0 ? 'inline' : 'none';
+  }
+
+  // Check periodically (WebSocket handles real-time, this catches edge cases)
+  setInterval(updateBadge, 2000);
+
+  Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
+</script>
+```
+
+### Web Components API Reference
+
+| Element | Description |
+|---------|-------------|
+| `<courier-inbox>` | Full inbox list with feeds, tabs, and theming |
+| `<courier-inbox-popup-menu>` | Bell icon with dropdown popup |
+| `<courier-toast>` | Toast notification overlay |
+
+| Method / Property | Available On | Description |
+|-------------------|-------------|-------------|
+| `setFeeds(feeds)` | `courier-inbox` | Configure feeds and tabs |
+| `setLightTheme(theme)` | `courier-inbox`, `courier-toast` | Set light mode theme |
+| `setDarkTheme(theme)` | `courier-inbox`, `courier-toast` | Set dark mode theme |
+| `onMessageClick(cb)` | `courier-inbox` | Handle message click |
+| `onMessageActionClick(cb)` | `courier-inbox` | Handle action button click |
+| `onToastItemClick(cb)` | `courier-toast` | Handle toast click |
+| `unreadMessageCount` | `courier-inbox` | Current unread count (read-only) |
+
+The `message-click`, `message-action-click`, and `message-long-press` `CustomEvent`s carry the same
+payload as the matching `on...` method in `event.detail`. The identically named **HTML attributes** are a
+third form that requires `script-src 'unsafe-eval'`; prefer the methods or events.
+
+---
