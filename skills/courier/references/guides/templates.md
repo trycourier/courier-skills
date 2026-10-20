@@ -631,6 +631,7 @@ const template = await client.notifications.create({
             { type: "meta", title: "Order #{{order_id}} Confirmed" },
             { type: "text", content: "Hi {{name}}, thanks for your order!", align: "left" },
             {
+              // @ts-expect-error accepted by the API, missing from the SDK type
               type: "group",
               loop: "data.items",
               elements: [
