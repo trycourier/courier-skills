@@ -474,8 +474,9 @@ History is append-only: republishing v001 mints a fresh version (a copy of v001)
 There is no duplicate method. Read the source template's content, then create a new template with it.
 
 ```typescript
-const source = await client.notifications.retrieve("nt_01abc123");
-const content = await client.notifications.retrieveContent("nt_01abc123");
+// Read the draft: it has the latest edits and exists even if the template was never published.
+const source = await client.notifications.retrieve("nt_01abc123", { version: "draft" });
+const content = await client.notifications.retrieveContent("nt_01abc123", { version: "draft" });
 if (!("elements" in content)) throw new Error("Legacy template: no Elemental elements to copy");
 
 // Drop what the write rejects: checksums anywhere, and `_` keys (Design Studio's, inside locales).
@@ -495,7 +496,7 @@ const copy = await client.notifications.create({
 });
 ```
 
-Python makes the same calls: `client.notifications.retrieve(...)`, `client.notifications.retrieve_content(...)` (a plain dict), then `client.notifications.create(notification={...})`. Create rejects flat top-level elements, so if the source was stored without channel blocks, wrap its elements in one first.
+Python makes the same calls: `client.notifications.retrieve(..., version="draft")`, `client.notifications.retrieve_content(..., version="draft")` (a plain dict), then `client.notifications.create(notification={...})`. Create rejects flat top-level elements, so if the source was stored without channel blocks, wrap its elements in one first.
 The copy starts as a fresh draft, so [publish](#publish) it before sending.
 
 ### Archive a Template
