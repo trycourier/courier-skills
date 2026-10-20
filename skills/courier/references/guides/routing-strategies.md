@@ -208,11 +208,10 @@ const client = new Courier();
 
 // 1. Create (or look up) a routing strategy
 const strategy = await client.routingStrategies.create({
-  name: "Orders — email primary, SMS backup",
-  routing: { method: "single", channels: ["email", "sms"] },
+  name: "Orders — email",
+  routing: { method: "single", channels: ["email"] },
   channels: {
-    email: { providers: ["sendgrid", "aws-ses"] },
-    sms: { providers: ["twilio"] }
+    email: { providers: ["sendgrid", "aws-ses"] }
   }
 });
 
@@ -262,11 +261,10 @@ from courier import Courier
 client = Courier()
 
 strategy = client.routing_strategies.create(
-    name="Orders — email primary, SMS backup",
-    routing={"method": "single", "channels": ["email", "sms"]},
+    name="Orders — email",
+    routing={"method": "single", "channels": ["email"]},
     channels={
         "email": {"providers": ["sendgrid", "aws-ses"]},
-        "sms": {"providers": ["twilio"]},
     },
 )
 
