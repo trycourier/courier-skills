@@ -149,7 +149,14 @@ await client.tenants.templates.replace("nt_01k…", {
     content: {
       version: "2022-01-01",
       elements: [
-        { type: "channel", channel: "email", elements: [{ type: "text", content: "Hi from Acme" }] },
+        {
+          type: "channel",
+          channel: "email",
+          elements: [
+            { type: "meta", title: "Welcome to Acme" },
+            { type: "text", content: "Hi from Acme" },
+          ],
+        },
       ],
     },
   },

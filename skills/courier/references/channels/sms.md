@@ -27,7 +27,7 @@ await client.send.message({
     to: { phone_number: "+15551234567" },
     content: {
       title: "Your Acme code", // required by the shorthand; SMS sends only the body
-      body: "Your Acme code is 847293. Expires in 10 min. Never share this code."
+      body: "Acme: Your code is 847293. Expires in 10 min. Never share this code."
     }
   }
 });
@@ -40,7 +40,7 @@ client.send.message(
         "to": {"phone_number": "+15551234567"},
         "content": {
             "title": "Your Acme code",  # required by the shorthand; SMS sends only the body
-            "body": "Your Acme code is 847293. Expires in 10 min. Never share this code.",
+            "body": "Acme: Your code is 847293. Expires in 10 min. Never share this code.",
         },
     }
 )
@@ -170,7 +170,7 @@ await client.send.message({
     to: { phone_number: "+15551234567" },
     content: {
       title: "Your Acme code",
-      body: "Your Acme verification code is: 847293. Expires in 10 min."
+      body: "Acme: Your verification code is 847293. Expires in 10 min."
     }
   }
 });
@@ -215,7 +215,7 @@ async function sendOTP(phoneNumber: string, requestId: string) {
       to: { phone_number: phoneNumber },
       content: {
         title: "Your Acme code",
-        body: `Your Acme code is ${code}. Expires in 10 min. Never share this code.`,
+        body: `Acme: Your code is ${code}. Expires in 10 min. Never share this code.`,
       },
     },
   }, {
