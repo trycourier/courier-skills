@@ -80,10 +80,10 @@ await client.send.message({
     to: { user_id: "user-123" },
     content: {
       title: "New friend request",
-      body: "Jane Doe wants to connect",
-      data: {
-        requestId: "req-789"
-      }
+      body: "Jane Doe wants to connect"
+    },
+    data: {
+      requestId: "req-789"
     },
     channels: {
       inbox: {

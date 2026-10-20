@@ -565,7 +565,8 @@ await client.send.message({
       }
     },
     content: {
-      body: "Build failed. See details above."
+      version: "2022-01-01",
+      elements: [{ type: "text", content: "Build failed. See details above." }]
     },
     channels: {
       slack: {
@@ -629,7 +630,8 @@ await client.send.message({
       }
     },
     content: {
-      body: "Daily standup reminder!"
+      version: "2022-01-01",
+      elements: [{ type: "text", content: "Daily standup reminder!" }]
     },
     channels: {
       slack: {

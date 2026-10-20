@@ -143,7 +143,24 @@ Content that overrides the default template for one tenant (`tenants.templates`)
 ```ts
 await client.tenants.templates.list("acme-corp");                              // tenant id positional
 await client.tenants.templates.retrieve("nt_01k…", { tenant_id: "acme-corp" });
-await client.tenants.templates.replace("nt_01k…", { tenant_id: "acme-corp" /* + content */ });
+await client.tenants.templates.replace("nt_01k…", {
+  tenant_id: "acme-corp",
+  template: {
+    content: {
+      version: "2022-01-01",
+      elements: [
+        {
+          type: "channel",
+          channel: "email",
+          elements: [
+            { type: "meta", title: "Welcome to Acme" },
+            { type: "text", content: "Hi from Acme" },
+          ],
+        },
+      ],
+    },
+  },
+});
 await client.tenants.templates.publish("nt_01k…", { tenant_id: "acme-corp" });
 ```
 

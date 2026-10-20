@@ -50,6 +50,8 @@ For simple inline sends, use the shorthand:
 
 Courier auto-converts this to a `meta` element (title) and a `text` element (body). This format does **not** work when creating templates via `POST /notifications`. Use the full `version` + `elements` structure.
 
+Both `title` and `body` are required, even for SMS, which sends only the body. For a body-only message on a channel that would show a title, use one `text` element in the full form instead.
+
 ### Base Element Properties
 
 All element types share these optional properties:

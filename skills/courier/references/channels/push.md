@@ -470,15 +470,10 @@ override fun onNewToken(token: String) {
 Users may have multiple devices. Store all tokens:
 
 ```typescript
-// User profile with multiple tokens
-{
-  user_id: "user-123",
-  tokens: [
-    { token: "abc...", provider: "apn", device: "iPhone" },
-    { token: "xyz...", provider: "firebase-fcm", device: "Pixel" },
-    { token: "123...", provider: "firebase-fcm", device: "Samsung" }
-  ]
-}
+// Register one token per device, all on the same user
+await client.users.tokens.addSingle("abc...", { user_id: "user-123", provider_key: "apn" });          // iPhone
+await client.users.tokens.addSingle("xyz...", { user_id: "user-123", provider_key: "firebase-fcm" }); // Pixel
+await client.users.tokens.addSingle("123...", { user_id: "user-123", provider_key: "firebase-fcm" }); // Samsung
 
 // Courier sends to all registered tokens
 await client.send.message({
