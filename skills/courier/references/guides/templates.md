@@ -13,7 +13,7 @@
 - Elemental version string is always `"2022-01-01"`
 - ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
-- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected**: `400 Template content must place its elements inside a channel block`. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type has no `group` node; suppress that with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
+- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected** on create: `400 Template content must place its elements inside a channel block`. Only create checks this. `replace` and `putContent` still store flat elements, which Design Studio can't open, so wrap them on every write. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type has no `group` node; suppress that with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
 - **Elemental blocks by default, raw HTML by exception.** Blocks stay editable in Design Studio's drag-and-drop editor; a `raw` HTML or MJML email only shows there and must be edited as HTML. See [elemental.md](./elemental.md#channel).
 - A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
   1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
@@ -38,7 +38,7 @@
 
 **Create and publish a template (TypeScript):**
 ```typescript
-// 1. Create as DRAFT so the response echoes your name/tags correctly.
+// 1. Create as a DRAFT, so there's a review step before it goes live.
 const template = await client.notifications.create({
   notification: {
     name: "Order Shipped",
@@ -70,7 +70,7 @@ const template = await client.notifications.create({
 await client.notifications.publish(template.id);
 ```
 
-> Passing `state: "PUBLISHED"` to `create` also works and stores the template correctly, but the immediate response body echoes `name: "Untitled"` and `tags: []` even though a subsequent `GET /notifications/{id}` shows the real values. Prefer the DRAFT → `publish` flow above so the response you log/assert on matches what you sent.
+> Passing `state: "PUBLISHED"` to `create` skips the separate `publish` call, and the response returns the `name`, `tags` and `state` you sent.
 
 ---
 
@@ -474,11 +474,28 @@ History is append-only: republishing v001 mints a fresh version (a copy of v001)
 There is no duplicate method. Read the source template's content, then create a new template with it.
 
 ```typescript
-const { content } = await client.notifications.retrieveContent("nt_01abc123");
-const copy = await client.notifications.create({ content, name: "Order confirmation (copy)" });
+const source = await client.notifications.retrieve("nt_01abc123");
+const content = await client.notifications.retrieveContent("nt_01abc123");
+if (!("elements" in content)) throw new Error("Legacy template: no Elemental elements to copy");
+
+// Drop what the write rejects: checksums anywhere, and `_` keys (Design Studio's, inside locales).
+const elements = JSON.parse(
+  JSON.stringify(content.elements, (key, value) => (key === "checksum" || key.startsWith("_") ? undefined : value))
+);
+
+const copy = await client.notifications.create({
+  notification: {
+    name: `${source.name} (copy)`,
+    tags: source.tags,
+    brand: source.brand,
+    subscription: source.subscription,
+    routing: source.routing,
+    content: { version: content.version, elements },
+  },
+});
 ```
 
-Python is `client.notifications.retrieve_content(...)` then `client.notifications.create(...)`.
+Python makes the same calls: `client.notifications.retrieve(...)`, `client.notifications.retrieve_content(...)` (a plain dict), then `client.notifications.create(notification={...})`. Create rejects flat top-level elements, so if the source was stored without channel blocks, wrap its elements in one first.
 The copy starts as a fresh draft, so [publish](#publish) it before sending.
 
 ### Archive a Template
@@ -530,9 +547,15 @@ For the full element-by-element reference, all element types, properties, contro
 {
   "version": "2022-01-01",
   "elements": [
-    { "type": "meta", "title": "Order #{{order_id}} Confirmed" },
-    { "type": "text", "content": "Hi {{name}}, thanks for your order.", "align": "left" },
-    { "type": "action", "content": "Track", "href": "{{tracking_url}}" }
+    {
+      "type": "channel",
+      "channel": "email",
+      "elements": [
+        { "type": "meta", "title": "Order #{{order_id}} Confirmed" },
+        { "type": "text", "content": "Hi {{name}}, thanks for your order.", "align": "left" },
+        { "type": "action", "content": "Track", "href": "{{tracking_url}}" }
+      ]
+    }
   ]
 }
 ```
