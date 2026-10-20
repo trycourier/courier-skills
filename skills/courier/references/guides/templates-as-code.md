@@ -83,6 +83,15 @@ jq '{content: .}' order-shipped.json | \
 error body (the part that names the offending key) — without it, a 400 exits 0 and a CI
 step passes green on broken content.
 
+This probe doesn't check for channel blocks: only creating a template does. So also check
+that every top-level element in the file is a `channel` element. Otherwise new templates fail
+to create, and existing ones open empty in Design Studio (see
+[templates.md](./templates.md#quick-reference)):
+
+```bash
+jq -e '[.elements[] | select(.type != "channel")] | length == 0' order-shipped.json
+```
+
 ## 3. Diff against the draft before pushing
 
 A push overwrites the template's **draft** — which is also where Design Studio edits land.

@@ -77,7 +77,8 @@ open the template's settings and choose a subscription topic. Through the API it
 curl -X POST https://api.courier.com/notifications \
   -H "Authorization: Bearer $COURIER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"notification":{"name":"Order shipped","subscription":{"topic_id":"TOPIC_ID"},
+  -d '{"notification":{"name":"Order shipped","tags":[],"brand":null,"routing":null,
+       "subscription":{"topic_id":"TOPIC_ID"},
        "content":{"version":"2022-01-01","elements":[]}}}'
 ```
 

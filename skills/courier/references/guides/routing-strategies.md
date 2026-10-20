@@ -208,11 +208,10 @@ const client = new Courier();
 
 // 1. Create (or look up) a routing strategy
 const strategy = await client.routingStrategies.create({
-  name: "Orders — email primary, SMS backup",
-  routing: { method: "single", channels: ["email", "sms"] },
+  name: "Orders — email",
+  routing: { method: "single", channels: ["email"] },
   channels: {
-    email: { providers: ["sendgrid", "aws-ses"] },
-    sms: { providers: ["twilio"] }
+    email: { providers: ["sendgrid", "aws-ses"] }
   }
 });
 
@@ -227,9 +226,15 @@ const template = await client.notifications.create({
     content: {
       version: "2022-01-01",
       elements: [
-        { type: "meta", title: "Your order {{order_id}} has shipped" },
-        { type: "text", content: "Hi {{name}}, your package is on the way." },
-        { type: "action", content: "Track", href: "{{tracking_url}}" }
+        {
+          type: "channel",
+          channel: "email",
+          elements: [
+            { type: "meta", title: "Your order {{order_id}} has shipped" },
+            { type: "text", content: "Hi {{name}}, your package is on the way." },
+            { type: "action", content: "Track", href: "{{tracking_url}}" }
+          ]
+        }
       ]
     }
   },
@@ -256,11 +261,10 @@ from courier import Courier
 client = Courier()
 
 strategy = client.routing_strategies.create(
-    name="Orders — email primary, SMS backup",
-    routing={"method": "single", "channels": ["email", "sms"]},
+    name="Orders — email",
+    routing={"method": "single", "channels": ["email"]},
     channels={
         "email": {"providers": ["sendgrid", "aws-ses"]},
-        "sms": {"providers": ["twilio"]},
     },
 )
 
@@ -274,9 +278,15 @@ template = client.notifications.create(
         "content": {
             "version": "2022-01-01",
             "elements": [
-                {"type": "meta", "title": "Your order {{order_id}} has shipped"},
-                {"type": "text", "content": "Hi {{name}}, your package is on the way."},
-                {"type": "action", "content": "Track", "href": "{{tracking_url}}"},
+                {
+                    "type": "channel",
+                    "channel": "email",
+                    "elements": [
+                        {"type": "meta", "title": "Your order {{order_id}} has shipped"},
+                        {"type": "text", "content": "Hi {{name}}, your package is on the way."},
+                        {"type": "action", "content": "Track", "href": "{{tracking_url}}"},
+                    ],
+                },
             ],
         },
     },
