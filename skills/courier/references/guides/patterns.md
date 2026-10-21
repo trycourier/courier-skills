@@ -7,9 +7,9 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 ## Quick Reference
 
 ### Rules
-- **Idempotency keys are sent as an `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `{ headers: { "Idempotency-Key": "..." } }` as the second argument to `client.send.message`. In Python pass `extra_headers={"Idempotency-Key": "..."}`. On the REST API use the `Idempotency-Key` header directly. (The Node SDK's `idempotencyKey` request option may not be wired through in all SDK versions. Always set the header explicitly to be safe. Verify against your installed `@trycourier/courier` version before relying on any other path. Python does not accept `idempotency_key=` at all.) The CLI does not yet have an `--idempotency-key` flag; for idempotent ad-hoc sends, use the SDK or curl. Keys are valid for 24 hours.
+- **Idempotency keys travel as the `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `"Idempotency-Key": "..."` next to `message`. In Python pass `idempotency_key="..."`. In the CLI pass `--idempotency-key`. With curl, set the header. The Node `idempotencyKey` request option is not wired up, so don't use it. Keys last 25 hours by default.
 - **Delivery windows delay a send to the next allowed hour.** Skip them for time-critical sends (OTP, password reset, security alerts), which are useless once delayed.
-- **Frequency caps live in Courier**, as a journey [`throttle` node](./throttling.md) scoped per user, globally, or by a dynamic key. Don't rebuild them app-side.
+- **Frequency caps live in Courier.** [Send limits](https://www.courier.com/docs/send/statuses#send-limits) cap a user, topic, or tenant across all sends. A journey [`throttle` node](./throttling.md) caps one point in one journey, per user, globally, or by a dynamic key. Don't rebuild them app-side.
 - **Fallback routing (`method: "single"`) tries channels in order until one succeeds.** Use `method: "all"` only for genuinely multi-channel events (order shipped = email + push).
 - **Webhook handlers must respond 2xx within 10 seconds** (Courier's timeout) and do the work async. Always verify the `courier-signature` header. See [webhooks.md](./webhooks.md#verify-webhook-signatures).
 - **The SDK already retries transient errors** (`408`/`409`/`429`/`5xx`, with backoff and jitter). Tune `maxRetries` instead of wrapping calls in your own loop. See [Retries](#retries-the-sdk-already-does-this).
@@ -39,7 +39,7 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 
 ## Idempotency Keys
 
-Always use idempotency keys for transactional sends. Courier stores keys for 24 hours. See [Reliability](./reliability.md) for full idempotency guidance and key pattern table.
+Always use idempotency keys for transactional sends. Courier stores keys for 25 hours by default. See [Reliability](./reliability.md) for full idempotency guidance and key pattern table.
 
 **TypeScript:**
 ```typescript
@@ -52,9 +52,8 @@ await client.send.message({
     to: { user_id: "user-123" },
     template: "nt_01kmrbq6ypf25tsge12qek41r0",
     data: { orderId: "12345" }
-  }
-}, {
-  headers: { "Idempotency-Key": `order-confirmation-12345` }
+  },
+  "Idempotency-Key": "order-confirmation-12345"
 });
 ```
 
@@ -70,11 +69,18 @@ client.send.message(
         "template": "nt_01kmrbq6ypf25tsge12qek41r0",
         "data": {"orderId": "12345"},
     },
-    extra_headers={"Idempotency-Key": "order-confirmation-12345"},
+    idempotency_key="order-confirmation-12345",
 )
 ```
 
-**CLI:** The Courier CLI does not yet support idempotency keys directly on `courier send message`. For idempotent ad-hoc sends, use the SDK (above) or call the REST API directly with curl (below).
+**CLI:**
+```bash
+courier send message \
+  --message.to '{"user_id":"user-123"}' \
+  --message.template nt_01kmrbq6ypf25tsge12qek41r0 \
+  --message.data '{"orderId":"12345"}' \
+  --idempotency-key order-confirmation-12345
+```
 
 **curl:**
 ```bash

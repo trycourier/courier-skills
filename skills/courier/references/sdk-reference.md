@@ -52,13 +52,16 @@ the method doesn't exist.
 | Get a user's preferences | `client.users.preferences.retrieve(userId)` | `client.users.preferences.retrieve(user_id)` |
 | Update a user's preference for a topic (status, channels, digest schedule) | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic: { status, digest_schedule_id?, ... } })` | `client.users.preferences.update_or_create_topic(topic_id, user_id=..., topic=...)` |
 | Register a user's device token | `client.users.tokens.addSingle(token, { user_id, provider_key, device })` | `client.users.tokens.add_single(token, user_id=..., provider_key=..., device=...)` |
-| Create a journey | `client.journeys.create({ name, nodes, enabled })` | `client.journeys.create(name=..., nodes=..., enabled=...)` |
+| Create a journey | `client.journeys.create({ name, nodes, enabled, cancelation_token? })` | `client.journeys.create(name=..., nodes=..., enabled=..., cancelation_token=...)` |
 | Replace a journey (draft) | `client.journeys.replace(id, { name, nodes, enabled })` | `client.journeys.replace(id, name=..., nodes=..., enabled=...)` |
 | Publish a journey | `client.journeys.publish(id)` | `client.journeys.publish(id)` |
 | Invoke a journey (start a run) | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` | `client.journeys.invoke(template_id=id, user_id=..., data=..., profile=...)` → `.run_id` |
 | Cancel a journey run | `client.journeys.cancel({ cancelation_token })`, or `{ run_id }`, exactly one | `client.journeys.cancel(cancelation_token=...)` |
+| List journey runs | `client.journeys.runs.list({ template_id?, status? })` | `client.journeys.runs.list(template_id=..., status=...)` |
+| One journey run, and its steps | `client.journeys.runs.retrieve(runId)` · `client.journeys.runs.listSteps(runId)` | `client.journeys.runs.retrieve(run_id)` · `client.journeys.runs.list_steps(run_id)` |
 | Create a journey-scoped template | `client.journeys.templates.create(journeyId, { ... })` | `client.journeys.templates.create(journey_id, ...)` |
 | Publish a journey-scoped template | `client.journeys.templates.publish(notificationId, { templateId: journeyId })` | `client.journeys.templates.publish(journey_id, template_id)` |
+| Create and send a broadcast | `client.broadcasts.create({ name, channel })`, `putContent(id, { content })`, then `send(id, { recipient_type, recipient_id })` or `schedule(id, { recipient_type, recipient_id, scheduled_to })` | `client.broadcasts.create(name=..., channel=...)`, `put_content(id, content=...)`, then `send(id, recipient_type=..., recipient_id=...)` or `schedule(...)` |
 | Create a routing strategy | `client.routingStrategies.create({ name, routing, channels?, providers? })` → returns `{ id: "rs_...", ... }` | `client.routing_strategies.create(name=..., routing=..., ...)` |
 | Replace a routing strategy (full PUT) | `client.routingStrategies.replace(id, { name, routing, ... })` | `client.routing_strategies.replace(id, name=..., routing=..., ...)` |
 | Configure a provider | `client.providers.create({ provider, settings, title?, alias? })` | `client.providers.create(provider=..., settings=..., ...)` |

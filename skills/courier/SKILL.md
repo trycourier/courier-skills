@@ -123,7 +123,7 @@ Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `
 - Use idempotency keys for sends where duplicates would be harmful (payments, security alerts, OTPs)
 - Use E.164 format for phone numbers
 - Only send to channels the user has asked for or that make sense for the use case. Don't blast every channel by default
-- For template sends, use Courier-generated `nt_...` IDs as canonical; treat IDs as opaque workspace-specific values and resolve aliases to `nt_...` before sending
+- For template sends, pass the Courier-generated `nt_...` ID or a template alias as `template`; treat IDs as opaque, workspace-specific values
 
 ### See also (not duplicated here)
 
@@ -158,7 +158,8 @@ Status meanings:
 | `SENT` | Handed to the provider |
 | `DELIVERED` | Provider confirmed delivery |
 | `OPENED` / `CLICKED` | Engagement signals. Opens fire from image-proxy prefetch, don't build logic on them |
-| `DIGESTED` / `DELAYED` / `THROTTLED` | Held by a digest, a delay, or a throttle rather than failing |
+| `DIGESTED` / `DELAYED` | Held by a digest or a delay, sends later |
+| `THROTTLED` | Blocked by a send limit or the Developer plan's 10,000-send cap. It won't send later |
 | `UNDELIVERABLE` | The provider rejected or bounced it. Check `reason` |
 | `UNROUTABLE` | No channel/provider could accept it, usually missing contact info or provider config |
 | `UNMAPPED` | The `event` didn't match a template in this workspace |
@@ -202,7 +203,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **First notification / addressing (`to` field) / inline vs template** | [quickstart.md](./references/guides/quickstart.md) |
 | **Transactional**: password reset, OTP, orders, receipts, dunning, appointments, security alerts | [transactional.md](./references/transactional.md) |
 | **Lifecycle marketing**: onboarding, adoption, engagement, win-back, referral, campaigns | [lifecycle-marketing.md](./references/lifecycle-marketing.md) |
-| **Multi-step sequences**: delays, branches, batching, A/B, cancellation, Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
+| **Multi-step sequences**: delays, branches, batching, A/B, cancellation, run logs (`journeys.runs`), Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
 | Channel routing, fallbacks, escalation, provider failover | [multi-channel.md](./references/guides/multi-channel.md) |
 | Idempotency, retries, delivery statuses, webhook verification | [reliability.md](./references/guides/reliability.md) |
 | Preference topics, opt-out, preference centers, workspace preference sections | [preferences.md](./references/guides/preferences.md) |
@@ -233,10 +234,10 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | SMS: 10DLC registration, character limits, sender setup | [sms.md](./references/channels/sms.md) |
 | Push: APNs/FCM setup, tokens, permission priming | [push.md](./references/channels/push.md) |
 | Sending **to** the in-app inbox: setup (`courier` provider), content, actions, inbox+push, Elemental for inbox, `UNROUTABLE` triage | [inbox.md](./references/channels/inbox.md) |
-| **Rendering** the inbox in your app: JWT auth, React / Web Components / React Native / iOS / Android / Flutter, read state, real-time | [inbox/rendering.md](./references/inbox/rendering.md) |
+| **Rendering** the inbox in your app: JWT auth, React / Vue / Angular / Web Components / React Native / iOS / Android / Flutter, read state, real-time | [inbox/rendering.md](./references/inbox/rendering.md) |
 | Slack, Block Kit, OAuth, bot setup | [slack.md](./references/channels/slack.md) |
-| Microsoft Teams, Adaptive Cards, connector/bot | [ms-teams.md](./references/channels/ms-teams.md) |
-| WhatsApp, approved templates, 24-hour window | [whatsapp.md](./references/channels/whatsapp.md) |
+| Microsoft Teams, Adaptive Cards, bot setup | [ms-teams.md](./references/channels/ms-teams.md) |
+| WhatsApp through Twilio, Content SIDs, 24-hour window | [whatsapp.md](./references/channels/whatsapp.md) |
 
 Most multi-step work pairs a use-case file with **journeys.md**. Most debugging starts with **cli.md**.
 

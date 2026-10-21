@@ -6,7 +6,7 @@
 
 ### Rules
 - ALWAYS use idempotency keys for transactional notifications
-- Courier stores idempotency keys for 24 hours
+- Courier keeps idempotency keys for 25 hours by default. Send `x-idempotency-expiration` (ISO 8601) to keep one up to a year
 - The SDK client already retries `408`, `409`, `429`, `5xx`, and connection errors (`maxRetries` defaults to 2). Tune it rather than wrapping calls in your own loop
 - Other `4xx` are not retried by anyone. Fix the request instead
 - Respond to webhooks with 200 immediately, process async
@@ -53,7 +53,7 @@ The value returned as `message.status` from `client.messages.retrieve` (and the 
 | `UNROUTABLE` | Routing failed, no channel/provider combination could accept the send. Check `reason` and `error` for detail (e.g. `reason: "PROVIDER_ERROR"` with an `error` like `"None of provider(s) twilio,slack is configured for channel email."` means the channel's routing list references providers that aren't installed). Read `error` rather than matching its exact wording, which varies by release. **An `UNROUTABLE` with no `reason` and no `error` at all** is its own case: for inbox sends it means the built-in `courier` provider isn't installed, and a `PROVIDER_ERROR` naming `courier` with `: undefined` means the template has no routing strategy. See [inbox.md](../channels/inbox.md#troubleshooting). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
 | `UNDELIVERABLE` | All providers attempted returned a terminal failure (bounce, invalid number, suppressed). | Verify the recipient's contact info; inspect `providers[].providerResponse` for the specific error. |
 | `CANCELED` | The send was canceled before delivery, via `client.messages.cancel`, a journey Cancel node, or a canceled journey run. | Expected when you cancel; otherwise check what issued the cancel. |
-| `THROTTLED` | Dropped by a `throttle` node that had reached its cap. | Expected under frequency caps; raise the cap or widen the window if unintended. |
+| `THROTTLED` | Blocked by a [send limit](https://www.courier.com/docs/send/statuses#send-limits) (per user, topic, or tenant) or by the Developer plan's cap of 10,000 sends per period. It is not queued and won't send later. | If you set no limit, it is usually the plan cap. Otherwise raise the limit or widen its window. |
 | `DIGESTED` / `DELAYED` | Held rather than sent now, rolled into a digest, or waiting out a `delay`. | Transient; the message sends when the digest releases or the delay elapses. |
 
 Other statuses you may see on list rows, `FILTERED` (suppressed by a preference or condition) and `SIMULATED` (a test send that was never dispatched), are terminal and need no action.
@@ -75,7 +75,7 @@ Without idempotency, you might send duplicate notifications if:
 
 ### Courier Idempotency Keys
 
-Add the `Idempotency-Key` header to your API requests. Courier stores keys for 24 hours and returns cached responses for duplicate requests. See [Patterns > Idempotency Keys](./patterns.md#idempotency-keys) for TypeScript, Python, CLI, and curl examples.
+Add the `Idempotency-Key` header to your API requests. Courier keeps keys for 25 hours by default and returns the stored response for a repeat. To keep a key longer, up to a year, send `x-idempotency-expiration` as an ISO 8601 datetime. A key is scoped to the endpoint it was sent to. See [Patterns > Idempotency Keys](./patterns.md#idempotency-keys) for TypeScript, Python, CLI, and curl examples.
 
 ### Key Patterns
 
@@ -113,7 +113,7 @@ and transient errors on its side:
 | Status tracking | Delivery/open/click tracking continues for up to **72 hours** |
 | Webhook delivery | Retried for about **24 hours** (see [webhooks.md](./webhooks.md#responding)) |
 
-This is not configurable, and it is not something to reimplement. Watch it in
+Don't reimplement it. To shorten the window for one send, set `message.timeout.message` in milliseconds. Watch it in
 [Message Logs](https://www.courier.com/docs/monitor/overview) or via
 `courier messages history`.
 
@@ -134,15 +134,14 @@ with an [idempotency key](#idempotency) so a replay doesn't double-send.
 | Category | Example | Action |
 |----------|---------|--------|
 | Client error (4xx) | Invalid template | Don't retry, fix issue |
-| Server error (5xx) | Service unavailable | Retry with backoff |
-| Network error | Timeout | Retry with backoff |
-| Rate limit (429) | Too many requests | Retry with longer delay |
+| Server error (5xx) | Service unavailable | The SDK retries it. Tune `maxRetries` |
+| Network error | Timeout | The SDK retries it. Tune `maxRetries` |
+| Rate limit (429) | Too many requests | The SDK retries it. Tune `maxRetries` |
 
 ### Handling Different Errors
 
 - **400 Bad Request:** Log, alert engineering, don't retry
-- **429 Rate Limited:** Queue for later with 60+ second delay
-- **5xx Server Error:** Retry with exponential backoff
+- **429 / 5xx / network:** The SDK already retries with backoff. Don't add your own loop
 - **Unknown Error:** Log, alert, don't retry
 
 ## Webhooks

@@ -65,8 +65,7 @@ A tenant carries `name`, `brand_id`, `default_preferences`, `properties`, `paren
 
 ### Hierarchy and merging
 
-- **The whole ancestor chain loads.** A five-deep hierarchy merges every level for a leaf send, the
-  root included. There is no depth window to design around
+- **Four levels load, as a sliding window.** Courier starts at most three ancestors above the tenant a send names, not at the root, so in a five-deep hierarchy the root's settings never reach a leaf send. Keep the tree to four levels
 - **A tenant's `user_profile` merges into the recipient's profile, not into `data`.** Interpolate it
   as `{{profile.key}}`; `{{key}}` renders empty
 - **Merging is parent first, child overwrites per key.** `brand_id` and `user_profile` keys from a

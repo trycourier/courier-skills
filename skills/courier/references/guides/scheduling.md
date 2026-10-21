@@ -84,7 +84,7 @@ Opening-hours patterns: business hours `Mo-Fr 09:00-17:00`, weekends `Sa-Su 00:0
 | One send, later | `message.delay` (this file) |
 | A delay between steps of a sequence | journey [`delay` node](./journeys.md) (`mode: duration` or `mode: until`) |
 | "Never during quiet hours" on every send | `message.delay` delivery window, not app-side logic |
-| Recurring / cron scheduling | a journey on a Segment/schedule trigger, or Broadcasts for one-off list sends |
+| Recurring / cron scheduling | Your own scheduler calling the send API for a list or audience, or a [topic digest](./digests.md) when the recipient picks the cadence. Journeys have no schedule trigger, and a broadcast sends once |
 
 Never re-implement a scheduler in your application when a duration, a timestamp, or a delivery window on the send does the job.
 

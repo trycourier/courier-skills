@@ -34,7 +34,7 @@ Neither is a send path. To *send* a notification over an HTTP callback, that's t
 
 1. Settings → Webhooks → **Outbound Webhooks** → **Add**.
 2. Name it and give it a URL that accepts `POST`.
-3. Set a **secret** if you want signed payloads. Without one, Courier sends no signature header.
+3. Copy the `whsec_...` signing secret Courier creates for the destination. Every event is signed with it.
 
 > **Webhooks are scoped to the environment they're created in.** A webhook created in test only
 > fires for test events, and never for production ones. If you need both, create a destination in
@@ -179,7 +179,7 @@ preferences in your own system, see [preferences.md](./preferences.md#mirroring-
 
 ### Verifying Signatures
 
-Set a secret on the destination and Courier signs every event with HMAC-SHA256 in a
+Courier signs every event with HMAC-SHA256, keyed with the destination's `whsec_...` secret, in a
 `courier-signature` header:
 
 ```
@@ -398,9 +398,7 @@ Point a journey's **Webhook trigger** at the webhook by name, then optionally na
 > a single object field. Without a selected event name, the editor unions fields across every event
 > seen on that source, so a suggested field may not exist on every payload.
 
-**The Webhook trigger is Design Studio only.** The Journeys API exposes just two `trigger_type`
-values, `api-invoke` and `segment`. There is no webhook trigger node you can `POST`, so build these
-journeys in the UI. See [journeys.md](./journeys.md#triggers).
+**You can also build the Webhook trigger over the API.** Use a trigger node with `"trigger_type": "webhook"` and `event_source`, plus an optional `event_id` to match one `event` name. See [journeys.md](./journeys.md#triggers).
 
 ## Related
 

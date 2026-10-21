@@ -21,13 +21,13 @@
 | Activity mention | all | [push, inbox] |
 | Weekly digest | single | [email] |
 
-Rationale for "order shipped": email is the durable record; push is the awareness nudge. `method: "all"` automatically skips channels where the user has no contact info (no push token = push silently dropped, email still sent). Inbox is intentionally omitted, a shipping notification doesn't need in-app persistence.
+Rationale for "order shipped": email is the durable record; push is the awareness nudge. `method: "all"` automatically skips channels where the user has no contact info (no push token = push skipped (`INCOMPLETE_PROFILE_DATA` in the log), email still sent). Inbox is intentionally omitted, a shipping notification doesn't need in-app persistence.
 
 ### Routing Edge Cases
 | Situation | Behavior |
 |-----------|----------|
 | `user_id` has no email, email is first in `channels` | Skips email, tries next channel |
-| `user_id` has no contact info at all | Typically `UNDELIVERABLE`, but if the workspace has the Courier Inbox provider (or any catch-all channel) enabled, the send may still complete as `SENT` via that channel. Check `providers[]` on the retrieved message to see what actually ran. |
+| `user_id` has no contact info at all | The message ends `UNROUTABLE`, and each skipped provider shows `INCOMPLETE_PROFILE_DATA` in the log. An `inbox` channel in the route needs no contact info, so it can still send. |
 | User opted out of a channel via preferences | Channel skipped automatically |
 | `routing` omitted entirely | Courier uses channels configured in the template |
 | Provider returns 5xx | Courier retries, then tries next provider in priority order |
@@ -513,12 +513,12 @@ await client.routingStrategies.create({
 
 Courier fails over to the next provider when:
 - Provider returns a 5xx error (after built-in retries)
-- Provider times out
+- Provider is slower than its timeout (Enterprise plans only. Other plans get `402` if a send sets provider or channel timeouts)
 - Provider-specific permanent error (e.g., invalid credentials)
+- Provider rate-limits the send, once Courier's retries (up to 24 hours) run out
 
 Courier does NOT fail over for:
 - Recipient-level failures (invalid email, bounced)
-- Rate limiting (retries with backoff on same provider)
 - Template rendering errors
 
 ### Checking Which Provider Was Used
@@ -543,18 +543,20 @@ await client.send.message({
     providers: {
       twilio: {
         override: {
-          messaging_service_sid: "MG..."
+          body: { MessagingServiceSid: "MG..." }
         }
       },
       sendgrid: {
         override: {
-          ip_pool_name: "transactional"
+          body: { ip_pool_name: "transactional" }
         }
       }
     }
   }
 });
 ```
+
+`body` merges into the provider's own request, so use that API's field names.
 
 ## Monitoring & Analytics
 

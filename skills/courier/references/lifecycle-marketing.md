@@ -24,28 +24,28 @@ Notifications Courier sends proactively rather than in response to a user action
 | Re-engagement / win-back | [Journey](./guides/journeys.md) with `delay` + `branch` on returned?, cancelled the moment they come back |
 | Referral invite and reward | Single sends triggered by your referral service; reward send on qualification |
 | Promotional campaign | Send to a [list or audience](./guides/patterns.md), gated on a subscription topic |
-| Frequency capping across campaigns | [`throttle`](./guides/journeys.md) node (`scope: "user"`), enforce it in Courier, not in application code |
+| Frequency capping across campaigns | [Send limits](https://www.courier.com/docs/send/statuses#send-limits) per user, topic, or tenant. A [`throttle`](./guides/journeys.md) node caps only one point in one journey |
 | Letting users choose frequency | [Subscription topics + preferences](./guides/preferences.md), including a hosted or embedded preference center |
-| One-off broadcast to a list or audience | Broadcasts, configured in the dashboard |
+| One-off broadcast to a list or audience | A [broadcast](https://www.courier.com/docs/broadcasts/overview), built in the dashboard or with the API: `client.broadcasts.create`, `putContent`, then `send` or `schedule` |
 
-**The two things people rebuild unnecessarily** are frequency capping and digest scheduling. Courier does both: a `throttle` node caps frequency, and a topic digest collects sends on the recipient's schedule. See [Digests](./guides/digests.md), [Batching](./guides/batching.md), and [Throttling](./guides/throttling.md).
+**The two things people rebuild unnecessarily** are frequency capping and digest scheduling. Courier does both: send limits cap what a user gets across campaigns, a `throttle` node caps one point in a journey, and a topic digest collects sends on the recipient's schedule. See [Digests](./guides/digests.md), [Batching](./guides/batching.md), and [Throttling](./guides/throttling.md).
 
 ### Cancel the sequence when its goal is met
 
-This is the most common lifecycle bug: a user activates on day 1 and still gets the day-3 "still need help getting started?" email. Set a cancelation token when you invoke, then cancel on the success event:
+This is the most common lifecycle bug: a user activates on day 1 and still gets the day-3 "still need help getting started?" email. Set `cancelation_token` on the journey, then cancel on the success event:
 
 ```typescript
-// On signup — token lets you stop the whole sequence later
+// On signup. The journey's token, onboarding-{{data.user_id}}, reads user_id from data
 await client.journeys.invoke(onboardingJourneyId, {
   user_id: userId,
-  data: { first_name: user.firstName },
+  data: { user_id: userId, first_name: user.firstName },
 });
 
-// On activation — kill every pending step
+// On activation, cancel every pending step
 await client.journeys.cancel({ cancelation_token: `onboarding-${userId}` });
 ```
 
-The token is configured in the journey's settings and templated from run data (e.g. `onboarding-{{data.user_id}}`). If the referenced field is missing at invoke time the run gets **no token and can never be cancelled by token**. See [Cancelling Runs](./guides/journeys.md#cancelling-runs).
+`cancelation_token` is a field on the journey, set on create or replace, and templated from run data (e.g. `onboarding-{{data.user_id}}`). If the referenced field is missing at invoke time the run gets **no token and can never be cancelled by token**. See [Cancelling Runs](./guides/journeys.md#cancelling-runs).
 
 ### Common mistakes
 
@@ -73,13 +73,13 @@ For per-user data that Courier doesn't hold, invoke a journey per user and pass 
 
 ## Respecting frequency without writing a scheduler
 
-Put a `throttle` node at the top of any lifecycle journey. `scope: "user"` caps per recipient regardless of how many campaigns are running:
+To cap what one user receives across every campaign, set a [send limit](https://www.courier.com/docs/send/statuses#send-limits) per user, topic, or tenant. A `throttle` node caps only the point in the journey where it sits. Put one at the top of a lifecycle journey to stop that journey firing too often for one user:
 
 ```json
 { "type": "throttle", "scope": "user", "max_allowed": 2, "period": "P7D" }
 ```
 
-That is the whole frequency-cap implementation. Details in [Throttling](./guides/throttling.md).
+It doesn't count sends from other journeys. Details in [Throttling](./guides/throttling.md).
 
 ## Letting users pick their own cadence
 

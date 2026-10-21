@@ -1,6 +1,6 @@
 # Journeys
 
-Build multi-step notification workflows as code using directed acyclic graphs (DAGs). A journey is a sequence of nodes. Send, delay, branch, fetch, throttle, batch, add-to-digest, AI, and exit. That Courier executes asynchronously when you invoke the journey via API or a Segment event.
+Build multi-step notification workflows as code using directed acyclic graphs (DAGs). A journey is a sequence of nodes. Send, delay, branch, fetch, throttle, batch, add-to-digest, AI, and exit. That Courier executes asynchronously when you start the journey from an API invoke, a Segment event, an inbound webhook, or a user joining an audience.
 
 > **Journeys is Courier's orchestration product. Use it for every multi-step flow.** If you have existing Automations, see [Coming from Automations](#coming-from-automations).
 
@@ -16,7 +16,7 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - Elemental version string for journey-scoped templates is always `"2022-01-01"`. See [Elemental](./elemental.md)
 - Delay durations use ISO 8601 format (e.g., `"PT1H"` for one hour, `"PT30M"` for 30 minutes, `"P1D"` for one day)
 - Conditions use **string** tuples: `[path, operator, value]` for binary, `[path, operator]` for unary. A single condition is the bare tuple; multiple conditions use an `{ "AND": [...] }` / `{ "OR": [...] }` object. Comparison values are always strings (`"true"`, `"50"`), not native booleans/numbers. See [Conditions](#conditions)
-- Header/value interpolation differs by context: templates and fetch URLs use `{{field}}` (no prefix); branch/trigger conditions use `data.field`; fetch **header values** use the `$ref` object form `{ "$ref": "data.token" }`. See [Variable Interpolation](#variable-interpolation)
+- Interpolation differs by context: templates, fetch URLs and fetch header values use `{{field}}` (no prefix); branch/trigger conditions use `data.field`. Fetch `headers` values are plain strings, e.g. `"Authorization": "Bearer {{api_token}}"`. See [Variable Interpolation](#variable-interpolation)
 - A send node's `to` override takes **exactly one** of `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams` — never a combination. See [Slack and Teams sends](#slack-and-teams-sends)
 - A Slack `access_token` on a send node must be a **runtime reference** (`{{data.slack_token}}`), never a literal token. See [Slack and Teams sends](#slack-and-teams-sends)
 - A send node can carry `message.context.tenant_id` to deliver as one of your customers — literal id or whole-string mustache reference only. See [Send Node Options](#send-node-options)
@@ -28,7 +28,7 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - Omitting the trigger node when replacing a journey via `PUT` (every journey needs at least one trigger)
 - Using `POST /journeys/{id}/invoke` on an unpublished journey, returns an error; publish first
 - Assuming the trigger `schema` rejects bad payloads at invoke. It does **not**. The `schema` powers editor autofill and variable hints only; missing fields are not rejected at invocation. A run proceeds until it reaches a node that references a missing field, then fails there. Use **trigger `conditions`** to gate invocation (a failed trigger condition returns `422`)
-- Including `send` nodes in the `POST /journeys` body. Send nodes are **not allowed on create**. Create the shell (trigger only), add templates, then add send nodes via `PUT /journeys/{id}`
+- Including `send` nodes in the `POST /journeys` body. Send nodes are **not allowed on create**. Create the shell (a trigger, then an exit), add templates, then add send nodes via `PUT /journeys/{id}`
 - Wrapping a single condition in an extra array (`[[...]]`) or using non-string values, a single condition is a bare tuple of strings (`["data.plan", "is equal", "pro"]`); use an `{ "AND": [...] }` / `{ "OR": [...] }` object for multiple conditions
 - Hardcoding a literal Slack bot token in `to.slack.access_token` — see [Slack and Teams sends](#slack-and-teams-sends)
 - Addressing Teams by `channel_name`, `user_id`, or `email` without `service_url` or `tenant_id` — see [Slack and Teams sends](#slack-and-teams-sends)
@@ -99,20 +99,16 @@ A journey is a directed acyclic graph (DAG) of nodes. Each node performs one act
 
 ### Triggers
 
-Every journey starts with a trigger node. The API accepts two `trigger_type` values:
+Every journey starts with a trigger node. The API accepts four `trigger_type` values:
 
 | Trigger type | How runs begin | Required fields |
 |-------------|----------------|-----------------|
 | `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema for editor autofill/variable hints, **not** invoke-time validation), `conditions` (gate invocation; failed condition → `422`). |
-| `segment` | A matching Segment event arrives | `request_type` (`identify`, `group`, or `track`). Optional: `event_id`, `conditions`. For `track` events, the event `userId` must be a valid Courier Profile ID or the journey won't start. |
+| `segment` | A matching Segment event arrives | `request_type` (`identify`, `group`, `track`, or `page`). Optional: `event_id`, `conditions`. With no `event_id` it fires on every event of that type. For `track` events, the event `userId` must be a valid Courier Profile ID or the journey won't start. |
+| `webhook` | An event arrives on one of your [inbound webhooks](./webhooks.md#inbound-webhooks) | `event_source`. Optional: `event_id`, matched against the payload's `event`, and `conditions`. Every payload needs a `userId` matching a Courier user. |
+| `audience` | A user newly matches an [audience](./audiences.md) | `audience_id` (one audience). Optional: `conditions`. Users already in the audience when you publish don't enter. |
 
-Design Studio offers two more that the API cannot express. There is no `trigger_type` for either,
-so journeys using them have to be built in the UI:
-
-| Trigger | How runs begin | Notes |
-|---|---|---|
-| **Webhook** | An event arrives on one of your [inbound webhooks](./webhooks.md#inbound-webhooks) | Selected by webhook name, optionally narrowed to one `event` name. No schema; the editor infers fields from payloads already received, so send real traffic first. Every payload needs a `userId` matching a Courier user. |
-| **Audience** | A user joins the selected [audience](./audiences.md) | No schema; exposes the audience ID. Backed by the same `audiences:user:matched` event you can receive as an [outbound webhook](./webhooks.md#event-types). |
+Webhook and audience triggers take no `schema`.
 
 ### Journey-Scoped vs Workspace Templates
 
@@ -150,7 +146,7 @@ Every journey follows the same five-step process: create the shell, add template
 
 ### Step 1: Create the journey shell
 
-Create a journey with a name and at least a trigger node.
+Create a journey with a name, a trigger node, and an exit node last.
 
 ```bash
 curl -sS -X POST "https://api.courier.com/journeys" \
@@ -171,13 +167,14 @@ curl -sS -X POST "https://api.courier.com/journeys" \
           },
           "required": ["first_name"]
         }
-      }
+      },
+      { "type": "exit" }
     ],
     "enabled": true
   }'
 ```
 
-> Do **not** include client-supplied node `id`s on create, the server generates them (and returns `400` if you send your own). `send` nodes are not allowed on `POST /journeys` either. Create the shell with the trigger (and other non-send nodes) only; add send nodes later via `PUT` once their templates exist. To publish immediately on create, pass `"state": "PUBLISHED"` (defaults to `"DRAFT"`).
+> Do **not** include client-supplied node `id`s on create, the server generates them (and returns `400` if you send your own). `send` nodes are not allowed on `POST /journeys` either. Create the shell with a trigger node, and an exit node last (other non-send nodes can go between them); add send nodes later via `PUT` once their templates exist. To publish immediately on create, pass `"state": "PUBLISHED"` (defaults to `"DRAFT"`).
 
 Create returns `201` with the journey. The response echoes back **server-generated** node `id`s (e.g. `"PK5BA6NV424BAYN58R6CVM2GTH10"`). Save the top-level journey `id`. You'll use it in every subsequent request:
 
@@ -187,7 +184,10 @@ Create returns `201` with the journey. The response echoes back **server-generat
   "name": "Welcome Journey",
   "state": "DRAFT",
   "enabled": true,
-  "nodes": [ { "id": "PK5BA6NV424BAYN58R6CVM2GTH10", "type": "trigger", "trigger_type": "api-invoke" } ],
+  "nodes": [
+    { "id": "PK5BA6NV424BAYN58R6CVM2GTH10", "type": "trigger", "trigger_type": "api-invoke" },
+    { "id": "QX7CB2MW535CBZP69S7DWN3HUJ21", "type": "exit" }
+  ],
   "created": 1715000000000,
   "creator": null,
   "updated": 1715000000000,
@@ -285,7 +285,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/publish" \
 
 ### Step 5: Invoke
 
-Start a run. The journey must be **published** first. You can invoke by journey **ID or alias**. Provide **either** `user_id` **or** a `profile` with contact info (Courier can also resolve the recipient from `user_id`/`userId`/`anonymousId` inside `profile` or `data`). Returns `202` with a `runId`. Courier processes the run asynchronously, walking through the DAG. The `runId` is what you look up in Run Inspection.
+Start a run. The journey must be **published** first. You can invoke by journey **ID or alias**. Provide **either** `user_id` **or** a `profile` with contact info (Courier can also resolve the recipient from `user_id`/`userId`/`anonymousId` inside `profile` or `data`). Returns `202` with a `runId`. Courier processes the run asynchronously, walking through the DAG. The `runId` is what you look up in the journey's Logs tab or `journeys.runs.retrieve`.
 
 ```json
 { "runId": "1-65f240a0-47a6a120c8374de9bcf9f22c" }
@@ -361,7 +361,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 
 | Node type | Description |
 |-----------|-------------|
-| `trigger` | Entry point. Discriminated by `trigger_type`: `api-invoke` or `segment`. |
+| `trigger` | Entry point. Discriminated by `trigger_type`: `api-invoke`, `segment`, `webhook`, or `audience`. |
 | `send` | Send a notification using a journey-scoped template. References the template via `message.template`. Delivers on any configured channel: email, SMS, push, inbox, Slack, or Microsoft Teams. |
 | `delay` | Pause the run. Discriminated by `mode`: `duration` (ISO 8601) or `until` (timestamp). |
 | `fetch` | Make an HTTP request and merge the response into run state. Discriminated by `method`: `get`, `delete`, `post`, or `put`. |
@@ -378,8 +378,10 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 | Type | Discriminator | Required fields |
 |------|--------------|-----------------|
 | Trigger (API) | `type: "trigger"`, `trigger_type: "api-invoke"` | None beyond discriminators. Optional: `id`, `schema`, `conditions`. |
-| Trigger (Segment) | `type: "trigger"`, `trigger_type: "segment"` | `request_type` (`identify`, `group`, or `track`). Optional: `event_id`, `conditions`. |
-| Send | `type: "send"` | `message.template` (journey-scoped template ID). Optional: `message.to` (recipient override: `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams` — exactly one), `message.context` (tenant context), `message.delay`, `message.data`, `channel` (optional label enum, no routing effect — see [Slack and Teams sends](#slack-and-teams-sends)), `conditions`. |
+| Trigger (Segment) | `type: "trigger"`, `trigger_type: "segment"` | `request_type` (`identify`, `group`, `track`, or `page`). Optional: `event_id`, `conditions`. |
+| Trigger (Webhook) | `type: "trigger"`, `trigger_type: "webhook"` | `event_source`. Optional: `id`, `event_id`, `conditions`. |
+| Trigger (Audience) | `type: "trigger"`, `trigger_type: "audience"` | `audience_id`. Optional: `id`, `conditions`. |
+| Send | `type: "send"` | `message.template` (journey-scoped template ID), or an [`experiment`](#ab-experiments-on-a-send-node) beside `message` instead. Optional: `message.to` (recipient override: `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams`, exactly one), `message.context` (tenant context), `message.delay`, `message.data`, `channel` (optional label enum, no routing effect, see [Slack and Teams sends](#slack-and-teams-sends)), `conditions`. |
 | Delay (duration) | `type: "delay"`, `mode: "duration"` | `duration` (ISO 8601 duration string, e.g. `"PT30M"`). Optional: `conditions`. |
 | Delay (until) | `type: "delay"`, `mode: "until"` | `until` (ISO 8601 timestamp or context reference). Optional: `conditions`. |
 | Fetch (GET/DELETE) | `type: "fetch"`, `method: "get"` or `"delete"` | `url`, `merge_strategy`. Optional: `headers`, `query_params`, `response_schema`, `conditions`. |
@@ -467,7 +469,8 @@ The `nodes` of the second `PUT`:
         "conditions": ["send_status.P9Z3VCRJG647M7QNJZR3548HW741", "was not", "CLICKED"],
         "nodes": [{ "type": "send", "message": { "template": "<sms-template-id>" } }]
       }
-    ]
+    ],
+    "default": { "nodes": [] }
   }
 ]
 ```
@@ -485,13 +488,13 @@ How you reference a context value depends on **where** you use it. Getting this 
 | Template content (Elemental) | `{{field}}`, **no** `data.` prefix | `"Welcome, {{first_name}}!"` |
 | Fetch node `url` | `{{field}}` | `"https://api.app.com/users/{{user_id}}/status"` |
 | Branch / trigger `conditions` | `data.field` (string tuples) | `["data.completed", "is equal", "true"]` |
-| Fetch **header values** | `$ref` object | `{ "Authorization": { "$ref": "data.api_token" } }` |
-| Send node `to.slack` / `to.ms_teams` / `context.tenant_id` values | `{{field}}` as the **whole string** (plain string fields — not `$ref` objects) | `"access_token": "{{data.slack_token}}"` |
+| Fetch **header values** | `{{field}}` inside a plain string | `{ "Authorization": "Bearer {{api_token}}" }` |
+| Send node `to.slack` / `to.ms_teams` / `context.tenant_id` values | `{{field}}` as the **whole string** | `"access_token": "{{data.slack_token}}"` |
 
 Notes:
 - `user_id` passed at the top level of an invoke is used for **recipient resolution** and is not guaranteed to be projected into `data`. If a fetch URL or template needs it, declare `user_id` in the trigger schema and pass it inside `data` too.
 - Fetch responses are merged into the context (per `merge_strategy`) and are then referenced like any other field: `data.field` in conditions, `{{field}}` in templates.
-- There is **no `{{secrets.*}}` namespace.** Pass credentials via `data`/`profile` and reference them with `$ref`, or store them in the provider/workspace settings.
+- There is **no `{{secrets.*}}` namespace.** Pass credentials via `data`/`profile` and interpolate them into the header string with `{{field}}`, or store them in the provider/workspace settings.
 
 ---
 
@@ -504,7 +507,7 @@ When a fetch node receives a response, `merge_strategy` determines how the respo
 | `soft-merge` (recommended default) | Adds new fields from the response without overwriting existing values. |
 | `overwrite` | Deep-merges response into state. Response values overwrite existing fields with the same key. |
 | `replace` | Replaces the entire run state with the response. |
-| `none` | Discards the response body. Useful for fire-and-forget requests. |
+| `none` | Doesn't merge into existing context. If the run's context is empty, the response is used. |
 
 Fetch nodes require **HTTPS** URLs. If a fetch fails (network error or non-2xx), the journey **continues** and no data is merged, guard downstream nodes with conditions like `["data.expected_field", "exists"]`.
 
@@ -553,7 +556,7 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
         "method": "get",
         "url": "https://api.yourapp.com/users/{{user_id}}/setup-status",
         "merge_strategy": "soft-merge",
-        "headers": { "Authorization": { "$ref": "data.app_api_token" } }
+        "headers": { "Authorization": "Bearer {{app_api_token}}" }
       },
       {
         "id": "branch-setup",
@@ -701,28 +704,28 @@ Journeys can deliver to Slack and Microsoft Teams. The send node's `to` override
 
 ### A/B Experiments on a Send Node
 
-A/B testing is a field on the send node, **not** a separate node type. Supply `experiment` **instead of** `message.template`; the recipient is deterministically bucketed by `bucketingKey` and routed to one variant in proportion to its `weight`.
+A/B testing is a field on the send node, **not** a separate node type. Put `experiment` on the node, beside `message`, **instead of** `message.template`. Each recipient is bucketed by `bucketingKey` and routed to one variant in proportion to its `weight`.
 
 ```json
 {
   "type": "send",
-  "message": {
-    "experiment": {
-      "name": "Welcome subject line test",
-      "bucketingKey": "{{user_id}}",
-      "variants": [
-        { "id": "control", "name": "Direct",   "template": "<template-id-a>", "weight": 50 },
-        { "id": "variant", "name": "Curiosity", "template": "<template-id-b>", "weight": 50 }
-      ]
-    }
+  "message": {},
+  "experiment": {
+    "name": "Welcome subject line test",
+    "bucketingKey": "user.id",
+    "variants": [
+      { "id": "control", "name": "Direct",    "templateId": "<template-id-a>", "weight": 50 },
+      { "id": "variant", "name": "Curiosity", "templateId": "<template-id-b>", "weight": 50 }
+    ]
   }
 }
 ```
 
-- **`bucketingKey`** (required), the value that determines assignment. Must be non-empty with no leading or trailing whitespace. Bucketing is deterministic, so the same key always lands in the same variant across runs.
-- **`variants`** (required), between 2 and 10. Variant `id`s must be unique within the experiment; weights are **relative** (no sum-to-100 requirement) and their total must be greater than 0, routing normalizes proportionally.
+- **`message`** (required), may be `{}` when `experiment` is present. `message.to`, `message.delay`, and `message.data` still apply to whichever variant is chosen.
+- **`bucketingKey`** (required), a path to a value in the run, such as `user.id`, `user.email`, or `data.account_id`, not a literal. Courier hashes the value at that path, so the same recipient always lands in the same variant. If the path doesn't resolve, it falls back to the user ID, then the email. Assignments are sticky across sends, even if you change the weights later. Adding or removing a variant, or changing the bucketing key, re-buckets everyone.
+- **`variants`** (required), between 2 and 10. Each needs `id`, `templateId` (a journey-scoped template), and `weight`. Variant `id`s must be unique within the experiment; weights are **relative** (no sum-to-100 requirement) and their total must be greater than 0, routing normalizes proportionally.
 - **`id`** (optional), an `exp_`-prefixed experiment id. Omit to have one generated; if you supply it, it must be a valid `exp_` id.
-- ⚠️ **`bucketingKey` is camelCase**, unlike the snake_case used elsewhere in the Journeys API. Copy it exactly.
+- ⚠️ **`bucketingKey` and `templateId` are camelCase**, unlike the snake_case used elsewhere in the Journeys API. Copy them exactly.
 
 ### Dynamic Delay
 
@@ -766,7 +769,7 @@ Run an LLM prompt and merge a structured result (conforming to `output_schema`) 
 ```json
 {
   "type": "ai",
-  "model": "gpt-4o-mini",
+  "model": "gpt-5.4-mini",
   "user_prompt": "Classify this support message intent: {{message_body}}",
   "web_search": false,
   "output_schema": {
@@ -837,7 +840,18 @@ Journeys support cancellation two ways: **externally** via the API, and **from i
 
 ### The cancelation token
 
-The token is configured in the **journey's settings** and is templated from run data, `{{data.…}}`, `{{profile.…}}`, or `{{recipient}}`. A token like `order-{{data.order_id}}` gives every run for one order a shared handle.
+The token is a journey-level field, `cancelation_token`, set on `POST /journeys` or `PUT /journeys/{id}`, or in the journey's settings in the designer. It is templated from run data, `{{data.…}}`, `{{profile.…}}`, or `{{recipient}}`, such as `order-{{data.order_id}}`, which gives every run for one order a shared handle. A `PUT` that leaves it out keeps the existing token.
+
+```json
+{
+  "name": "Order reminders",
+  "cancelation_token": "order-{{data.order_id}}",
+  "nodes": [
+    { "type": "trigger", "trigger_type": "api-invoke" },
+    { "type": "exit" }
+  ]
+}
+```
 
 > ⚠️ **If the referenced variable doesn't resolve when the run starts, the run is created with no token, and can never be cancelled by token.** Only `run_id` cancellation will reach it. Make sure the fields your token references are always present in the invoke payload.
 
@@ -876,7 +890,17 @@ The Cancel node is configured in the journey builder. It is **not currently part
 
 ## Debugging Runs
 
-Every invoke returns a `runId`. Use **[Run Inspection](https://www.courier.com/docs/monitor/journey-metrics#run-inspection)** to step through a run node-by-node: a delay shows `Waiting` until it releases; a branch shows every condition evaluated, the actual values compared, and which path was taken; a fetch shows the response and merged fields. Start here when a journey "ran but nothing sent."
+Every invoke returns a `runId`. Open the journey's **Logs** tab to see a run on the journey canvas: which nodes ran and in what order, which path each branch took, where a waiting run is paused, and which node failed. Start here when a journey "ran but nothing sent." See [Journey logs](https://www.courier.com/docs/monitor/logs#journey-logs).
+
+The same data is in the runs API:
+
+| Operation | Node | Python | CLI |
+|-----------|------|--------|-----|
+| List runs | `client.journeys.runs.list({ template_id, status })` | `client.journeys.runs.list(template_id=..., status=...)` | `courier journeys:runs list --template-id ID --status ERROR` |
+| One run | `client.journeys.runs.retrieve(runId)` | `client.journeys.runs.retrieve(run_id)` | `courier journeys:runs retrieve --run-id RUN_ID` |
+| Each step of a run | `client.journeys.runs.listSteps(runId)` | `client.journeys.runs.list_steps(run_id)` | `courier journeys:runs list-steps --run-id RUN_ID` |
+
+Each step's `node_id` is the node's id in the published journey. A send step that produced a message carries its `message_id`, so follow it to `GET /messages/{message_id}` for delivery status.
 
 ---
 
@@ -884,7 +908,7 @@ Every invoke returns a `runId`. Use **[Run Inspection](https://www.courier.com/d
 
 **Journeys is Courier's orchestration product and where the investment goes.** If you're building multi-step flows on Automations today, build new ones as Journeys, existing Automations keep running, so there's no forced cutover.
 
-The models are near-identical: a flow a user enters, moves through step by step, and exits. Every Automations step has a direct node equivalent, delay, if/switch, send, batch, digest, throttle, fetch, and cancellation by token. What Journeys adds is that the definition is code: a JSON DAG you create, version, publish, and invoke over REST, with immutable published versions, journey-scoped templates, A/B experiments on send nodes, a typed trigger contract, and run inspection that shows you exactly which branch a run took and why.
+The models are near-identical: a flow a user enters, moves through step by step, and exits. Every Automations step has a direct node equivalent, delay, if/switch, send, batch, digest, throttle, fetch, and cancellation by token. What Journeys adds is that the definition is code: a JSON DAG you create, version, publish, and invoke over REST, with immutable published versions, journey-scoped templates, A/B experiments on send nodes, a typed trigger contract, and run logs that show you exactly which branch a run took and why.
 
 ## Related
 
@@ -897,4 +921,4 @@ The models are near-identical: a flow a user enters, moves through step by step,
 - [Reliability](./reliability.md), retries, idempotency, webhook handling
 - [Building Journeys via API](https://www.courier.com/docs/journeys/build), official Courier documentation
 - [Journeys API Reference](https://www.courier.com/docs/api-reference/journeys/create-a-journey), endpoint reference
-- [Run Inspection](https://www.courier.com/docs/monitor/journey-metrics#run-inspection), step through runs to debug
+- [Journey logs](https://www.courier.com/docs/monitor/logs#journey-logs), step through runs to debug

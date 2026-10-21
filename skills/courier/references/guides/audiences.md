@@ -1,13 +1,13 @@
 # Audiences
 
-An audience is a **filter Courier evaluates and keeps current**. Send to `audience_id` and Courier
-resolves the matching users at send time and fans out. Use it for dynamic segments (trial users, a
+An audience is a **filter whose membership Courier stores and keeps current**. Send to `audience_id`
+and Courier fans out to the stored members. Use it for dynamic segments (trial users, a
 plan tier, an activity cohort); use a **list** when you want an explicit, managed set of subscribers.
 
 ## Quick Reference
 
 ### Rules
-- An audience is a filter Courier evaluates and keeps current. Create or update it with an upsert by the id you choose.
+- An audience is a filter whose membership Courier stores and keeps current. Create or update it with an upsert by the id you choose.
 - Send to it with `to: { audience_id: "..." }`; Courier fans out to every current member.
 - Preferences still apply: a marketing audience only reaches opted-in users.
 
@@ -45,11 +45,20 @@ client.audiences.update(
 )
 ```
 
-`filter.filters` is an array of rules; each rule is a single condition (`operator` is a comparison
-like `EQ`, `NEQ`, `GT`, `LT`, `GTE`, `LTE` with a `path` + `value`) or a nested group (`operator`
-`AND`/`OR` with its own `filters`). `path` is an attribute on the user profile. Confirm the full
-operator set against the [API reference](https://www.courier.com/docs/api-reference/), the SDK types
-type `operator` as a string.
+`filter.filters` is an array of rules; each rule is a single condition (a comparison `operator` with
+a `path` + `value`) or a nested group (`operator` `AND`/`OR` with its own `filters`). `path` is an
+attribute on the user profile. The comparison operators:
+
+| `operator` | Meaning |
+|---|---|
+| `EQ` / `NEQ` | Equals / not equal |
+| `INCLUDES` / `OMIT` | Contains / doesn't contain (substring) |
+| `STARTS_WITH` / `ENDS_WITH` | Prefix / suffix |
+| `GT` / `GTE` / `LT` / `LTE` | Greater / greater-or-equal / less / less-or-equal |
+| `IS_AFTER` / `IS_BEFORE` | After / before (dates) |
+| `EXISTS` | Present |
+
+The SDK types `operator` as a plain string, so it won't catch a typo.
 
 ## Read, list, members, delete
 
@@ -60,8 +69,9 @@ type `operator` as a string.
 | List members (who currently matches) | `client.audiences.listMembers(audienceId)` | `client.audiences.list_members(audience_id)` |
 | Delete | `client.audiences.delete(audienceId)` | `client.audiences.delete(audience_id)` |
 
-`listMembers` is how you inspect who an audience resolves to right now, membership is computed from
-the filter, not stored, so it reflects the latest profiles.
+`listMembers` shows who is in the audience now. Membership is stored, not computed at send time.
+Changing the filter starts a rebuild that can take many minutes, and a send during a rebuild reads a
+partly updated list, so check `listMembers` before a large send.
 
 ## Send to an audience
 
@@ -80,8 +90,8 @@ One send, Courier fans out to every current member, with no cap on how many that
 `requestId` returned is a job id; resolve per-recipient message ids via
 `courier messages list --trace-id "<requestId>"` (see [cli.md](./cli.md)).
 
-Audience vs list: an **audience** is a live filter (membership recomputed each send); a **list** is an
-explicit subscriber set you add/remove from. See [patterns.md](./patterns.md) for list sends.
+Audience vs list: an **audience** is a filter whose stored membership Courier updates as profiles
+change; a **list** is an explicit subscriber set you add/remove from. See [patterns.md](./patterns.md) for list sends.
 
 If the recipient set isn't modeled as an audience or a list, reach for the
 [Bulk API](./bulk.md) rather than a multi-recipient send. A plain `to` array is capped
