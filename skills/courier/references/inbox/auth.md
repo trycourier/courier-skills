@@ -6,13 +6,13 @@ The inbox is the only Courier channel that runs client-side, so it is the only o
 
 ### Rules
 - JWT is required for the inbox. Mint it server-side from your API key; never ship an API key to a browser.
-- Scopes are checked per call: `inbox:read:messages` to read, `inbox:write:events` to mark read or clicked, `read:preferences` only if you mount preferences.
+- Scopes are checked per call: `inbox:read:messages` to read, `inbox:write:events` to mark read, opened, or archived, and `read:preferences write:preferences` if you mount preferences.
 - Refresh before expiry rather than letting the socket drop.
 
 ### Common Mistakes
 
 - Minting the JWT in client code. That requires the API key in the browser, which grants full workspace access to anyone who opens devtools.
-- Granting the wrong scopes. Scopes are checked **per call**, not as one required set: reading the feed needs `inbox:read:messages`, marking read or clicked needs `inbox:write:events`, and `read:preferences` is only needed if you also mount preferences. `user_id:{id}` ties the token to one user. A token missing a scope still issues successfully and fails at the call that needs it, so scope problems surface as a `401` mid-session rather than at sign-in.
+- Granting the wrong scopes. Reading needs `inbox:read:messages`, marking read, opened, or archived needs `inbox:write:events`, and the preference center needs `read:preferences write:preferences`. `user_id:{id}` ties the token to one user. A token missing a scope still signs in, and the inbox loads empty with no error, so a scope problem looks like an empty feed, not a `401`.
 - Minting a token for one user and signing in as another. Sign out on user switch.
 - Letting a token expire instead of refreshing. The socket drops and the inbox silently stops updating.
 - Treating a v7 **client key** as interchangeable with a JWT. It isn't, and its own format has a trap, see [v7 client keys](#v7-client-keys).
@@ -49,7 +49,7 @@ import Courier from "@trycourier/courier";
 const client = new Courier(); // reads COURIER_API_KEY
 
 const { token } = await client.auth.issueToken({
-  scope: "user_id:user-123 inbox:read:messages inbox:write:events read:preferences",
+  scope: "user_id:user-123 inbox:read:messages inbox:write:events read:preferences write:preferences",
   expires_in: "7 days",
 });
 ```
@@ -61,7 +61,7 @@ from courier import Courier
 client = Courier()  # reads COURIER_API_KEY
 
 resp = client.auth.issue_token(
-    scope="user_id:user-123 inbox:read:messages inbox:write:events read:preferences",
+    scope="user_id:user-123 inbox:read:messages inbox:write:events read:preferences write:preferences",
     expires_in="7 days",
 )
 token = resp.token
@@ -73,7 +73,7 @@ token = resp.token
 curl -X POST https://api.courier.com/auth/issue-token \
   -H "Authorization: Bearer $COURIER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"scope":"user_id:user-123 inbox:read:messages inbox:write:events read:preferences","expires_in":"7 days"}'
+  -d '{"scope":"user_id:user-123 inbox:read:messages inbox:write:events read:preferences write:preferences","expires_in":"7 days"}'
 ```
 
 ### JWT Refresh Strategy
@@ -86,7 +86,7 @@ const courier = new Courier();
 
 app.get("/api/courier-token", authenticate, async (req, res) => {
   const { token } = await courier.auth.issueToken({
-    scope: `user_id:${req.user.id} inbox:read:messages inbox:write:events read:preferences`,
+    scope: `user_id:${req.user.id} inbox:read:messages inbox:write:events read:preferences write:preferences`,
     expires_in: "7 days",
   });
   res.json({ token });

@@ -21,7 +21,7 @@ claude mcp add --transport http courier-docs https://www.courier.com/docs/mcp
 ```
 
 - **`search_courier`**: semantic search across every docs page and the OpenAPI specs. Returns titles, paths, and content. Costs ~20k tokens per call, so use it when you don't know where to look.
-- **`query_docs_filesystem_courier`**. Read-only virtual filesystem of the whole docs site. Shell-style, `head -200 /platform/journeys/nodes/batch.mdx`, `grep`, `ls`, `tree`. **Prefer this once you know the path**, a single page read is ~2k tokens instead of ~20k.
+- **`query_docs_filesystem_courier`**. Read-only virtual filesystem of the whole docs site. Shell-style, `head -200 /journeys/nodes/batch.mdx`, `grep`, `ls`, `tree`. **Prefer this once you know the path**, a single page read is ~2k tokens instead of ~20k.
 - **`submit_feedback`**: report an incorrect, outdated, or confusing page back to Courier's docs team. Use it when you find a genuine documentation defect; it closes the loop rather than silently working around the error.
 
 The server indexes from docs navigation, so newly shipped pages appear immediately. It is more current than any snapshot in this skill. When it disagrees with this file about a doc page, it wins.
@@ -41,7 +41,7 @@ Cheaper still, when you already know the exact page: append `.md` to any docs UR
 - Auth via `api_key` header; use the same API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
 - Tools cover most of the Courier API. Send, messages, profiles, lists, audiences, notifications (**including writes**), journeys (**including writes**), brands, tenants, preferences, tokens, translations, digests, email previews, inbound, audit. Coverage is not complete: newly shipped endpoints can lag behind the API (see [Known gaps](#known-gaps)). The exact count changes as Courier ships; **call the MCP server's tool-list endpoint for the current list** rather than trusting any number written down here
 - Journey management and notification-template writes are both available via MCP
-- Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
+- Prefer MCP when your editor supports it (Cursor, Claude Code, Claude Desktop, Codex, Windsurf, VSCode); fall back to [CLI](./cli.md) for shell-only environments or CI/CD
 - MCP tools return structured JSON responses; errors include HTTP status code and message
 - **A tool being advertised does not guarantee the endpoint behind it is live.** If a tool returns a 404 or a route error, check the API reference before assuming you called it wrong
 - When referring to these tools in prompts or docs, qualify them with the server name (e.g. `courier:list_messages`) so the agent can resolve them unambiguously
@@ -67,7 +67,7 @@ Run this once after setup:
 
 | Use MCP | Use CLI |
 |---------|---------|
-| Editor has MCP support (Cursor, Claude Code, Windsurf, VSCode) | Shell-only environments (Codex, CI/CD pipelines) |
+| Editor or agent has MCP support (Cursor, Claude Code, Codex, Windsurf, VSCode) | Shell-only environments and CI/CD pipelines |
 | Typed parameters with auto-discovery | Ad-hoc debugging in a terminal |
 | Structured JSON responses | Human-readable or piped output |
 | No shell required | `--transform` for GJSON filtering |
@@ -103,6 +103,16 @@ Works best with Agent mode enabled (in the Cursor chat input, select "Agent" ins
 
 ```bash
 claude mcp add --transport http courier https://mcp.courier.com --header api_key:YOUR_COURIER_API_KEY
+```
+
+### Codex
+
+Add this to `~/.codex/config.toml`, then restart Codex. `codex mcp add` can't set custom headers, so edit the file directly.
+
+```toml
+[mcp_servers.courier]
+url = "https://mcp.courier.com"
+http_headers = { "api_key" = "YOUR_COURIER_API_KEY" }
 ```
 
 ### Claude Desktop
@@ -208,17 +218,17 @@ Tools cover most of the Courier API, all backed by the official `@trycourier/cou
 | Area | Main tools |
 |------|-----------|
 | Send | `send_message`, `send_message_template`, `send_message_to_list`, `send_message_to_list_template` |
-| Messages and delivery debugging | `list_messages`, `get_message`, `get_message_history`, `get_message_content`, `cancel_message`, `resend_message`, `archive_request` |
+| Messages and delivery debugging | `list_messages`, `get_message`, `get_message_history`, `get_message_content`, `trace_message`, `cancel_message`, `resend_message`, `archive_request` |
 | Templates | `list_notifications`, `get_notification`, `create_notification`, `replace_notification`, `put_notification_content`, `publish_notification` (the draft, or a past version), `list_notification_versions`, `get_notification_draft_content`, `archive_notification` |
 | Template metrics | `get_notification_metrics` (same window rules as [metrics.md](./metrics.md)) |
 | Template translations | `put_notification_locale` (one locale, merges), `get_notification_draft_content` to export strings. See [localization.md](./localization.md) |
 | Device Preview | `list_preview_device_sets`, `list_preview_devices`, `create_preview_run`, `get_preview_run`, `list_preview_runs`, `create_preview_device_set`, `replace_preview_device_set`, `archive_preview_device_set`. Runs are billed per device; see [device-preview.md](./device-preview.md) |
-| Journeys | `create_journey`, `replace_journey`, `publish_journey`, `invoke_journey`, `cancel_journey`, `get_journey`, `list_journeys`, `create_journey_template`, `put_journey_template_content`, `publish_journey_template`. Create makes a DRAFT with no send nodes; add them with `replace_journey` once the journey's templates exist. Prefer these over hand-rolled REST |
+| Journeys | `create_journey`, `replace_journey`, `publish_journey`, `invoke_journey`, `cancel_journey`, `get_journey`, `list_journeys`, `create_journey_template`, `put_journey_template_content`, `publish_journey_template`, `list_journey_runs`, `get_journey_run`, `list_journey_run_steps`. Create takes a trigger and an exit last, and makes a DRAFT with no send nodes; add them with `replace_journey` once the journey's templates exist. Prefer these over hand-rolled REST |
 | Users and profiles | `get_user_profile_by_id`, `create_or_merge_user`, `patch_profile`, `replace_profile`, `delete_profile`, `generate_jwt_for_user` |
 | Push tokens | `list_user_push_tokens`, `get_user_push_token`, `create_or_replace_user_push_token`, `patch_user_token`, `delete_user_token`, `bulk_add_user_tokens` |
 | Preferences, per user | `get_user_preferences`, `get_user_preference_topic`, `update_user_preference_topic`, `delete_user_preference_topic`, `bulk_update_user_preferences`, `bulk_replace_user_preferences` |
 | Preferences, workspace | `list_preference_sections`, `create_preference_section`, `list_preference_topics`, `get_preference_topic`, `create_preference_topic`, `replace_preference_topic`, `archive_preference_topic`, `publish_preferences`, `list_preference_logs` (preference changes, for one user or the environment) |
-| Digests | `list_digest_instances`, `release_digest` (whole schedule) |
+| Digests | `list_digest_instances`, `release_digest` (whole schedule), `release_user_digest` (one recipient and topic). Set a topic's digest with `digest` on `create_preference_topic` or `replace_preference_topic`, and move a user onto a schedule with `digest_schedule_id` on `update_user_preference_topic` |
 | Lists and audiences | `list_lists`, `get_list`, `create_list`, `subscribe_user_to_list`, `unsubscribe_user_from_list`, `get_list_subscribers`, `list_audiences`, `get_audience`, `update_audience`, `list_audience_members` |
 | Bulk | `create_bulk_job` (`message.event` is required) → `add_bulk_users` → `run_bulk_job`, in that order, then `get_bulk_job`, `list_bulk_users`. See [bulk.md](./bulk.md) |
 | Tenants | `get_tenant`, `create_or_update_tenant`, `list_tenants`, `list_tenant_users`, `add_user_to_tenant`, `list_user_tenants`, `list_tenant_templates`, `update_tenant_preference` |
@@ -242,7 +252,8 @@ All tools return structured error responses:
 | Status | Meaning |
 |--------|---------|
 | `400` | Bad request (missing or invalid parameters) |
-| `403` | Missing or invalid API key |
+| `401` | Missing or invalid API key |
+| `403` | Valid key without access to the resource. Check its environment and scope |
 | `404` | Resource not found |
 | `429` | Rate limited |
 
@@ -254,9 +265,6 @@ there, use the SDK, CLI, or REST. Areas that have lagged the API:
 
 | Need | Use instead |
 |---|---|
-| A topic's digest configuration (the `digest` object on topic create or replace) | `client.workspacePreferences.topics.create`/`replace`, see [digests.md](./digests.md#configure-a-topics-digest) |
-| A user's digest schedule (`digest_schedule_id`) | `client.users.preferences.updateOrCreateTopic`, see [digests.md](./digests.md#per-recipient-schedule) |
-| Releasing one recipient's digest | `client.workspacePreferences.topics.releaseDigest` or `courier workspace-preferences:topics release-digest` |
 | Changing part of a provider config (`PATCH /providers/{id}`). `update_provider` is a full replacement, so don't use it to change one setting | `client.providers.patch` or `courier providers patch`, see [providers.md](./providers.md#update-part-of-a-config-patch) |
 
 An absent tool is a possible gap, not proof the endpoint doesn't exist. Check the [API reference](https://www.courier.com/docs/api-reference/).

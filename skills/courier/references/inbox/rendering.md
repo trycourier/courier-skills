@@ -9,7 +9,7 @@ Sending a message *to* the inbox is server-side. See [inbox.md](../channels/inbo
 ### Common Mistakes
 
 - Working the auth ladder before ruling out CSP. Every auth symptom has a quieter CSP twin, see [Debugging](#debugging).
-- Skipping `listenForUpdates()`, the most common integration bug on this page.
+- Skipping `listenForUpdates()` in a custom UI built on `useCourier()` or `CourierInboxDatastore`. The built-in components call it themselves.
 - Shipping an API key to the client instead of a JWT.
 - Using US hosts for an EU workspace, or expecting a `region` option that doesn't exist, see [EU and regional hosts](#eu-and-regional-hosts).
 - Writing new v7 code because the project already has some, see [legacy-v7.md](./legacy-v7.md).
@@ -25,18 +25,25 @@ your server ──generates JWT──▶ your client ──signIn(jwt)──▶ 
                                     └── listenForUpdates()    WebSocket, live arrivals
 ```
 
-Three things always happen, in this order. Skipping the third is the most common integration bug, messages arrive but the UI never changes until reload.
+With a built-in component, `signIn()` is the only call. After sign-in it loads its feeds and opens the realtime socket itself.
 
-1. `shared.signIn({ userId, jwt })`
-2. `inbox.registerFeeds(defaultFeeds())`
-3. `inbox.listenForUpdates()`
+A custom UI on `useCourier()` or `CourierInboxDatastore` makes three calls after `signIn()`, in this order:
+
+1. `inbox.registerFeeds(defaultFeeds())`
+2. `inbox.listenForUpdates()`
+3. `inbox.load()`
+
+Skipping the second means messages arrive but the UI never changes until reload.
 
 ## Which SDK
 
 | Platform | Package | Depth here |
 |---|---|---|
-| React 17+ | `@trycourier/courier-react` | [react.md](./react.md) |
-| Vue, Angular, Svelte, vanilla JS | `@trycourier/courier-ui-inbox` | [web-components.md](./web-components.md) |
+| React 18+ | `@trycourier/courier-react` | [react.md](./react.md) |
+| React 17 | `@trycourier/courier-react-17` | [react.md](./react.md) |
+| Vue 3.3+ | `@trycourier/courier-vue` | [SDK docs](https://www.courier.com/docs/sdk-libraries/courier-vue-web) |
+| Angular 17+ | `@trycourier/courier-angular` | [SDK docs](https://www.courier.com/docs/sdk-libraries/courier-angular-web) |
+| Svelte, vanilla JS, other frameworks | `@trycourier/courier-ui-inbox` | [web-components.md](./web-components.md) |
 | React Native | `@trycourier/courier-react-native` | [react-native.md](./react-native.md) |
 | iOS (Swift) | `Courier_iOS` | [SDK docs](https://www.courier.com/docs/sdk-libraries/ios) |
 | Android (Kotlin) | `courier-android` | [SDK docs](https://www.courier.com/docs/sdk-libraries/android) |
@@ -58,9 +65,9 @@ Do not write new v7 code. If the project is on v7, propose migrating before addi
 ### Rules
 
 - **JWT only.** v8 requires it. Generate it server-side from your API key, an API key in client code grants full workspace access to anyone who opens devtools.
-- **Scopes:** `user_id:{id} inbox:read:messages inbox:write:events`, plus `read:preferences` only if you also mount preferences. Enforced per endpoint, see [auth.md](./auth.md)
+- **Scopes:** `user_id:{id} inbox:read:messages inbox:write:events`, plus `read:preferences write:preferences` if you also mount preferences. See [auth.md](./auth.md)
 - **JWTs expire.** Refresh before expiry rather than letting the socket drop. See [auth.md](./auth.md).
-- **Call `listenForUpdates()` after `signIn()`**, or nothing updates in real time.
+- **Built-in components need only `signIn()`.** A custom UI also calls `listenForUpdates()`, or nothing updates in real time.
 - **Never call `signIn` with a JWT minted for a different user.** Sign out on user switch.
 - **Allow the Courier hosts in your CSP** before you debug anything else. A blocked host or a blocked
   inline style looks exactly like an auth failure. See [Content Security Policy](#content-security-policy).
@@ -69,7 +76,7 @@ Do not write new v7 code. If the project is on v7, propose migrating before addi
 
 ## Read State and Unread Counts
 
-Read state lives client-side, synced across the user's devices by Courier.
+Courier stores read state. The SDK changes it from the client, and Courier syncs it to every device where the user is signed in.
 
 ```tsx
 import { useCourier } from "@trycourier/courier-react";
@@ -90,13 +97,13 @@ From your backend you can only **archive** (`client.requests.archive(requestId)`
 
 ## Organizing the Feed
 
-Filter tabs on `data` fields set at send time. Have the sender include a `category` and the client can split the feed without a schema change:
+Tabs filter on `tags`, `status`, `archived`, and `from`, never on `data` fields. A message gets its tags from `metadata.tags` at send time, so have the sender tag it for its tab:
 
 ```jsonc
-{ "category": "social", "actorId": "user-42", "targetId": "post-7" }
+{ "metadata": { "tags": ["social"] } }
 ```
 
-See [Feeds and Tabs](./react.md) for wiring tabs to those fields.
+A filter can't add a tag later. See [Feeds and Tabs](./react.md#feeds-and-tabs-v8) for wiring tabs to those tags.
 
 ## Debugging
 
@@ -105,14 +112,14 @@ See [Feeds and Tabs](./react.md) for wiring tabs to those fields.
 | Symptom | Cause to check first |
 |---|---|
 | Inbox renders, but completely unstyled | `style-src` (really `style-src-elem`) without `'unsafe-inline'`. The components inject `<style>` elements and there is no nonce or hash API |
-| Messages arrive only on reload, console shows a blocked WebSocket | `connect-src` missing `wss://realtime.courier.io`. Note `.io`, not `.com` |
+| Messages arrive only on reload, console shows a blocked WebSocket | `connect-src` missing `wss://realtime.courier.io`. Note `.io`; allow `.com` as well |
 | Empty inbox, network requests blocked in devtools | `connect-src` missing `https://api.courier.com` or `https://inbox.courier.com` |
 | A `message-click`, `message-action-click`, or `message-long-press` HTML attribute never fires | `script-src` without `'unsafe-eval'`. Use the element method or the `CustomEvent` instead, both CSP-safe |
 | Empty inbox on an EU workspace | US hosts. Pass `apiUrls` for the EU region |
-| Empty inbox, no errors | `signIn()` never resolved, or the JWT's `user_id` scope doesn't match the recipient. Check the CSP rows above first, they present identically |
-| Messages appear only after reload | `listenForUpdates()` was never called. Or the WebSocket is CSP-blocked, see above |
+| Empty inbox, no errors | `signIn()` never ran, the JWT is expired or lacks `inbox:read:messages` / `inbox:write:events`, or its `user_id` doesn't match the recipient. Check the CSP rows above first, they present identically |
+| Messages appear only after reload | The WebSocket is CSP-blocked, see above. In a custom UI, `listenForUpdates()` was never called |
 | Works, then silently stops | JWT expired; no refresh in place |
-| 401 from the SDK | JWT minted with missing scopes, or generated client-side |
+| 401 from the SDK | Token and client in different regions, for example a US-minted token with EU `apiUrls`. Mint against the region the client uses, see [EU and regional hosts](#eu-and-regional-hosts) |
 | Message sent but never arrives | Server-side, the send never reached the `inbox` channel. Work the [delivery-failure ladder](../../SKILL.md#debugging-a-delivery-failure); check the [inbox channel](../channels/inbox.md) and preferences |
 | Send succeeded, message invisible in a multi-tenant app | The send carried a `tenant_id` but `signIn` didn't (or vice versa). Tenant-scoped messages only show when the signed-in `tenantId` matches. See [tenants.md](../guides/tenants.md#auto-infer-and-two-silent-gotchas) |
 
@@ -124,10 +131,10 @@ If the app sets a CSP, the inbox needs these directives. A missing one fails qui
 
 | Region | Hosts |
 |---|---|
-| US (default) | `https://api.courier.com` `https://inbox.courier.com` `wss://realtime.courier.io` |
+| US (default) | `https://api.courier.com` `https://inbox.courier.com` `wss://realtime.courier.io` `wss://realtime.courier.com` |
 | EU | `https://api.eu.courier.com` `https://inbox.eu.courier.io` `wss://realtime.eu.courier.io` |
 
-**The WebSocket host is `realtime.courier.io`, with `.io`.** Everything else on US is `.com`. The mixed suffixes are correct, do not "fix" them for consistency. v7 used `wss://realtime.courier.com`, so a migration that keeps the old CSP line has a silently dead realtime connection and an inbox that only updates on reload.
+**The v8 SDK opens its WebSocket on `realtime.courier.io`, with `.io`.** Everything else on US is `.com`. The docs also list `wss://realtime.courier.com`, which v7 used, so allow both. A migration that keeps only the v7 host has a dead realtime connection, and the inbox only updates on reload.
 
 ### style-src
 
@@ -138,7 +145,7 @@ Needs `'unsafe-inline'`. The components inject `<style>` elements at runtime, bo
 Nothing extra for a bundled npm install. There is no `eval`, no `Worker`, and no injected `<script>`. Two exceptions:
 
 - **`'unsafe-eval'` is required only if you use the HTML string attributes** `message-click`, `message-action-click`, or `message-long-press` on `<courier-inbox>` or `<courier-inbox-popup-menu>`. Those are compiled with `new Function()`, and under a normal CSP the throw is caught and logged, so the handler simply never fires. Prefer the element methods (`inbox.onMessageClick(fn)`) or the dispatched `CustomEvent`s of the same names, which need no `'unsafe-eval'`. Vue's `@message-click` already uses the event path.
-- **Loading the components from a CDN** instead of bundling needs that CDN host, e.g. `script-src https://unpkg.com`. See [web-components.md](./web-components.md).
+- **Loading the components from a CDN** instead of bundling needs that CDN host, e.g. `script-src https://unpkg.com`, plus an import map for the packages' bare imports. See [web-components.md](./web-components.md#installation).
 
 ### img-src
 
@@ -168,7 +175,7 @@ Getting the region wrong looks like an empty inbox. Update the CSP to the EU hos
 |---|---|
 | Generating and refreshing JWTs | [auth.md](./auth.md) |
 | React: setup, popup, feeds, tabs, theming, custom components, toasts, hooks, SSR | [react.md](./react.md) |
-| Vue / Angular / Svelte / vanilla JS | [web-components.md](./web-components.md) |
+| Vue / Angular (wrappers over the web components), Svelte, vanilla JS | [web-components.md](./web-components.md) |
 | React Native | [react-native.md](./react-native.md) |
 | Recognizing and migrating v7 | [legacy-v7.md](./legacy-v7.md) |
 | Sending *to* the inbox | [inbox.md](../channels/inbox.md) |

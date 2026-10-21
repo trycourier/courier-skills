@@ -4,16 +4,16 @@
 
 ### Rules
 - Template IDs use the `nt_` prefix (e.g., `nt_01kmrbq6ypf25tsge12qek41r0`)
-- Human-friendly aliases are optional in app code, but this skill set uses Courier-generated `nt_...` IDs as the canonical pattern for agent consistency
+- Send by the `nt_...` ID or by a template alias passed as `template`. Set an alias with `notification.alias` on create or replace, or in Design Studio. See [Templates as Code](./templates-as-code.md#template-aliases)
 - Treat template IDs as opaque, workspace-specific values (they vary by environment and should not encode business meaning)
 - Templates are created in **DRAFT** state by default. They must be published before sends will use them
 - **`POST /notifications` needs more than `name` and `content`.** `tags` (an array), `brand`, `subscription` and `routing` must all be **present** in the body; the last three accept `null`. Omit any one and the call fails with a `400` naming the missing key.
 - **`state: "PUBLISHED"` on create is supported** and returns the `name`, `tags` and `state` you sent. Creating as DRAFT and calling `publish(id)` is still the clearer flow when you want a review step between writing and publishing.
-- `PUT /notifications/{id}` is a **full replacement**, every field is required, even if unchanged; omitted fields reset to empty/null
+- `PUT /notifications/{id}` is a **full replacement**, every field is required, even if unchanged; omitted fields reset to empty/null, except `alias`: omit it and the template keeps its aliases
 - Elemental version string is always `"2022-01-01"`
 - ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
-- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected** on create: `400 Template content must place its elements inside a channel block`. Only create checks this. `replace` and `putContent` still store flat elements, which Design Studio can't open, so wrap them on every write. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type has no `group` node; suppress that with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
+- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected** on create: `400 Template content must place its elements inside a channel block`. Only create checks this. `replace` and `putContent` still store flat elements, which Design Studio can't open, so wrap them on every write. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type has no `group`, `columns`, `list`, `jsonnet` or `comment` node; suppress that with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
 - **Elemental blocks by default, raw HTML by exception.** Blocks stay editable in Design Studio's drag-and-drop editor; a `raw` HTML or MJML email only shows there and must be edited as HTML. See [elemental.md](./elemental.md#channel).
 - A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
   1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
@@ -116,9 +116,9 @@ Inline sends support both ElementalContentSugar (`title`/`body`) and the full El
 
 ---
 
-## Template Aliases (moved)
+## Template Aliases
 
-Human-friendly alias maps for template IDs — why, TypeScript/Python examples, and agent guidance — live in [Templates as Code](./templates-as-code.md#template-aliases-in-application-code). For agent-generated code, keep `nt_...` IDs as the default and resolve aliases to `nt_...` before calling Courier.
+A template alias is a name you choose that stands in for the `nt_...` ID on a send. Set it with `notification.alias` on create or replace, or in Design Studio, then pass it as `template`. Rules, the `409` on a taken alias, and examples are in [Templates as Code](./templates-as-code.md#template-aliases).
 
 ---
 

@@ -15,7 +15,7 @@ local files → validate → diff → push → publish → verify → (rollback 
 - Local files are the source of truth; validate, diff against the draft, then push.
 - Sends always use the published version, so drafts are free to iterate. Publishing is the release.
 - Rollback is `publish { "version": "v001" }`. History is append-only, so the rollback itself lands as a new version.
-- Resolve aliases to `nt_...` before calling Courier.
+- Sends take the `nt_...` ID or a template alias. Content, publish, versions and locales calls take the `nt_...` ID.
 - Keep element `id`s and `locales` in the repo files. A push replaces the draft's whole content, translations included.
 
 ### Common Mistakes
@@ -146,66 +146,67 @@ it with `publish {"version": "v001"}` — history is append-only, so the rollbac
 in the audit trail. Calls and details:
 [List Versions and Roll Back](./templates.md#list-versions-and-roll-back).
 
-## Template aliases in application code
+## Template aliases
 
-Courier APIs send by template ID (`nt_...`). For agent-generated code, keep `nt_...` as the
-default. Aliases are an application-layer convenience that map a stable human name to a real
-template ID — the in-code counterpart of the `templates.map.json` above.
+An alias is a name you choose that stands in for a template's `nt_...` ID on a send. It reads
+better in app code, and you can point the name at a different template without touching call sites.
 
-Why aliases can help:
-
-- Easier to read in app code (`"order-shipped"` vs long ID)
-- Safer refactors (swap the mapped ID without touching call sites)
-- Useful per-environment mapping (dev/staging/prod can point to different IDs)
+- **Set one** with `notification.alias` on `POST /notifications` or `PUT /notifications/{id}`, or in
+  Design Studio under the template's settings, **Alias**.
+- **Send by alias** by passing it as `template`.
+- **An alias belongs to one template.** Claiming one that another template holds returns `409`, and
+  nothing changes. An alias can't start with `tenant/` (`400`).
+- **`PUT` without `alias` keeps the template's aliases.** A string replaces them. `null` removes them all.
+- **Reads** return `alias` as a string, as an array for a template with several, or leave it out when
+  there is none.
+- **Management calls take the `nt_...` ID** (content, publish, versions, locales). Keep
+  `templates.map.json` for pushes and promotion. The metrics endpoint also accepts an alias.
 
 **TypeScript:**
 
 ```typescript
-const TEMPLATE_IDS = {
-  "order-shipped": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-  "password-reset": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
-} as const;
-
-type TemplateAlias = keyof typeof TEMPLATE_IDS;
-
-function resolveTemplate(alias: TemplateAlias): string {
-  return TEMPLATE_IDS[alias];
-}
+await client.notifications.create({
+  notification: {
+    name: "Order shipped",
+    tags: [],
+    brand: null,
+    subscription: null,
+    routing: null,
+    content: {
+      version: "2022-01-01",
+      elements: [
+        {
+          type: "channel",
+          channel: "email",
+          elements: [
+            { type: "meta", title: "Your order shipped" },
+            { type: "text", content: "Order {{order_id}} is on its way." },
+          ],
+        },
+      ],
+    },
+    alias: "order-shipped",
+  },
+});
 
 await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: resolveTemplate("order-shipped"),
-    data: { order_id: "ORD-9042" },
-  },
+  message: { to: { user_id: "user-123" }, template: "order-shipped", data: { order_id: "ORD-9042" } },
 });
 ```
 
 **Python:**
 
 ```python
-TEMPLATE_IDS = {
-    "order-shipped": "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    "password-reset": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
-}
-
-def resolve_template(alias: str) -> str:
-    return TEMPLATE_IDS[alias]
-
 client.send.message(
-    message={
-        "to": {"user_id": "user-123"},
-        "template": resolve_template("order-shipped"),
-        "data": {"order_id": "ORD-9042"},
-    }
+    message={"to": {"user_id": "user-123"}, "template": "order-shipped", "data": {"order_id": "ORD-9042"}}
 )
 ```
 
 Agent guidance:
 
-- Prefer direct `nt_...` IDs in generated examples unless the user explicitly asks for aliases.
-- If aliases are used, always resolve them to `nt_...` before calling Courier.
-- Do not assume a global alias registry exists unless the user provides one.
+- Use an alias when the user wants a readable name, or one they can repoint to another template.
+- On `409`, pick another name, or clear the alias from the template that holds it first.
+- Don't build an app-side alias map for sends. Courier resolves the alias.
 
 ## Promotion between workspaces
 

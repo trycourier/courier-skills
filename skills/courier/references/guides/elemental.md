@@ -10,7 +10,7 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 - Every Elemental payload has exactly two required top-level fields: `version` and `elements`.
 - `version` is always `"2022-01-01"` (the only supported version).
 - The shorthand `{ title, body }` (ElementalContentSugar) only works for **inline sends**. Never for template creation via the API.
-- **Wrap stored template content in `channel` elements**, one per channel. Flat top-level elements send, but the template does not display or edit properly in Design Studio.
+- **Wrap stored template content in `channel` elements**, one per channel. Create rejects flat top-level elements with a `400`. `replace` and `putContent` still store them, but Design Studio can't open the result, so wrap on every write. Inline sends accept flat elements.
 - When `channel` elements appear at the top level, **every** top-level sibling must also be a `channel` element.
 - Control flow (`if`, `loop`, `ref`, `channels`) works on any element type.
 
@@ -145,7 +145,7 @@ Clickable button or link.
 | `content` | `string` | Yes | Button/link label |
 | `href` | `string` | Yes | Target URL |
 | `action_id` | `string` | No | Unique ID for tracking clicks |
-| `style` | `"button"` \| `"secondary"` \| `"tertiary"` \| `"link"` | No | `button` (default) is filled, `secondary` outlined, `tertiary` the quietest, `link` inline text. Each channel draws them as closely as it can. The SDK type lists only `button` and `link`, so the other two need `// @ts-expect-error` in TypeScript |
+| `style` | `"button"` \| `"secondary"` \| `"tertiary"` \| `"link"` | No | `button` (default) is filled, `secondary` outlined, `tertiary` the quietest, `link` inline text. Each channel draws them as closely as it can. |
 | `align` | `"center"` \| `"left"` \| `"right"` \| `"full"` | No | Alignment (default: `"center"`) |
 | `background_color` | `string` | No | The fill for `button`; the border and label for `secondary`; the label for `tertiary` |
 
@@ -190,12 +190,13 @@ Channel-specific content branches. When present at the top level, **all** siblin
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `channel` | `string` | Yes | Channel name: `"email"`, `"push"`, `"sms"`, `"inbox"`, `"direct_message"`, or a provider like `"slack"` |
+| `channel` | `string` | Yes | Channel name: `"email"`, `"push"`, `"sms"`, `"inbox"`, `"direct_message"`, a provider like `"slack"`, or `"default"` (for every channel without its own block) |
 | `elements` | `array` | No | Nested elements for this channel |
+| `raw` | `object` | No | Raw provider-specific payload (required if `elements` is omitted) |
 
 **`inbox` is a valid value and Design Studio writes it.** A template built in the designer for the in-app inbox stores `{ "type": "channel", "channel": "inbox", "elements": [...] }`, so wrap inbox content the same way. Channel-wrapped is the expected shape, not malformed.
 
-**SDK typing gap.** The generated SDK types have no `group` node, so `type: "group"` fails in TypeScript with TS2322 even though the API accepts it and Design Studio produces it. Keep the shape and add `// @ts-expect-error accepted by the API, missing from the SDK type` on that line, or cast the node. Python accepts it at runtime. Do not drop `group` to satisfy the compiler. Channel `elements` are typed; if an older SDK rejects them with TS2353, upgrade. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
+**SDK typing gap.** The generated SDK types cover `text`, `meta`, `channel`, `image`, `action`, `divider`, `quote` and `html`. They have no `group`, `columns`, `list`, `jsonnet` or `comment` node, so those fail in TypeScript with TS2322 even though they're documented Elemental elements (and Design Studio produces `group`). Keep the shape and add `// @ts-expect-error accepted by the API, missing from the SDK type` on that line, or cast the node. Python accepts them at runtime. Don't drop an element to satisfy the compiler. Channel `elements` are typed; if an older SDK rejects them with TS2353, upgrade. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
 
 #### The channel element vs the three other places a channel is named
 
@@ -208,8 +209,7 @@ Four different fields can name a channel, and they are not alternatives to each 
 | `channel` on a journey `send` node | Nothing at delivery time. An **analytics label only** | [journeys.md](./journeys.md#send-node-options) |
 | `routing` / a routing strategy on the message | Which channels are **eligible**, and in what order | [routing-strategies.md](./routing-strategies.md) |
 
-They don't override one another because they answer different questions. Routing picks the delivery channel, then rendering picks the matching content branch. A `channel` element for a channel that routing never selects simply never renders, and a delivery channel with no matching `channel` element falls back to the template's unwrapped content.
-| `raw` | `object` | No | Raw provider-specific payload (required if `elements` is omitted) |
+They don't override one another because they answer different questions. Routing picks the delivery channel, then rendering picks the matching content branch. A `channel` element for a channel that routing never selects never renders. To cover delivery channels with no block of their own, add a `"channel": "default"` block.
 
 **Elemental blocks or raw HTML.** For email, a channel element carries either `elements` (Elemental blocks) or `raw` (your own HTML or MJML). Both render and both show in Design Studio, but only Elemental blocks are editable there with the drag-and-drop editor. Raw HTML has to be edited as HTML. Default to Elemental blocks unless the design needs markup the block set cannot express, and treat `raw` as a deliberate choice to give up in-app editing.
 
@@ -277,7 +277,7 @@ Blockquote for highlighted text or testimonials.
 | `content` | `string` | Yes | Quote text |
 | `align` | `"center"` \| `"left"` \| `"right"` \| `"full"` | No | Alignment |
 | `border_color` | `string` | No | CSS border color |
-| `text_style` | `"text"` \| `"h1"` \| `"h2"` \| `"subtext"` | Yes | Text styling |
+| `text_style` | `"text"` \| `"h1"` \| `"h2"` \| `"subtext"` | No | Text styling. Defaults to `"text"` |
 
 ### group
 
@@ -383,13 +383,20 @@ Ordered and unordered lists with nesting support (up to 5 levels deep).
 ```json
 {
   "type": "list",
+  "list_type": "unordered",
   "elements": [
-    { "type": "list-item", "content": "Email notifications configured" },
-    { "type": "list-item", "content": "SMS provider connected" },
-    { "type": "list-item", "content": "Push tokens registered" }
+    { "type": "list-item", "elements": [{ "type": "string", "content": "Email notifications configured" }] },
+    { "type": "list-item", "elements": [{ "type": "string", "content": "SMS provider connected" }] },
+    { "type": "list-item", "elements": [{ "type": "string", "content": "Push tokens registered" }] }
   ]
 }
 ```
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `list_type` | `"ordered"` \| `"unordered"` | Yes | Numbered or bulleted |
+| `elements` (on `list`) | `array` | Yes | `list-item` elements only |
+| `elements` (on `list-item`) | `array` | Yes | The item's content: `string`, `link`, `img`, or a nested `list` |
 
 ### html
 
@@ -408,22 +415,25 @@ Raw HTML for formatting the other elements can't express. Renders in email only.
 
 ### jsonnet
 
-Programmatic content generation using Jsonnet templates. Useful for complex Slack Block Kit or Teams Adaptive Card payloads.
+Programmatic content generation with Jsonnet, a data templating language that produces JSON.
 
 ```json
-{
-  "type": "jsonnet",
-  "content": "local data = std.extVar('data');\n{ blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*Order ' + data.order_id + '*' } }] }"
-}
+{ "type": "jsonnet", "template": "local formatPrice(amount) = '$' + std.toString(amount); { price: formatPrice(99.99) }" }
 ```
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `template` | `string` | Yes | Jsonnet source, evaluated to JSON at render time |
 
 ### comment
 
-Non-rendered documentation within templates. Comments are stripped from the final output.
+Non-rendered documentation within templates.
 
 ```json
-{ "type": "comment", "content": "Stripped at render time — use for template author notes, like 'add product image after launch'" }
+{ "type": "comment", "comment": "Author note: add product image after launch" }
 ```
+
+An optional `object` field holds structured notes. Neither field renders.
 
 ---
 
@@ -433,7 +443,7 @@ Control flow properties work on any element type, including `group` containers.
 
 ### Conditional Rendering (`if`)
 
-The `if` expression is evaluated as **Jsonnet** against the send `data` object (not JavaScript). Use Jsonnet equality (`==`, `!=`), logical operators (`&&`, `||`, `!`), and string literals in single quotes. The other common pitfall is triple-equals (`===`). That's JavaScript-only and will fail to parse.
+The `if` expression is evaluated at render time against the message, with send data under `data.*`. The docs call it a Handlebars expression, and their examples use JavaScript operators (`===`, `!==`, `&&`, `||`, `!`).
 
 ```json
 {

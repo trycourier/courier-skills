@@ -204,7 +204,7 @@ courier bulk list-users --job-id "1-6a7e474b-..."     # per-recipient status and
 courier tenants update \
   --tenant-id "acme-corp" \
   --name "Acme Corp" \
-  --properties '{"brandId": "brand-acme"}'
+  --brand-id "brand-acme"
 
 courier users:tenants add-single --user-id "user-123" --tenant-id "acme-corp"
 
@@ -213,15 +213,22 @@ courier send message \
   --message.template "welcome-email"
 ```
 
-> `courier tenants update` is an **upsert**. Use it to both create and update a tenant. There is no separate `courier tenants create` command.
+> `courier tenants update` creates or replaces the tenant (`PUT /tenants/{tenant_id}`). There is no separate `courier tenants create` command.
 
-**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI supports the full journey lifecycle. **Journey-scoped templates** (the templates referenced inside `send` nodes) are not yet in the CLI. Use curl/REST for those. See [Journeys](./journeys.md) for the full workflow.
+**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI covers the full lifecycle: `courier journeys` (create, replace, publish, invoke, cancel), `courier journeys:templates` for journey-scoped templates, and `courier journeys:runs` (list, retrieve, list-steps) for debugging. See [Journeys](./journeys.md) for the full workflow.
 
 ```bash
-# Create a journey shell (node ids are server-generated — don't supply your own)
+# Create a journey shell: a trigger first, an exit last (node ids are server-generated, don't supply your own)
 courier journeys create \
   --name "Onboarding" \
-  --node '{"type":"trigger","trigger_type":"api-invoke"}'
+  --node '{"type":"trigger","trigger_type":"api-invoke"}' \
+  --node '{"type":"exit"}'
+
+# Journey-scoped template (--template-id is the journey id)
+courier journeys:templates create \
+  --template-id "$JOURNEY_ID" \
+  --channel email \
+  --notification '{"name":"Welcome","tags":[],"brand":null,"subscription":null,"content":{"version":"2022-01-01","elements":[{"type":"channel","channel":"email","elements":[{"type":"meta","title":"Welcome"},{"type":"text","content":"Hi {{data.first_name}}"}]}]}}'
 
 # Publish the current draft
 courier journeys publish --template-id "$JOURNEY_ID"
@@ -318,7 +325,7 @@ courier notifications get-metrics \
 | Flag | Notes |
 |---|---|
 | `--id` | Required. Template ID or alias |
-| `--lookback` | ISO 8601 duration, default `P30D`. Ignored when `--start`/`--end` are given |
+| `--lookback` | ISO 8601 duration, default `P30D`. Don't combine with `--start`/`--end`: the API returns `400` |
 | `--granularity` | `HOUR`, `DAY` (default), `WEEK`, `MONTH` |
 | `--start` / `--end` | ISO 8601 timestamps with an offset. Supply both or neither |
 

@@ -24,7 +24,7 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 - Assuming `errors` and `undeliverable` are the same failure. They aren't; see the field table below.
 - Requesting `HOUR` granularity over a month and expecting a truncated result instead of a `400`.
 - Retrying a `429` immediately. Honor `Retry-After`.
-- Reading a low `delivered` count as failed mail. `delivered` needs the provider to report back, through polling or a webhook set up on the provider's integration page. With tracking off, messages stay at `sent`. Check tracking before assuming an outage. See [Analytics: set up delivery tracking](https://www.courier.com/docs/monitor/analytics#why-delivery-rates-read-low).
+- Reading a low `delivered` count as failed mail. `delivered` needs the provider to report back, through polling or a webhook set up on the provider's integration page. With tracking off, messages stay at `sent`. Check tracking before assuming an outage. See [Analytics: set up delivery tracking](https://www.courier.com/docs/monitor/analytics#set-up-delivery-tracking).
 
 ### SDK shape
 
@@ -141,7 +141,7 @@ Every row carries `provider` and `channel`, so comparing channels for one templa
 |---|---|---|
 | Developer (free) | 30 days | 1 |
 | Business | 90 days | 2 |
-| Enterprise | 730 days | 5 |
+| Enterprise | No limit | 5 |
 
 Rate limits are per workspace, and every response carries `RateLimit-*` headers, so a backfill can pace itself instead of guessing.
 

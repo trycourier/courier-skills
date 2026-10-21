@@ -25,11 +25,10 @@ npm install @trycourier/courier-react-native
 ```tsx
 import { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { Courier, CourierInboxView } from "@trycourier/courier-react-native";
+import Courier, { CourierInboxView } from "@trycourier/courier-react-native";
 
 // Fetches a short-lived Courier JWT from your backend. The React Native
-// signIn API uses the parameter name `accessToken` (it's the same JWT as
-// the web `jwt` field — just named differently in the RN SDK).
+// signIn API calls it `accessToken`. It's the same JWT the web SDKs call `jwt`.
 function useCourierToken(userId: string): string | null {
   const [token, setToken] = useState<string | null>(null);
 
@@ -56,7 +55,7 @@ function App() {
 
   return (
     <CourierInboxView
-      onClickMessageAtIndex={(message, _index) => {
+      onClickInboxMessageAtIndex={(message, _index) => {
         if (message.data?.screen) navigation.navigate(message.data.screen);
       }}
     />
