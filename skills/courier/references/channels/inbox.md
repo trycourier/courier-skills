@@ -2,7 +2,7 @@
 
 Sending to Courier's in-app inbox. The inbox is a delivery channel like email or SMS. You address it the same way, and Courier stores the message for the user to read in your app.
 
-**Rendering the inbox in your app is a separate concern**, JWT auth, the React / Web Component / React Native / iOS / Android / Flutter SDKs, read state, and real-time updates all live in [inbox/rendering.md](../inbox/rendering.md).
+**Rendering the inbox in your app is a separate concern**, JWT auth, the React / Vue / Angular / Web Component / React Native / iOS / Android / Flutter SDKs, read state, and real-time updates all live in [inbox/rendering.md](../inbox/rendering.md).
 
 ## Quick Reference
 
@@ -128,7 +128,7 @@ await client.send.message({
 
 ## Read State
 
-Read and unread state is managed client-side by the Inbox SDK. From the server you archive, which removes the message from the user's inbox.
+Read and unread state is set from the client through the Inbox SDK, and Courier stores and syncs it. From the server you archive, which removes the message from the user's inbox.
 
 Archive an inbox message from the server with `client.requests.archive(requestId)`:
 
@@ -136,7 +136,7 @@ Archive an inbox message from the server with `client.requests.archive(requestId
 await client.requests.archive(messageId);
 ```
 
-Read state is managed client-side through the Inbox SDK. Archive from the backend to remove a message from the inbox when the user engages via another channel.
+Read and unread state is set from the client through the Inbox SDK, and Courier stores and syncs it. Archive from the backend to remove a message from the inbox when the user engages via another channel.
 
 ### Batching and Digests
 

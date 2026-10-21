@@ -8,6 +8,7 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 - Routing strategy IDs use the `rs_` prefix (e.g., `rs_01abc123`) and are opaque, workspace-scoped values
 - `name` and `routing` are the only required fields on create; both `channels` and `providers` are top-level optional fields that default to empty when omitted
 - **Channel-level vs provider-level config:** `channels.{channel}.providers` is the **ordered failover list** for a channel (position = priority). The **top-level** `providers` map carries **per-provider** settings (`override`, `if`, `timeouts`, `metadata`) keyed by provider name. You typically use both: `channels.email.providers: ["sendgrid","aws-ses"]` for order, and `providers.sendgrid.override: {...}` for SendGrid-specific config
+- Channel and provider timeouts are Enterprise only. On other plans a send that sets them returns 402. See [routing timeouts](https://www.courier.com/docs/send/routing#timeouts)
 - `routing.method` is `"single"` (try channels in order until one succeeds) or `"all"` (send to all channels in parallel)
 - `channels.{channel}.providers` is an **ordered** array, position = failover priority (same as dragging providers in the dashboard)
 - `PUT /routing-strategies/{id}` is a **full replacement**, any field you omit is reset to its default
@@ -92,7 +93,7 @@ const strategy = await client.routingStrategies.create({
   channels: {
     email: {
       providers: ["sendgrid", "aws-ses"], // failover order
-      timeouts: { provider: 5000, channel: 30000 },
+      timeouts: { provider: 5000, channel: 30000 }, // Enterprise only
       override: {
         // channel-level override applied to every provider
       },
@@ -102,9 +103,9 @@ const strategy = await client.routingStrategies.create({
   providers: {
     sendgrid: {
       override: {
-        ip_pool_name: "transactional"
+        body: { ip_pool_name: "transactional" }
       },
-      timeouts: 4000,
+      timeouts: 4000, // Enterprise only
       if: "profile.email_verified === true"
     }
   }
@@ -121,15 +122,15 @@ strategy = client.routing_strategies.create(
     channels={
         "email": {
             "providers": ["sendgrid", "aws-ses"],
-            "timeouts": {"provider": 5000, "channel": 30000},
+            "timeouts": {"provider": 5000, "channel": 30000},  # Enterprise only
             "override": {},
             "if": "data.locale !== 'ja-JP'",
         }
     },
     providers={
         "sendgrid": {
-            "override": {"ip_pool_name": "transactional"},
-            "timeouts": 4000,
+            "override": {"body": {"ip_pool_name": "transactional"}},
+            "timeouts": 4000,  # Enterprise only
             "if": "profile.email_verified === true",
         }
     },
@@ -148,12 +149,11 @@ curl -X POST "https://api.courier.com/routing-strategies" \
     "routing": { "method": "single", "channels": ["email"] },
     "channels": {
       "email": {
-        "providers": ["sendgrid", "aws-ses"],
-        "timeouts": { "provider": 5000, "channel": 30000 }
+        "providers": ["sendgrid", "aws-ses"]
       }
     },
     "providers": {
-      "sendgrid": { "override": { "ip_pool_name": "transactional" } }
+      "sendgrid": { "override": { "body": { "ip_pool_name": "transactional" } } }
     }
   }'
 ```

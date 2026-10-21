@@ -7,7 +7,7 @@
 - Include a sender ID at the start: "Acme: Your message..."
 - Phone numbers need E.164 format: +15551234567
 - US A2P messaging needs 10DLC registration (allow 2-4 weeks)
-- Carriers handle STOP themselves and suppress the number at the carrier level, so your app sees the traffic stop rather than an error
+- Your SMS provider handles STOP, not Courier. Twilio blocks later sends to that number with error 21610, so the message ends UNDELIVERABLE. Mirror opt-outs into preferences (see [Opt-Out Handling](#opt-out-handling))
 - SMS requires a configured provider. Add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not)
 
 ### Common Mistakes
@@ -290,24 +290,31 @@ await client.profiles.create("user-123", {
 | HELP, INFO | Help message | "Acme SMS. Msg freq varies. Msg&data rates apply. Reply STOP to cancel." |
 | START, YES, UNSTOP | Resubscribe | "You've been resubscribed. Reply STOP to unsubscribe." |
 
-Most SMS providers handle these automatically. Courier processes opt-outs and updates user preferences.
+Your SMS provider answers these keywords. Courier isn't told about the opt-out. Take the provider's inbound webhook and write the user's preference, which Courier applies on every send.
 
 ### Handle in Your App
 
+With Twilio's Advanced Opt-Out, the Messaging Service's inbound webhook carries `OptOutType` (`STOP`, `START`, or `HELP`):
+
 ```typescript
-// Webhook from Courier for opt-out events
-app.post('/webhooks/sms-optout', async (req, res) => {
-  const { phone_number, action } = req.body;
-  
-  if (action === 'unsubscribe') {
-    await updateUserPreference(phone_number, 'sms', false);
-  } else if (action === 'resubscribe') {
-    await updateUserPreference(phone_number, 'sms', true);
+// Twilio inbound webhook (form-encoded) -> Courier preference
+app.post('/webhooks/twilio-inbound', async (req, res) => {
+  const { From, OptOutType } = req.body;
+  const userId = await findUserIdByPhone(From); // your own lookup
+
+  if (userId && (OptOutType === 'STOP' || OptOutType === 'START')) {
+    // An SMS-only topic, so opting out stops SMS and nothing else
+    await client.users.preferences.updateOrCreateTopic(SMS_TOPIC_ID, {
+      user_id: userId,
+      topic: { status: OptOutType === 'STOP' ? 'OPTED_OUT' : 'OPTED_IN' },
+    });
   }
-  
-  res.sendStatus(200);
+
+  res.type('text/xml').send('<Response></Response>'); // Twilio already sent the reply
 });
 ```
+
+`OPTED_OUT` blocks every channel on that topic, so keep SMS sends on their own topic. Dropping only SMS from a shared topic takes `has_custom_routing` and `custom_routing`, and where custom routing over the API isn't available, that write returns `402`. See [Preferences API](https://www.courier.com/docs/recipients/preferences/api).
 
 ## Number Types
 
@@ -352,7 +359,8 @@ Avoid these patterns:
 app.post('/webhooks/courier', async (req, res) => {
   const { type, data } = req.body;
 
-  if (type === 'message:updated' && data.channel === 'sms') {
+  const isSms = (data.providers ?? []).some((p) => p.channel?.key?.startsWith('sms'));
+  if (type === 'message:updated' && isSms) {
     if (data.status === 'DELIVERED') {
       await recordDelivery(data.id, 'delivered');
     } else if (data.status === 'UNDELIVERABLE') {

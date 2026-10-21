@@ -28,7 +28,7 @@ Prefer the dashboard for:
 - Providers that use OAuth-based setup (Slack, Gmail, MS Teams, Discord), these generally still require dashboard-initiated auth
 
 ### Common Mistakes
-- Guessing `settings` keys instead of reading them from `/providers/catalog`, hallucinated keys are silently ignored and the provider will fail at send time
+- Guessing `settings` keys instead of reading them from `/providers/catalog`. A missing or misspelled required key returns 400 on create, and a misspelled optional key doesn't set the option you meant
 - Using `provider` values from documentation prose that don't match the catalog (e.g. `"aws_ses"` vs the real `"aws-ses"`, or `"fcm"` vs `"firebase-fcm"`)
 - Using `PUT` to change one setting. It's a full replacement, so any omitted `settings` are wiped, including `rate_limit`. Use `PATCH` instead
 - Committing an `api_key` directly in a `providers.create` call instead of reading `process.env.SENDGRID_API_KEY`
@@ -45,11 +45,6 @@ Prefer the dashboard for:
 | Replace (full PUT) | `client.providers.update(id, { provider, settings, ... })` | `client.providers.update(id, provider=..., settings=..., ...)` |
 | Delete | `client.providers.delete(id)` | `client.providers.delete(id)` |
 | Catalog list | `client.providers.catalog.list({ keys?, name?, channel? })` | `client.providers.catalog.list(keys=..., name=..., channel=...)` |
-
-> Providers endpoints are **not yet listed in `https://www.courier.com/docs/llms.txt`**. Fetch these URLs directly when you need the full OpenAPI spec:
-> - `https://www.courier.com/docs/api-reference/providers/create-a-provider`
-> - `https://www.courier.com/docs/api-reference/providers/list-available-provider-types`
-> - `https://www.courier.com/docs/api-reference/providers/list-providers`
 
 ---
 
@@ -184,7 +179,7 @@ await client.routingStrategies.create({
 
 ---
 
-## List, Retrieve, Update, Replace, Archive
+## List, Retrieve, Update, Replace, Delete
 
 ### List
 
@@ -293,7 +288,7 @@ client.providers.update(
 )
 ```
 
-### Archive
+### Delete
 
 **TypeScript:**
 ```typescript
@@ -311,7 +306,7 @@ curl -X DELETE "https://api.courier.com/providers/provider_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-Unlink the provider from any routing strategies (remove its key from each `channels.{channel}.providers` array) before archiving to avoid silent send failures.
+Delete returns 409 while any routing strategy or template still references the provider. Remove its key from each strategy's `channels.{channel}.providers` array and update those templates first.
 
 ---
 
@@ -389,12 +384,14 @@ await client.send.message({
     to: { user_id: "user-123" },
     template: "nt_...",
     providers: {
-      sendgrid: { override: { ip_pool_name: "marketing" } },
-      twilio: { override: { messaging_service_sid: "MG..." } }
+      sendgrid: { override: { body: { ip_pool_name: "marketing" } } },
+      twilio: { override: { body: { MessagingServiceSid: "MG..." } } }
     }
   }
 });
 ```
+
+`body` merges into the provider's own request, so use that API's field names.
 
 See [multi-channel.md](./multi-channel.md#provider-failover) for failover semantics and [routing-strategies.md](./routing-strategies.md) for workspace-level provider priority.
 
