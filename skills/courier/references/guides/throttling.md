@@ -4,7 +4,7 @@
 
 ### Rules
 - **Courier's native rate limiter is the journey `throttle` node**: `scope: "user"`, `"global"`, or `"dynamic"` with a `throttle_key`, plus `max_allowed` and an ISO 8601 `period`
-- **Courier does not throttle plain `send.message` calls server-side.** A frequency cap on direct sends is either a journey in front of the send or logic in your application
+- **Courier applies no per-recipient frequency cap to plain `send.message` calls.** A frequency cap on direct sends is either a journey in front of the send or logic in your application. The one server-side pacing for direct sends is a provider config's [send rate limit](./providers.md#send-rate-limits), which queues sends through that provider, not per recipient
 - **For user-facing cadence control, prefer [digest schedules](./digests.md)** over your own throttle: the recipient picks the frequency and Courier does the collecting
 - **The SDK already handles provider `429`s** on your call to Courier (see [reliability.md](./reliability.md#retry-logic)); provider-side rate limits are Courier's job during delivery
 
@@ -79,6 +79,8 @@ Respect provider-specific limits:
 | **APNs** | ~100k/day typical | Soft limit |
 | **FCM** | 500 msg/sec | Per project |
 | **Slack** | 1 msg/sec per channel | 30-50 burst |
+
+To cap how fast Courier sends through one provider config, set a [send rate limit](./providers.md#send-rate-limits) (`settings.rate_limit`) on it with `PATCH /providers/{id}`. The limit covers the whole config, per environment. Sends above the rate are queued, not dropped.
 
 ### Handling Rate Limit Responses
 

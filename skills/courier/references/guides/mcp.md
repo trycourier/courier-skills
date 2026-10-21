@@ -257,6 +257,7 @@ there, use the SDK, CLI, or REST. Areas that have lagged the API:
 | A topic's digest configuration (the `digest` object on topic create or replace) | `client.workspacePreferences.topics.create`/`replace`, see [digests.md](./digests.md#configure-a-topics-digest) |
 | A user's digest schedule (`digest_schedule_id`) | `client.users.preferences.updateOrCreateTopic`, see [digests.md](./digests.md#per-recipient-schedule) |
 | Releasing one recipient's digest | `client.workspacePreferences.topics.releaseDigest` or `courier workspace-preferences:topics release-digest` |
+| Changing part of a provider config (`PATCH /providers/{id}`). `update_provider` is a full replacement, so don't use it to change one setting | `client.providers.patch` or `courier providers patch`, see [providers.md](./providers.md#update-part-of-a-config-patch) |
 
 An absent tool is a possible gap, not proof the endpoint doesn't exist. Check the [API reference](https://www.courier.com/docs/api-reference/).
 
