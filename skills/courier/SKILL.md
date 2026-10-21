@@ -104,7 +104,8 @@ Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `
 |---|---|
 | Archive a sent message | `client.requests.archive(requestId)` |
 | Delete a provider | `client.providers.delete(id)` |
-| Update a provider | `client.providers.update(id, …)` |
+| Change one provider setting, the title, or the alias | `client.providers.patch(id, { settings: { … } })` |
+| Replace a provider's whole config (full PUT) | `client.providers.update(id, …)` |
 | Subscribe a user to a list | `client.lists.subscriptions.subscribeUser(userId, { list_id })` |
 | Set a user's topic preference | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic })` |
 | Configure a provider | `client.providers.*` · type catalog at `client.providers.catalog.*` |
@@ -127,7 +128,7 @@ Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `
 ### See also (not duplicated here)
 
 - **Quiet hours / scheduled delivery**: [scheduling.md](./references/guides/scheduling.md). Use a native delivery window, not app-side queueing
-- **429 / provider rate limits and retries**: [throttling.md](./references/guides/throttling.md) and [reliability.md](./references/guides/reliability.md)
+- **429 / provider rate limits and retries**: [throttling.md](./references/guides/throttling.md) and [reliability.md](./references/guides/reliability.md). To cap how fast Courier sends through one provider, see [providers.md](./references/guides/providers.md#send-rate-limits)
 - **Test vs. production workspaces and safe deploys**: [quickstart.md](./references/guides/quickstart.md) (API keys per environment) and [reliability.md](./references/guides/reliability.md)
 
 ## Debugging a Delivery Failure
@@ -221,7 +222,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **Translating a template**: add languages, sync with a translation tool (export strings, `putLocale`), how the recipient's locale is picked, Design Studio AI Translation, `.po` strings for `{{t}}` | [localization.md](./references/guides/localization.md) |
 | **See an email on real clients before sending**: Outlook, Gmail, Apple Mail, mobile, dark mode screenshots (Device Preview), an agent review loop | [device-preview.md](./references/guides/device-preview.md) |
 | Routing strategies (`rs_...`, provider priority) | [routing-strategies.md](./references/guides/routing-strategies.md) |
-| Configuring providers via API, catalog discovery | [providers.md](./references/guides/providers.md) |
+| Configuring providers via API, catalog discovery, changing one setting (`PATCH`), capping a provider's send rate | [providers.md](./references/guides/providers.md) |
 | Lists and bulk targeting (subscribe, list/pattern sends) | [patterns.md](./references/guides/patterns.md) |
 | **Reaching many recipients**: list/audience fan-out, the 500 cap | [patterns.md](./references/guides/patterns.md#many-recipients) |
 | **Bulk API**: jobs for a large ad-hoc recipient set, ingest then run | [bulk.md](./references/guides/bulk.md) |

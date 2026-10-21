@@ -8,7 +8,9 @@ Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `
 - The `provider` field on create must be a **catalog key** (e.g. `"sendgrid"`, `"twilio"`, `"apn"`, `"firebase-fcm"`, `"slack"`). Fetch `/providers/catalog` for the canonical list. Do not guess
 - `settings` keys are **snake_case on the wire** (e.g. `api_key`, `from_address`, `ip_pool_name`). Each provider's required `settings` schema comes from `/providers/catalog`
 - `settings` holds **secrets**. Read them from environment variables; never hardcode in committed code
-- `PUT /providers/{id}` is a **full replacement**. Always read the current settings, merge, and write back, or you will drop fields
+- To change part of a config (one setting, the `title`, or the `alias`), use **`PATCH /providers/{id}`** (`client.providers.patch`). Fields you leave out keep their stored values, so there's nothing to read back first. See [Update part of a config](#update-part-of-a-config-patch)
+- `PUT /providers/{id}` (`client.providers.update`) is a **full replacement**. Use it only when you intend to replace the whole config
+- To cap how fast Courier sends through a provider config, set `settings.rate_limit` with `PATCH`. See [Send rate limits](#send-rate-limits)
 - Provider IDs are opaque workspace-scoped values returned on create (distinct from the catalog `provider` key)
 - `title` defaults to `"Default Configuration"` when omitted. For multiple configs of the same provider (e.g. two SendGrid sub-accounts), set a unique `title` and `alias`
 - Routing strategies reference providers by their **catalog key** (e.g. `"sendgrid"`) in `channels.{channel}.providers`. If you need multiple configs for the same provider key (two SendGrid sub-accounts, etc.), set distinct `title`/`alias` values and disambiguate in the dashboard, the docs don't yet spec an API-only way to target a specific configuration from a routing strategy
@@ -28,7 +30,7 @@ Prefer the dashboard for:
 ### Common Mistakes
 - Guessing `settings` keys instead of reading them from `/providers/catalog`, hallucinated keys are silently ignored and the provider will fail at send time
 - Using `provider` values from documentation prose that don't match the catalog (e.g. `"aws_ses"` vs the real `"aws-ses"`, or `"fcm"` vs `"firebase-fcm"`)
-- Using `PUT` with only the fields you want to change. It's a full replacement, so any omitted `settings` are wiped
+- Using `PUT` to change one setting. It's a full replacement, so any omitted `settings` are wiped, including `rate_limit`. Use `PATCH` instead
 - Committing an `api_key` directly in a `providers.create` call instead of reading `process.env.SENDGRID_API_KEY`
 - Creating a provider config via API for a catalog entry that requires OAuth, those need to be initiated from the dashboard
 
@@ -39,7 +41,8 @@ Prefer the dashboard for:
 | Create | `client.providers.create({ provider, settings?, title?, alias? })` | `client.providers.create(provider=..., settings=..., ...)` |
 | List | `client.providers.list({ cursor? })` | `client.providers.list(cursor=...)` |
 | Retrieve | `client.providers.retrieve(id)` | `client.providers.retrieve(id)` |
-| Update (full PUT) | `client.providers.update(id, { provider, settings, ... })` | `client.providers.update(id, provider=..., settings=..., ...)` |
+| Update part (PATCH) | `client.providers.patch(id, { settings?, title?, alias? })` | `client.providers.patch(id=..., settings=..., ...)` |
+| Replace (full PUT) | `client.providers.update(id, { provider, settings, ... })` | `client.providers.update(id, provider=..., settings=..., ...)` |
 | Delete | `client.providers.delete(id)` | `client.providers.delete(id)` |
 | Catalog list | `client.providers.catalog.list({ keys?, name?, channel? })` | `client.providers.catalog.list(keys=..., name=..., channel=...)` |
 
@@ -181,7 +184,7 @@ await client.routingStrategies.create({
 
 ---
 
-## List, Retrieve, Replace, Archive
+## List, Retrieve, Update, Replace, Archive
 
 ### List
 
@@ -216,35 +219,77 @@ const provider = await client.providers.retrieve("provider_01abc123");
 provider = client.providers.retrieve("provider_01abc123")
 ```
 
-### Replace (rotate an API key safely)
+### Update part of a config (PATCH)
 
-Replace is full-document. Read, modify, write back.
+`PATCH /providers/{id}` merges the body into the stored config using JSON Merge Patch (RFC 7396):
+
+- Fields you leave out keep their stored values
+- A setting sent as `null` is removed
+- Nested objects merge, and arrays replace the stored value
+- `alias: null` clears the alias
+- The body must include at least one of `title`, `alias`, or `settings`. An empty body returns a `400`
+- `provider` is optional. If you send it, it must match the stored provider, otherwise the request returns a `400`
+- A missing or archived id returns a `404`
+
+Rotate an API key and leave everything else as it is:
 
 **TypeScript:**
 ```typescript
-const current = await client.providers.retrieve("provider_01abc123");
+await client.providers.patch("provider_01abc123", {
+  settings: { api_key: process.env.SENDGRID_API_KEY_NEW! }
+});
+```
 
+**Python:**
+```python
+client.providers.patch(
+    id="provider_01abc123",
+    settings={"api_key": os.environ["SENDGRID_API_KEY_NEW"]},
+)
+```
+
+**curl:**
+```bash
+curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"settings\": {\"api_key\": \"$SENDGRID_API_KEY_NEW\"}}"
+```
+
+Rename a config and clear its alias:
+
+```typescript
+await client.providers.patch("provider_01abc123", { title: "SendGrid Marketing", alias: null });
+```
+
+### Replace the whole config (PUT)
+
+`PUT /providers/{id}` replaces the config in full. `provider` is required, and every field you omit is cleared, including `alias` and any `settings` key such as `rate_limit`. Use it when you intend to define the complete config, for example from a provisioning script that owns every field. To change one setting, use [PATCH](#update-part-of-a-config-patch).
+
+**TypeScript:**
+```typescript
 await client.providers.update("provider_01abc123", {
-  provider: current.provider,
-  title: current.title,
-  alias: current.alias,
+  provider: "sendgrid",
+  title: "SendGrid Production",
+  alias: "sendgrid-prod",
   settings: {
-    ...current.settings,
-    api_key: process.env.SENDGRID_API_KEY_NEW! // rotated key
+    api_key: process.env.SENDGRID_API_KEY!,
+    from_address: "notifications@acme.co"
   }
 });
 ```
 
 **Python:**
 ```python
-current = client.providers.retrieve("provider_01abc123")
-
 client.providers.update(
     "provider_01abc123",
-    provider=current.provider,
-    title=current.title,
-    alias=current.alias,
-    settings={**current.settings, "api_key": os.environ["SENDGRID_API_KEY_NEW"]},
+    provider="sendgrid",
+    title="SendGrid Production",
+    alias="sendgrid-prod",
+    settings={
+        "api_key": os.environ["SENDGRID_API_KEY"],
+        "from_address": "notifications@acme.co",
+    },
 )
 ```
 
@@ -267,6 +312,70 @@ curl -X DELETE "https://api.courier.com/providers/provider_01abc123" \
 ```
 
 Unlink the provider from any routing strategies (remove its key from each `channels.{channel}.providers` array) before archiving to avoid silent send failures.
+
+---
+
+## Send rate limits
+
+Cap how fast Courier sends through one provider configuration with `settings.rate_limit`:
+
+```json
+{ "rate": 10, "period": "second" }
+```
+
+- `rate` is a number greater than 0. Fractions are allowed, so `{ "rate": 0.5, "period": "minute" }` is one send every 2 minutes
+- `period` is `"second"`, `"minute"`, or `"hour"`
+- The interval between sends (`period` divided by `rate`) must be from 1 ms to 12 hours, otherwise the API returns a `400` `InvalidRateLimit`
+- The limit is per provider configuration and per environment
+- Sends above the rate are queued, not dropped
+- Changes apply within 60 seconds
+- With no limit set, Courier sends as fast as it can
+- The Courier Inbox (`courier`) provider has no rate limit field in the console. Don't suggest setting one there
+
+Set or change it with `PATCH`, so the rest of the config stays as it is:
+
+**TypeScript:**
+```typescript
+await client.providers.patch("provider_01abc123", {
+  settings: { rate_limit: { rate: 10, period: "second" } }
+});
+```
+
+**Python:**
+```python
+client.providers.patch(
+    id="provider_01abc123",
+    settings={"rate_limit": {"rate": 10, "period": "second"}},
+)
+```
+
+**curl:**
+```bash
+curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "settings": { "rate_limit": { "rate": 10, "period": "second" } } }'
+```
+
+Remove it by sending `null`:
+
+**TypeScript:**
+```typescript
+await client.providers.patch("provider_01abc123", { settings: { rate_limit: null } });
+```
+
+**Python:**
+```python
+client.providers.patch(id="provider_01abc123", settings={"rate_limit": None})
+```
+
+**curl:**
+```bash
+curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
+  -H "Authorization: Bearer $COURIER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "settings": { "rate_limit": null } }'
+```
 
 ---
 

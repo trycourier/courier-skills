@@ -46,6 +46,7 @@
 | List preview device sets | `courier previews list-device-sets` |
 | Start a Device Preview run (billed per device) | `courier notifications:previews:runs create --id "nt_01kmrbq6ypf25tsge12qek41r0" --device-set-id "pvs_..." --idempotency-key "$(uuidgen)"` |
 | Read a preview run | `courier notifications:previews:runs retrieve --id "nt_01kmrbq6ypf25tsge12qek41r0" --preview-run-id "pvr_..."` |
+| Change one provider setting (merges, keeps the rest) | `courier providers patch --id "$PROVIDER_ID" --settings '{"rate_limit":{"rate":10,"period":"second"}}'` |
 
 ### Output Formats
 
