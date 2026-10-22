@@ -7,13 +7,13 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 ## Quick Reference
 
 ### Rules
-- **Idempotency keys are sent as an `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `{ headers: { "Idempotency-Key": "..." } }` as the second argument to `client.send.message`. In Python pass `extra_headers={"Idempotency-Key": "..."}`. On the REST API use the `Idempotency-Key` header directly. (The Node SDK's `idempotencyKey` request option may not be wired through in all SDK versions. Always set the header explicitly to be safe. Verify against your installed `@trycourier/courier` version before relying on any other path. Python does not accept `idempotency_key=` at all.) The CLI does not yet have an `--idempotency-key` flag; for idempotent ad-hoc sends, use the SDK or curl. Keys are valid for 24 hours.
+- **Idempotency keys travel as the `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `"Idempotency-Key": "..."` next to `message`. In Python pass `idempotency_key="..."`. In the CLI pass `--idempotency-key`. With curl, set the header. The Node `idempotencyKey` request option is not wired up, so don't use it. Keys last 25 hours by default. `{ headers: { "Idempotency-Key": … } }` as the second argument (Node) or `extra_headers=` (Python) sends the same header and also works. For a longer expiry use `"x-idempotency-expiration"` / `x_idempotency_expiration=` / `--x-idempotency-expiration`.
 - **Delivery windows delay a send to the next allowed hour.** Skip them for time-critical sends (OTP, password reset, security alerts), which are useless once delayed.
-- **Frequency caps live in Courier**, as a journey [`throttle` node](./throttling.md) scoped per user, globally, or by a dynamic key. Don't rebuild them app-side.
+- **Frequency caps live in Courier.** [Send limits](https://www.courier.com/docs/send/statuses#send-limits) cap a user, topic, or tenant across all sends. A journey [`throttle` node](./throttling.md) caps one point in one journey, per user, globally, or by a dynamic key. Don't rebuild them app-side.
 - **Fallback routing (`method: "single"`) tries channels in order until one succeeds.** Use `method: "all"` only for genuinely multi-channel events (order shipped = email + push).
 - **Webhook handlers must respond 2xx within 10 seconds** (Courier's timeout) and do the work async. Always verify the `courier-signature` header. See [webhooks.md](./webhooks.md#verify-webhook-signatures).
 - **The SDK already retries transient errors** (`408`/`409`/`429`/`5xx`, with backoff and jitter). Tune `maxRetries` instead of wrapping calls in your own loop. See [Retries](#retries-the-sdk-already-does-this).
-- **Aggregate repeated actors** ("Alice liked your post" × 15) with a journey [`batch` node](./batching.md), keyed by `category_key`, not an app-side queue.
+- **Aggregate repeated actors** ("Alice liked your post" × 15) with a journey [`batch` node](./batching.md), not an app-side queue. Don't rely on `category_key` to split batches by value.
 - **Cancel scheduled messages** with `client.messages.cancel(messageId)` when the triggering condition becomes stale (e.g., cart abandonment after purchase).
 - **Many recipients:** send once with `to: { list_id }` or `to: { audience_id }` and Courier fans out server-side. A plain `to` array caps at **500**; above that use a list, an audience, or a [Bulk API job](./bulk.md).
 - **Tenant-scoped sends** (B2B multi-tenant) pass `tenant_id` in `message` to pick up per-tenant brand and preference overrides.
@@ -39,7 +39,7 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 
 ## Idempotency Keys
 
-Always use idempotency keys for transactional sends. Courier stores keys for 24 hours. See [Reliability](./reliability.md) for full idempotency guidance and key pattern table.
+Always use idempotency keys for transactional sends. Courier stores keys for 25 hours by default. See [Reliability](./reliability.md) for full idempotency guidance and key pattern table.
 
 **TypeScript:**
 ```typescript
@@ -52,9 +52,8 @@ await client.send.message({
     to: { user_id: "user-123" },
     template: "nt_01kmrbq6ypf25tsge12qek41r0",
     data: { orderId: "12345" }
-  }
-}, {
-  headers: { "Idempotency-Key": `order-confirmation-12345` }
+  },
+  "Idempotency-Key": "order-confirmation-12345"
 });
 ```
 
@@ -70,11 +69,18 @@ client.send.message(
         "template": "nt_01kmrbq6ypf25tsge12qek41r0",
         "data": {"orderId": "12345"},
     },
-    extra_headers={"Idempotency-Key": "order-confirmation-12345"},
+    idempotency_key="order-confirmation-12345",
 )
 ```
 
-**CLI:** The Courier CLI does not yet support idempotency keys directly on `courier send message`. For idempotent ad-hoc sends, use the SDK (above) or call the REST API directly with curl (below).
+**CLI:**
+```bash
+courier send message \
+  --message.to '{"user_id":"user-123"}' \
+  --message.template nt_01kmrbq6ypf25tsge12qek41r0 \
+  --message.data '{"orderId":"12345"}' \
+  --idempotency-key order-confirmation-12345
+```
 
 **curl:**
 ```bash
@@ -162,11 +168,11 @@ app.post("/webhooks/courier", async (req, res) => {
   res.sendStatus(200);
 
   const { type, data } = req.body;
-  const messageId = data?.id;
+  const key = `webhook-${type}-${data?.id}-${data?.status ?? ""}`;
 
-  const alreadyProcessed = await cache.get(`webhook-${messageId}-${type}`);
+  const alreadyProcessed = await cache.get(key);
   if (alreadyProcessed) return;
-  await cache.set(`webhook-${messageId}-${type}`, true, { ttl: 86400 });
+  await cache.set(key, true, { ttl: 86400 });
 
   await queue.add("process-webhook", req.body);
 });
@@ -180,7 +186,7 @@ def courier_webhook():
     event_type = payload.get("type")
     message_id = payload.get("data", {}).get("id")
 
-    cache_key = f"webhook-{message_id}-{event_type}"
+    cache_key = f"webhook-{event_type}-{message_id}-{payload.get('data', {}).get('status', '')}"
     if cache.get(cache_key):
         return "", 200
     cache.set(cache_key, True, ex=86400)
@@ -231,6 +237,8 @@ End a multi-step sequence when the user takes the desired action. With [Journeys
 **Journeys approach (recommended):**
 
 Design the journey with a branch node that checks whether the user has activated before continuing. This makes cancellation part of the flow itself, no external cancel call needed.
+
+These nodes go in the `PUT /journeys/{id}` body once the journey and its templates exist. `POST /journeys` rejects node `id`s (400) and send nodes (422). See [Journeys](./journeys.md#standard-workflow).
 
 ```json
 {
@@ -363,7 +371,7 @@ To upsert many profiles first, call `client.profiles.create` per user with a bou
 
 Tenants let you scope branding, preferences, and data per customer organization.
 
-`client.tenants.update(tenantID, body)` is a create-or-replace (`PUT`). Tenants reference a brand by `brand_id`; the brand itself (logo, colors) is managed via the Brands API, not inlined on the tenant.
+`client.tenants.update(tenantID, body)` is a create-or-replace (`PUT`): fields you leave out (`properties`, `brand_id`, `user_profile`, `default_preferences`) are cleared, and `brand_id: null` returns `400`, so omit it instead. Tenants reference a brand by `brand_id`; the brand itself (logo, colors) is managed via the Brands API, not inlined on the tenant.
 
 **TypeScript:**
 ```typescript

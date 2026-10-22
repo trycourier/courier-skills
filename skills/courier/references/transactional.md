@@ -26,14 +26,14 @@ Notifications triggered by a user action, expected by the recipient, and require
 | Trial ending / renewal notice | [Journey](./guides/journeys.md) with `delay` + `branch` on converted? |
 | Security alert | Single send, fanned across channels by severity, see [Security Alert Channels](#security-alert-channels) |
 | Account / settings change | Single send; mask the changed value |
-| Usage or quota threshold | Single send from your metering system; use a [throttle](./guides/journeys.md) node if the threshold can flap |
+| Usage or quota threshold | Single send from your metering system. If the threshold can flap, debounce it there, or send through a journey with a [`throttle`](./guides/throttling.md) node (`scope: "dynamic"`, `throttle_key` = the account ID) |
 | Back in stock, waitlist opening | Send to a [list or audience](./guides/patterns.md) |
 
 **Cancelling a ladder is the part people miss.** If an appointment is rescheduled or an invoice is paid, the pending reminders must stop. Set a cancelation token on the journey and call `POST /journeys/cancel`. See [Cancelling Runs](./guides/journeys.md#cancelling-runs).
 
 ### Rate limits worth enforcing on your side
 
-Courier delivers whatever you send; abuse prevention is yours.
+Courier can cap delivery with [send limits](https://www.courier.com/docs/send/statuses#send-limits) per user, topic, or tenant, and blocked messages show as `THROTTLED`. Request-side checks, such as per-IP limits and lockouts, are still yours.
 
 | Action | Suggested limit | Lockout |
 |--------|-------|---------|

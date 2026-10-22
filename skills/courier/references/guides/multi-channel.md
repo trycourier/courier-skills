@@ -17,17 +17,17 @@
 | Password reset | single | [email] |
 | Order confirmation | single | [email] |
 | Order shipped | all | [email, push] |
-| Security alert | all | Tiered by severity, see [authentication.md#security-alert-channels](../transactional.md#security-alert-channels). Lowest tier: `[email, push]`; highest tier: `[email, push, sms, inbox]` |
+| Security alert | all | Tiered by severity, see [Security Alert Channels](../transactional.md#security-alert-channels). Lowest tier: `[email, push]`; highest tier: `[email, push, sms, inbox]` |
 | Activity mention | all | [push, inbox] |
 | Weekly digest | single | [email] |
 
-Rationale for "order shipped": email is the durable record; push is the awareness nudge. `method: "all"` automatically skips channels where the user has no contact info (no push token = push silently dropped, email still sent). Inbox is intentionally omitted, a shipping notification doesn't need in-app persistence.
+Rationale for "order shipped": email is the durable record; push is the awareness nudge. `method: "all"` automatically skips channels where the user has no contact info (no push token = push skipped (`INCOMPLETE_PROFILE_DATA` in the log), email still sent). Inbox is intentionally omitted, a shipping notification doesn't need in-app persistence.
 
 ### Routing Edge Cases
 | Situation | Behavior |
 |-----------|----------|
 | `user_id` has no email, email is first in `channels` | Skips email, tries next channel |
-| `user_id` has no contact info at all | Typically `UNDELIVERABLE`, but if the workspace has the Courier Inbox provider (or any catch-all channel) enabled, the send may still complete as `SENT` via that channel. Check `providers[]` on the retrieved message to see what actually ran. |
+| `user_id` has no contact info at all | The message ends `UNROUTABLE`, and each skipped provider shows `INCOMPLETE_PROFILE_DATA` in the log. An `inbox` channel in the route needs no contact info, so it can still send. |
 | User opted out of a channel via preferences | Channel skipped automatically |
 | `routing` omitted entirely | Courier uses channels configured in the template |
 | Provider returns 5xx | Courier retries, then tries next provider in priority order |
@@ -85,7 +85,7 @@ client.send.message(
 2. If it fails (no contact info, provider error), try the next
 3. Stop after first successful delivery
 
-> For OTP specifically, swap the channel order to `["sms", "email"]`, the Quick Reference and By-Urgency tables above are the source of truth for per-use-case ordering.
+> For OTP specifically, swap the channel order to `["sms", "email"]`, the Quick Reference table above is the source of truth for per-use-case ordering.
 
 ### All Channels (`method: "all"`)
 
@@ -150,8 +150,8 @@ await client.send.message({
 
 ```typescript
 // Email is the durable record; push is the awareness nudge.
-// method: "all" silently skips channels the user has no contact info for
-// (e.g., no push token → push is dropped, email is still sent).
+// method: "all" skips channels the user has no contact info for
+// (e.g., no push token → push skipped, INCOMPLETE_PROFILE_DATA in the log, email still sent).
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
@@ -208,6 +208,8 @@ T+24hr:   SMS (if critical and still unread)
 
 Build the escalation as a journey DAG with delay and send nodes. See [Journeys](./journeys.md) for the full create → template → wire → publish → invoke workflow.
 
+This is the `PUT /journeys/{id}` body once the journey and its templates exist. `POST /journeys` rejects node `id`s (400) and send nodes (422). See [Journeys](./journeys.md#standard-workflow).
+
 ```json
 {
   "name": "Escalating Notification",
@@ -239,7 +241,8 @@ Build the escalation as a journey DAG with delay and send nodes. See [Journeys](
           { "id": "send-email", "type": "send", "message": { "template": "<email-template-id>" } }
         ]
       }
-    }
+    },
+    { "id": "exit-1", "type": "exit" }
   ],
   "enabled": true
 }
@@ -297,7 +300,7 @@ Same notification, optimized for each channel:
   "email": {
     "override": {
       "subject": "Your order #12345 has shipped",
-      "body": "<h1>Order shipped</h1><p>Tracking: <a href=\"https://acme.co/t/12345\">acme.co/t/12345</a></p>"
+      "html": "<h1>Order shipped</h1><p>Tracking: <a href=\"https://acme.co/t/12345\">acme.co/t/12345</a></p>"
     }
   }
 }
@@ -434,21 +437,9 @@ await client.send.message({
 
 ### Read State Sync
 
-Mark notification as read across channels when user engages with one.
+To stop a follow-up after the user engages, cancel that follow-up by its own message ID while it is still pending (for example a delayed send), or branch in a journey. `client.messages.cancel` can't retract a message that already reached the feed.
 
-> ⚠️ **Do not treat an email open as engagement.** Apple Mail Privacy Protection and Gmail's image proxy prefetch tracking pixels on the recipient's behalf, so `OPENED` fires for a large share of recipients who never saw the message. Escalation, suppression, and read-state logic keyed on opens will silently misfire. Key on **clicks** (`CLICKED`), in-app read state, or an action inside your own product instead. The example below uses opens only to illustrate the cancel mechanics, swap the trigger for a click or in-app read event in production.
-
-```typescript
-// Prefer a click or in-app read event over an open — see the caveat above
-app.post('/webhooks/email-clicked', async (req, res) => {
-  const { messageId, userId } = req.body;
-  
-  // Cancel the inbox notification to avoid duplicate engagement
-  await client.messages.cancel(messageId);
-  
-  res.sendStatus(200);
-});
-```
+> ⚠️ **Do not treat an email open as engagement.** Apple Mail Privacy Protection and Gmail's image proxy prefetch tracking pixels on the recipient's behalf, so `OPENED` fires for a large share of recipients who never saw the message. Escalation, suppression, and read-state logic keyed on opens will silently misfire. Key on **clicks** (`CLICKED`), in-app read state, or an action inside your own product instead.
 
 ### Cancellation
 
@@ -513,12 +504,12 @@ await client.routingStrategies.create({
 
 Courier fails over to the next provider when:
 - Provider returns a 5xx error (after built-in retries)
-- Provider times out
+- Provider is slower than its timeout. Setting `timeout.provider` or `timeout.channel` on a send returns `402` below the Business tier
 - Provider-specific permanent error (e.g., invalid credentials)
+- Provider rate-limits the send, once Courier's retries (up to 24 hours) run out
 
 Courier does NOT fail over for:
 - Recipient-level failures (invalid email, bounced)
-- Rate limiting (retries with backoff on same provider)
 - Template rendering errors
 
 ### Checking Which Provider Was Used
@@ -543,18 +534,20 @@ await client.send.message({
     providers: {
       twilio: {
         override: {
-          messaging_service_sid: "MG..."
+          body: { MessagingServiceSid: "MG..." }
         }
       },
       sendgrid: {
         override: {
-          ip_pool_name: "transactional"
+          body: { ip_pool_name: "transactional" }
         }
       }
     }
   }
 });
 ```
+
+`body` merges into the provider's own request, so use that API's field names.
 
 ## Monitoring & Analytics
 

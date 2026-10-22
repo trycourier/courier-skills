@@ -7,7 +7,7 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 ### Rules
 - You need a Courier API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
 - Use a test environment key for development, copy the "Test" key from Settings
-- Inbox needs the built-in `courier` provider installed with `simple_profile_req` set, see [inbox.md](../channels/inbox.md#setup). It needs no OS permission and no third-party account, but it is not zero-configuration. Email works out of the box in **fresh** test workspaces (Courier provisions a built-in email provider), but if the workspace's email routing list references providers that aren't currently installed you'll see `status: UNROUTABLE` with `reason: PROVIDER_ERROR`. Add or remove the referenced providers in [Integrations](https://app.courier.com/integrations). SMS, push, and other channels always require adding a provider first.
+- Inbox works without setup: the `courier` provider is already configured in production and test. Only a custom environment, or a deleted provider, needs it added, see [inbox.md](../channels/inbox.md#setup). It needs no OS permission and no third-party account. Email needs no setup only for your own address: Test environments include the Courier Test Email Provider, which delivers to your sign-up address only. Any other address, or a Production key, needs your own email provider. If the workspace's email routing list references providers that aren't currently installed, you'll see `status: UNROUTABLE` with `reason: PROVIDER_ERROR`. Add or remove the referenced providers in [Integrations](https://app.courier.com/integrations). SMS, push, and other channels always require adding a provider first.
 - All tools read `COURIER_API_KEY` from the environment (SDK, CLI, curl)
 - Both `import Courier from "@trycourier/courier"` (default export) and `import { Courier } from "@trycourier/courier"` (named export) work, the named export is `Courier`, not `CourierClient`
 - Always use idempotency keys for transactional sends in production
@@ -23,7 +23,7 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 | List | `to: { list_id: "beta-testers" }` | Send to a group of users |
 | List pattern | `to: { list_pattern: "eng.*" }` | Send to all lists matching a prefix |
 
-If a `user_id` has no contact info for the target channel, the send is skipped for that channel (no error). With `method: "single"`, it falls through to the next channel in the array.
+If a `user_id` has no contact info for a channel, Courier skips that channel's providers and the log shows `INCOMPLETE_PROFILE_DATA`. With `method: "single"`, it falls through to the next channel. If no channel can reach the user, the message ends `UNROUTABLE`. The send call itself doesn't error.
 
 ### Steps
 1. Get an API key
@@ -66,16 +66,15 @@ You can also pass the key explicitly in code:
 
 ```typescript
 const client = new Courier({ apiKey: "your-api-key" });
-// `authorizationToken` is accepted as an alias in Node for legacy callers.
 ```
 
 ```python
 client = Courier(api_key="your-api-key")
-# Python's Stainless-generated client accepts `api_key=` only —
-# `authorization_token=` raises TypeError.
 ```
 
 ## 3. Send a Message
+
+With a Test key, replace `jane@example.com` with the address you signed up with. The built-in provider delivers nowhere else.
 
 ### TypeScript
 
@@ -226,11 +225,11 @@ courier send message \
 | 401 Unauthorized | Missing or invalid API key | Check `COURIER_API_KEY` env var; verify key in [Settings](https://app.courier.com/settings/api-keys) |
 | 400 Bad Request | Malformed message payload | Verify `to`, `content`/`template` structure; check required fields |
 | 404 Not Found | Template ID doesn't exist | Use the correct `nt_...` template ID from Design Studio or the API; check environment (test vs production) |
-| Message sent but not delivered | No provider configured for channel | Email works in fresh test workspaces without setup; otherwise, add a provider in [Integrations](https://app.courier.com/integrations) |
+| Message sent but not delivered | No provider for the channel, or a Test email to an address other than your sign-up address | Test's built-in email provider delivers only to your sign-up address. For anything else, add a provider in [Integrations](https://app.courier.com/integrations) |
 | Sent to `user_id` but nothing happened | User profile missing contact info | Create profile with `email`/`phone_number` first, or send directly with `to: { email: "..." }` |
 | `status: UNROUTABLE`, `reason: PROVIDER_ERROR` | Routing list references a provider that isn't installed. The `error` names the mismatch, e.g. `"None of provider(s) twilio,slack is configured for channel email."` The exact wording varies by release, so branch on `reason: PROVIDER_ERROR` and read `error` rather than matching a fixed string. | Install the referenced provider in [Integrations](https://app.courier.com/integrations), or edit the channel's routing list to remove it. |
 | `status: UNROUTABLE` with no provider error | No channel in `routing.channels` has a provider the user can reach (no contact info, no installed provider, or all opted out via preferences) | Verify `to`, `routing.channels`, installed providers, and user preferences. |
-| `status: UNROUTABLE` with **no `reason` and no `error` field at all** | For an inbox send, the `courier` provider isn't installed on the workspace. The empty failure is the tell, there is nothing to search for. | Install it, see [inbox.md](../channels/inbox.md#setup). |
+| `status: UNROUTABLE` with **no `reason` and no `error` field at all** | For an inbox send, the `courier` provider is missing: a custom environment, or it was deleted. The empty failure is the tell, there is nothing to search for. | Add it back, see [inbox.md](../channels/inbox.md#setup). |
 | `status: UNROUTABLE` / `PROVIDER_ERROR`, `"No provider(s) courier ... : undefined"` | The template has no routing strategy attached, so nothing names `courier` as the inbox provider. `GET /notifications/{id}` shows `routing: null`. | Attach a strategy via `PUT /notifications/{id}`, see [inbox.md](../channels/inbox.md#troubleshooting). |
 | `404` from `messages.retrieve` for a list/bulk send | You passed the job-level `requestId`, which isn't the per-recipient message ID | For list/bulk sends, look up per-recipient message IDs via `courier messages list --trace-id "<requestId>"`. See [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id). |
 

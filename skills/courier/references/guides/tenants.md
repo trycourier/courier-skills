@@ -31,18 +31,19 @@ provider records there is the *Microsoft* tenant, not yours.
 ## Quick Reference
 
 ### Rules
-- `tenants.update` upserts by the id you choose; `name` is required.
+- `tenants.update` creates or replaces by the id you choose; `name` is required. It replaces the whole tenant: `properties`, `brand_id`, `user_profile`, and `default_preferences` you leave out are cleared, so send every field you want to keep.
+- `brand_id: null` returns `400`, even though the SDK types allow `null`. To remove a brand, omit `brand_id`.
 - Four layers load per send, as a sliding window; merging is parent first, child overwrites per key.
-- Tenant-scoped inbox messages are invisible outside their tenant: the client must sign in with the same `tenantId`.
+- An inbox client signed in with a `tenantId` shows only that tenant's messages. Signed in without one, it shows only messages sent without a tenant. Sign in with the `tenantId` the send carried.
 - Pass the tenant on the recipient (`to.tenant_id`) or in `message.context.tenant_id`, and use one form consistently.
 
 ### Common Mistakes
-- Sending with `tenant_id` but signing the inbox client in without one. The message never shows and nothing fails.
+- Signing the inbox client in without a `tenantId`, or with a different one, after a tenant-scoped send. The message never shows and nothing fails.
 - Relying on auto-inferred tenant context for users who belong to more than one tenant.
 
-## Create or update a tenant (upsert)
+## Create or replace a tenant
 
-`update` upserts by the id you choose; `name` is required.
+`update` creates or replaces by the id you choose (`PUT /tenants/{id}`); `name` is required. It replaces the whole tenant, so a field you leave out (`properties`, `brand_id`, `user_profile`, `default_preferences`) is cleared. To change one field, read the tenant first and send everything back. To remove a brand, omit `brand_id`: `brand_id: null` returns `400`.
 
 ```ts
 // Node
@@ -65,8 +66,7 @@ A tenant carries `name`, `brand_id`, `default_preferences`, `properties`, `paren
 
 ### Hierarchy and merging
 
-- **The whole ancestor chain loads.** A five-deep hierarchy merges every level for a leaf send, the
-  root included. There is no depth window to design around
+- **Four levels load, as a sliding window.** Courier starts at most three ancestors above the tenant a send names, not at the root, so in a five-deep hierarchy the root's settings never reach a leaf send. Keep the tree to four levels
 - **A tenant's `user_profile` merges into the recipient's profile, not into `data`.** Interpolate it
   as `{{profile.key}}`; `{{key}}` renders empty
 - **Merging is parent first, child overwrites per key.** `brand_id` and `user_profile` keys from a
@@ -92,17 +92,19 @@ see [Slack and Teams sends](./journeys.md#slack-and-teams-sends) for the referen
 - **Auto-infer tenant context:** when a user belongs to exactly one tenant and the send names none,
   Courier loads that tenant's context automatically (toggle in workspace settings). Useful for
   Studio, list, and audience sends; surprising when you didn't expect tenant branding to apply
-- **Tenant-scoped Inbox messages are invisible outside their tenant.** A send with `tenant_id:
-  "acme"` only appears when the client signed in with that same `tenantId`. Sign in without it and
-  the message simply never shows, with nothing failing. See
+- **Sign the inbox in with the `tenantId` the send carried.** A send with `tenant_id: "acme"` shows
+  only for a client signed in with `tenantId: "acme"`. A client signed in without a `tenantId` shows
+  only messages sent without a tenant. Signed in without one or with another, the tenant-scoped
+  message never shows, and nothing fails. With no
+  `tenantId`, the unread count can still include tenant-scoped messages the list doesn't show. See
   [inbox/rendering.md](../inbox/rendering.md)
 
-| Operation | Node |
-|---|---|
-| Get | `client.tenants.retrieve(tenantId)` |
-| List | `client.tenants.list()` |
-| Delete | `client.tenants.delete(tenantId)` |
-| List users in a tenant | `client.tenants.listUsers(tenantId)` |
+| Operation | Node | Python |
+|---|---|---|
+| Get | `client.tenants.retrieve(tenantId)` | `client.tenants.retrieve(tenant_id)` |
+| List | `client.tenants.list()` | `client.tenants.list()` |
+| Delete | `client.tenants.delete(tenantId)` | `client.tenants.delete(tenant_id)` |
+| List users in a tenant | `client.tenants.listUsers(tenantId)` | `client.tenants.list_users(tenant_id)` |
 
 ## Associate users, then send
 

@@ -4,13 +4,15 @@
 
 ### Rules
 - **Let Courier aggregate.** Use the journey `batch` node for event rollups. For summaries on a schedule the recipient picks (daily, weekly), use a topic digest, see [digests.md](./digests.md). Don't queue and aggregate in your own backend unless neither can express the logic
-- The `batch` node releases on a quiet `wait_period`, a `max_wait_period` ceiling, or `max_items`, whichever comes first
-- `category_key` partitions a batch by target, which is how you get "3 people liked *this* post" instead of one mixed batch per user
+- The `batch` node releases on a quiet `wait_period` (at least `PT1M`), a `max_wait_period` ceiling, or `max_items`, whichever comes first
+- **Avoid `category_key` for now.** Events with different values are not split into separate batches, and the payload lands under the literal key string, not under `batch.<value>`. To group by value, invoke a separate journey per value, or use a per-value throttle key. See [Batch Data in Templates](#batch-data-in-templates)
 
 ### Common Mistakes
 - Rebuilding aggregation in your own queue when a `batch` node expresses it
 - Setting `max_wait_period` less than or equal to `wait_period` (it must be greater)
-- One mixed batch per user because `category_key` wasn't set
+- Setting `wait_period` below `PT1M`, which returns `400 wait_period must be at least 1 minute`
+- Relying on `category_key` to split batches by value. It doesn't
+- Using `{{json x}}` in the template. There is no `json` helper, so the render fails with "Missing helper"
 
 ---
 
@@ -40,9 +42,9 @@ Collects multiple events into one aggregated payload and fires a single downstre
       "wait_period": "PT5M",
       "max_wait_period": "PT1H",
       "max_items": 25,
-      "category_key": "target_id",
       "retain": { "type": "first", "count": 3 }
-    }
+    },
+    { "type": "exit" }
   ],
   "enabled": true
 }
@@ -50,9 +52,10 @@ Collects multiple events into one aggregated payload and fires a single downstre
 
 Field notes:
 
-- **`wait_period`** is a *quiet* window. It resets on each new event. `max_wait_period` is the hard ceiling and must be greater than `wait_period`, so a continuously-active user still gets their batch.
-- **`category_key`** partitions the batch (≤256 chars). Keying on `target_id` gives one batch per post rather than one batch per user. This is how you get "3 people liked *this* post" instead of lumping unrelated activity together.
-- **`retain`** controls which items survive into the payload: `{ type: "first" | "last" | "highest" | "lowest", count: 0–25 }`. `highest`/`lowest` also require `sort_key`.
+- **`wait_period`** is a *quiet* window, at least `PT1M`. It resets on each new event. `max_wait_period` is the hard ceiling and must be greater than `wait_period`, so a continuously-active user still gets their batch.
+- **`retain`** controls which items survive into the payload: `{ type: "first" | "last" | "highest" | "lowest", count: 0–25 }`. `highest`/`lowest` also require `sort_key`. The order of the kept items isn't guaranteed.
+- **One run per batch carries the downstream send.** The other events' runs end at the batch node, and the run that sends isn't reliably the first event's.
+- **`category_key`** (≤256 chars) is best avoided for now, see [Batch Data in Templates](#batch-data-in-templates).
 - **Do not include node `id` fields.** They're server-generated; `POST /journeys` rejects client-supplied ids with `400 client-supplied node ids are not allowed`. Send nodes are rejected too, with a `422` that spells out the sequence: create the journey, create its scoped templates, then `PUT` to wire the send nodes. Add them via `PUT` once the journey-scoped templates exist. See [Journeys](./journeys.md#standard-workflow).
 
 Invoke once per event; Courier handles the accumulation:
@@ -102,17 +105,19 @@ async function sendDailyDigest(userId: string) {
 
 ### Batch Data in Templates
 
-Access batched data in your notification template:
+The template sees top-level `batch.count` (the true total) and `batch.items` (the events `retain` kept). Each item is that invoke's `data` object as is, with no wrapper, so `{{batch.items.[0].actor_name}}` reads `actor_name` from one event. The sending run's own `data` fields also sit at the top level. Courier's `condition` and `subtract` helpers do the comparison and the math:
 
 ```
-{{#if batch.is_multiple}}
-  {{batch.first.actor_name}} and {{batch.others_count}} others liked your post
+{{#if (condition batch.count ">" 1)}}
+  {{batch.items.[0].actor_name}} and {{subtract batch.count 1}} others liked your post
 {{else}}
-  {{batch.first.actor_name}} liked your post
+  {{batch.items.[0].actor_name}} liked your post
 {{/if}}
 ```
 
-Precompute `is_multiple` (boolean) and `others_count` (batch count minus 1) in your data, since Handlebars does not support comparison operators or arithmetic.
+Item order isn't guaranteed, so don't rely on `items.[0]` being the first or latest event. There is no `json` helper: `{{json x}}` fails the render with "Missing helper".
+
+**With a `category_key`** the payload doesn't follow the documented `batch.<value>` shape. It lands at the root under the literal key string, so for `"category_key": "data.target_id"` read `{{[data.target_id].count}}` and `{{[data.target_id].items}}`. A key without a dot, such as `"target_id"`, overwrites that `data` field. Events with different values still share one batch. Avoid it for now. To group by value, invoke a separate journey per value, or use a per-value throttle key. If you must use it, read the payload as above and test the render first.
 
 ### Batch Cancellation
 

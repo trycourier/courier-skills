@@ -3,8 +3,8 @@
 ## Quick Reference
 
 ### Rules
-- **Courier's native rate limiter is the journey `throttle` node**: `scope: "user"`, `"global"`, or `"dynamic"` with a `throttle_key`, plus `max_allowed` and an ISO 8601 `period`
-- **[Send limits](https://www.courier.com/docs/send/statuses#send-limits)** cap how many messages a user, topic, or tenant gets in a time window. Blocked messages show as `THROTTLED`. A provider's **[send rate limit](./providers.md#send-rate-limits)** is different: it caps how fast Courier sends through that provider, and queues the extra sends instead of blocking them
+- **Inside a journey, the `throttle` node is the rate limiter**: `scope: "user"`, `"global"`, or `"dynamic"` with a `throttle_key`, plus `max_allowed` and an ISO 8601 `period`. It counts passes through that node only
+- **[Send limits](https://www.courier.com/docs/send/statuses#send-limits)** cap how many messages a user, topic, or tenant gets in a time window. Blocked messages show as `THROTTLED`. Send limits have no API endpoint, so code and MCP can't set them. Set them in the Courier app. A provider's **[send rate limit](./providers.md#send-rate-limits)** is different: it caps how fast Courier sends through that provider, and queues the extra sends instead of blocking them
 - **For user-facing cadence control, prefer [digest schedules](./digests.md)** over your own throttle: the recipient picks the frequency and Courier does the collecting
 - **The SDK already handles provider `429`s** on your call to Courier (see [reliability.md](./reliability.md#retry-logic)); provider-side rate limits are Courier's job during delivery
 
@@ -21,7 +21,7 @@ Control notification frequency to prevent overwhelming users and respect rate li
 
 | Concept | Purpose | Mechanism |
 |---------|---------|-----------|
-| **Throttling** | Limit frequency | Drop or delay excess |
+| **Throttling** | Limit frequency | Skip the excess |
 | **Batching** | Combine related | Aggregate into one |
 
 Use both together for optimal notification delivery.
@@ -47,7 +47,11 @@ await client.send.message({
 
 Provider-level rate limits (e.g. SendGrid/Twilio caps) are enforced per provider. See [Provider Rate Limits](#provider-rate-limits) below for the 429 retry pattern. For user-facing cadence control, use [digest schedules](./digests.md) on a subscription topic, where the recipient picks the frequency. For quiet hours, use a [delivery window](./scheduling.md#delivery-window-business-hours-quiet-hours).
 
-### Journey Throttling (Recommended)
+### Send Limits
+
+Send limits cap what one user, topic, or tenant receives across every send, per hour, day, week, month, or billing period. The API and SDKs have no call for them, so code and MCP can't set them. A blocked message ends `THROTTLED` and doesn't send later. Use a throttle node only to cap one point in one journey.
+
+### Journey Throttle Node
 
 [Journeys](./journeys.md) have a native `throttle` node that rate-limits runs per user, globally, or by a dynamic key:
 
@@ -63,10 +67,7 @@ Provider-level rate limits (e.g. SendGrid/Twilio caps) are enforced per provider
 
 Scope options: `user` (per recipient), `global` (across all runs), `dynamic` (custom key via `throttle_key`). See [Journeys, Node Types Reference](./journeys.md#node-types-reference) for full details.
 
-Configure in dashboard:
-1. **Throttle step:** Max 5 per hour per user
-2. **Delay step:** Wait if limit exceeded
-3. **Send step:** Deliver notification
+Place the throttle before the send node. Once a user hits the cap, later runs skip the send. Nothing waits or retries, so if the excess should arrive later, use a [`batch` node](./batching.md) or a [digest](./digests.md) instead.
 
 ## Provider Rate Limits
 
@@ -87,7 +88,7 @@ To cap how fast Courier sends through one provider config, set a [send rate limi
 A `429` from Courier's API is retried by the SDK automatically, with backoff and `retry-after`
 honored, so don't wrap the call in your own 429 handler (see
 [reliability.md](./reliability.md#retry-logic)). Provider-side rate limits are absorbed by Courier's
-own delivery retries, which continue for up to 24 hours.
+own delivery retries, which continue for up to 24 hours, then fail over to another provider or channel.
 
 ## Related
 

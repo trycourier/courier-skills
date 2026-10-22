@@ -435,6 +435,7 @@ channels), `allowed_preferences` (`snooze`, `channel_preferences`), `include_uns
 - [Multi-Channel](./multi-channel.md) - channel routing, and how `custom_routing` narrows it
 - [Brands](./brands.md) - what drives the hosted page's appearance
 - [Tenants](./tenants.md) - tenant defaults that override workspace defaults
-- [Batching](./batching.md) - digest and batch nodes inside journeys
+- [Digests](./digests.md) - digest schedules, the digest template, and the Send to Digest node
+- [Batching](./batching.md) - the journey `batch` node
 - [Webhooks](./webhooks.md#preference-events) - the `preferences:user:updated` event, signatures, retries
 - [Hosted Preference Center](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page) · [Preferences Editor](https://www.courier.com/docs/recipients/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/recipients/preferences/api) · [Track Preference Changes](https://www.courier.com/docs/recipients/preferences/api#track-preference-changes) · [Embedding](https://www.courier.com/docs/guides/build-a-preference-center#embedded-component)
