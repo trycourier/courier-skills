@@ -216,7 +216,7 @@ courier send message \
   --message.template "welcome-email"
 ```
 
-> `courier tenants update` creates or replaces the tenant (`PUT /tenants/{tenant_id}`). There is no separate `courier tenants create` command.
+> `courier tenants update` (`PUT /tenants/{tenant_id}`) replaces the tenant; pass every field you want to keep. `properties`, `brand_id`, `user_profile` and `default_preferences` left out are cleared. `--brand-id` doesn't accept null, so omit it to remove a brand. It also creates the tenant if it doesn't exist; there is no separate `courier tenants create` command.
 
 **Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI covers the full lifecycle: `courier journeys` (create, replace, publish, invoke, cancel), `courier journeys:templates` for journey-scoped templates, and `courier journeys:runs` (list, retrieve, list-steps) for debugging. Publishing a journey publishes only its nodes, not its journey-scoped templates. A send whose template was never published fails with `Notification template not found`, while the run still shows `PROCESSED`. See [Journeys](./journeys.md) for the full workflow.
 

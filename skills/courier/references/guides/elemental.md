@@ -10,7 +10,7 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 - Every Elemental payload has exactly two required top-level fields: `version` and `elements`.
 - `version` is always `"2022-01-01"` (the only supported version).
 - The shorthand `{ title, body }` (ElementalContentSugar) only works for **inline sends**. Never for template creation via the API.
-- **Wrap stored template content in `channel` elements**, one per channel. Create rejects flat top-level elements with a `400`. `replace` and `putContent` still store them, but Design Studio can't open the result, so wrap on every write. Inline sends accept flat elements.
+- **Wrap stored template content in `channel` elements**, one per channel. Create rejects flat top-level elements with a `400`. `replace` and `putContent` still store them, but Design Studio can't open the result, so wrap on every write. Inline sends need no `channel` wrapper.
 - When `channel` elements appear at the top level, **every** top-level sibling must also be a `channel` element.
 - Control flow (`if`, `loop`, `ref`, `channels`) works on any element type.
 
@@ -60,7 +60,7 @@ All element types share these optional properties:
 |----------|------|-------------|
 | `channels` | `string[]` | Restrict this element to specific channels (e.g., `["email", "push"]`) |
 | `ref` | `string` | Tag the element with a name for cross-element references |
-| `if` | `string` \| structured condition array | Conditional expression, element renders only when truthy. The SDK types only the string form |
+| `if` | `string` \| structured condition array | JavaScript expression against the message (`data.*`); the element renders only when truthy. The SDK types only the string form |
 | `loop` | `string` | Path to an array, element renders once per item |
 
 ---
@@ -400,7 +400,7 @@ Ordered and unordered lists with nesting support (up to 5 levels deep).
 
 ### html
 
-Raw HTML for formatting the other elements can't express. Renders in email only. Variables work (`{{order_id}}`), and so do Handlebars helpers such as `{{#each}}`. Put loops here or use `loop` on an element (see [Iteration](#iteration-loop)), never `{{#each}}` in a text element, which renders but can't be edited in the designer. `$.item` is loop syntax for `loop`, not Handlebars.
+Raw HTML for formatting the other elements can't express. Renders in email only. Variables work (`{{order_id}}`), and so do Handlebars helpers such as `{{#each}}`. There is no `json` helper: `{{json x}}` fails the render with `Missing helper`. Put loops here or use `loop` on an element (see [Iteration](#iteration-loop)), never `{{#each}}` in a text element, which renders but can't be edited in the designer. `$.item` is loop syntax for `loop`, not Handlebars.
 
 ```json
 {
@@ -443,7 +443,7 @@ Control flow properties work on any element type, including `group` containers.
 
 ### Conditional Rendering (`if`)
 
-The `if` expression is evaluated at render time against the message, with send data under `data.*`. The docs call it a Handlebars expression, and their examples use JavaScript operators (`===`, `!==`, `&&`, `||`, `!`).
+The `if` expression is JavaScript, evaluated at render time against the message, with send data under `data.*`. `===`, `==` and `!==` all work.
 
 ```json
 {
