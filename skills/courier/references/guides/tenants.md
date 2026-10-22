@@ -33,11 +33,11 @@ provider records there is the *Microsoft* tenant, not yours.
 ### Rules
 - `tenants.update` upserts by the id you choose; `name` is required.
 - Four layers load per send, as a sliding window; merging is parent first, child overwrites per key.
-- Sign the inbox client in with the same `tenantId` the send carried. A different `tenantId` hides the message, and nothing fails.
+- An inbox client signed in with a `tenantId` shows only that tenant's messages. Signed in without one, it shows only messages sent without a tenant. Sign in with the `tenantId` the send carried.
 - Pass the tenant on the recipient (`to.tenant_id`) or in `message.context.tenant_id`, and use one form consistently.
 
 ### Common Mistakes
-- Signing the inbox client in with a `tenantId` other than the one the send carried, or relying on a sign-in with none. Sign in with the send's tenant.
+- Signing the inbox client in without a `tenantId`, or with a different one, after a tenant-scoped send. The message never shows and nothing fails.
 - Relying on auto-inferred tenant context for users who belong to more than one tenant.
 
 ## Create or update a tenant (upsert)
@@ -92,8 +92,11 @@ see [Slack and Teams sends](./journeys.md#slack-and-teams-sends) for the referen
   Courier loads that tenant's context automatically (toggle in workspace settings). Useful for
   Studio, list, and audience sends; surprising when you didn't expect tenant branding to apply
 - **Sign the inbox in with the `tenantId` the send carried.** A send with `tenant_id: "acme"` shows
-  for a client signed in with `tenantId: "acme"`. A different `tenantId` hides it, and nothing fails.
-  See [inbox/rendering.md](../inbox/rendering.md)
+  only for a client signed in with `tenantId: "acme"`. A client signed in without a `tenantId` shows
+  only messages sent without a tenant. Signed in without one or with another, the tenant-scoped
+  message never shows, and nothing fails. With no
+  `tenantId`, the unread count can still include tenant-scoped messages the list doesn't show. See
+  [inbox/rendering.md](../inbox/rendering.md)
 
 | Operation | Node | Python |
 |---|---|---|

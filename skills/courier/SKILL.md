@@ -233,7 +233,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | Email: deliverability, SPF/DKIM/DMARC, sender config | [email.md](./references/channels/email.md) |
 | SMS: 10DLC registration, character limits, sender setup | [sms.md](./references/channels/sms.md) |
 | Push: APNs/FCM setup, tokens, reaching every device (`routing_method: "all"`), permission priming | [push.md](./references/channels/push.md) |
-| Sending **to** the in-app inbox: setup (`courier` provider), content, actions, inbox+push, Elemental for inbox, `UNROUTABLE` triage | [inbox.md](./references/channels/inbox.md) |
+| Sending **to** the in-app inbox: the built-in `courier` provider, content, actions, inbox+push, Elemental for inbox, `UNROUTABLE` triage | [inbox.md](./references/channels/inbox.md) |
 | **Rendering** the inbox in your app: JWT auth, React / Vue / Angular / Web Components / React Native / iOS / Android / Flutter, read state, real-time | [inbox/rendering.md](./references/inbox/rendering.md) |
 | Slack, Block Kit, OAuth, bot setup | [slack.md](./references/channels/slack.md) |
 | Microsoft Teams, Adaptive Cards, bot setup | [ms-teams.md](./references/channels/ms-teams.md) |
