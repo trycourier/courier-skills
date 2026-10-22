@@ -8,7 +8,7 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 - Routing strategy IDs use the `rs_` prefix (e.g., `rs_01abc123`) and are opaque, workspace-scoped values
 - `name` and `routing` are the only required fields on create; both `channels` and `providers` are top-level optional fields that default to empty when omitted
 - **Channel-level vs provider-level config:** `channels.{channel}.providers` is the **ordered failover list** for a channel (position = priority). The **top-level** `providers` map carries **per-provider** settings (`override`, `if`, `timeouts`, `metadata`) keyed by provider name. You typically use both: `channels.email.providers: ["sendgrid","aws-ses"]` for order, and `providers.sendgrid.override: {...}` for SendGrid-specific config
-- Channel and provider timeouts are Enterprise only. On other plans a send that sets them returns 402. See [routing timeouts](https://www.courier.com/docs/send/routing#timeouts)
+- Channel and provider `timeouts` need a business tier plan or higher. Below that, create and replace still return `201`/`200` but drop the `timeouts` silently and keep every other field, and sends through the strategy still go out. `GET` the strategy back to confirm the timeouts were kept. On a send, `timeout.channel` and `timeout.provider` return `402` below the business tier, while `timeout.message`, `escalation` and `criteria` work on every plan. See [routing timeouts](https://www.courier.com/docs/send/routing#timeouts)
 - `routing.method` is `"single"` (try channels in order until one succeeds) or `"all"` (send to all channels in parallel)
 - `channels.{channel}.providers` is an **ordered** array, position = failover priority (same as dragging providers in the dashboard)
 - `PUT /routing-strategies/{id}` is a **full replacement**, any field you omit is reset to its default
@@ -18,6 +18,7 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 
 ### Common Mistakes
 - Omitting fields on `PUT` and losing `tags`/`description`/`providers` config silently (it's a replace, not a merge)
+- Assuming `timeouts` were saved below the business tier. They're dropped with no error, so `GET` the strategy to check
 - Trying to archive a strategy that's still linked to templates (returns 409, repoint templates first)
 - Confusing the **message-level** `routing` on `send.message` (per-send override) with the **workspace-level** routing strategy (stored object with an `rs_...` ID and referenced by templates)
 - Forgetting that provider order in `channels.{channel}.providers` determines failover, reordering the array changes which provider gets tried first
@@ -94,7 +95,7 @@ const strategy = await client.routingStrategies.create({
   channels: {
     email: {
       providers: ["sendgrid", "aws-ses"], // failover order
-      timeouts: { provider: 5000, channel: 30000 }, // Enterprise only
+      timeouts: { provider: 5000, channel: 30000 }, // business tier or higher, dropped silently below it
       override: {
         // channel-level override applied to every provider
       },
@@ -106,7 +107,7 @@ const strategy = await client.routingStrategies.create({
       override: {
         body: { ip_pool_name: "transactional" }
       },
-      timeouts: 4000, // Enterprise only
+      timeouts: 4000, // business tier or higher, dropped silently below it
       if: "profile.email_verified === true"
     }
   }
@@ -123,7 +124,7 @@ strategy = client.routing_strategies.create(
     channels={
         "email": {
             "providers": ["sendgrid", "aws-ses"],
-            "timeouts": {"provider": 5000, "channel": 30000},  # Enterprise only
+            "timeouts": {"provider": 5000, "channel": 30000},  # business tier or higher, dropped silently below it
             "override": {},
             "if": "data.locale !== 'ja-JP'",
         }
@@ -131,7 +132,7 @@ strategy = client.routing_strategies.create(
     providers={
         "sendgrid": {
             "override": {"body": {"ip_pool_name": "transactional"}},
-            "timeouts": 4000,  # Enterprise only
+            "timeouts": 4000,  # business tier or higher, dropped silently below it
             "if": "profile.email_verified === true",
         }
     },

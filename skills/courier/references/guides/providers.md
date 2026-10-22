@@ -13,6 +13,7 @@ Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `
 - To cap how fast Courier sends through a provider config, set `settings.rate_limit` with `PATCH`. See [Send rate limits](#send-rate-limits)
 - Provider IDs are opaque workspace-scoped values returned on create (distinct from the catalog `provider` key)
 - `title` defaults to `"Default Configuration"` when omitted. For multiple configs of the same provider (e.g. two SendGrid sub-accounts), set a unique `title` and `alias`
+- In the test environment, a stored `title` gets a `test - ` prefix
 - Routing strategies reference providers by their **catalog key** (e.g. `"sendgrid"`) in `channels.{channel}.providers`. If you need multiple configs for the same provider key (two SendGrid sub-accounts, etc.), set distinct `title`/`alias` values and disambiguate in the dashboard, the docs don't yet spec an API-only way to target a specific configuration from a routing strategy
 
 ### API vs Dashboard
@@ -28,7 +29,7 @@ Prefer the dashboard for:
 - Providers that use OAuth-based setup (Slack, Gmail, MS Teams, Discord), these generally still require dashboard-initiated auth
 
 ### Common Mistakes
-- Guessing `settings` keys instead of reading them from `/providers/catalog`. A missing or misspelled required key returns 400 on create, and a misspelled optional key doesn't set the option you meant
+- Guessing `settings` keys instead of reading them from `/providers/catalog`. A misspelled or unknown `settings` key is saved silently and does nothing. Read the catalog and compare the stored config with `GET /providers/{id}`. Only a missing required key is rejected: `400`, with the field named in camelCase (e.g. `authToken`)
 - Using `provider` values from documentation prose that don't match the catalog (e.g. `"aws_ses"` vs the real `"aws-ses"`, or `"fcm"` vs `"firebase-fcm"`)
 - Using `PUT` to change one setting. It's a full replacement, so any omitted `settings` are wiped, including `rate_limit`. Use `PATCH` instead
 - Committing an `api_key` directly in a `providers.create` call instead of reading `process.env.SENDGRID_API_KEY`
