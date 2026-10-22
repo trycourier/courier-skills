@@ -59,9 +59,8 @@ Run this once after setup:
 
 1. Confirm the server connects in your editor (status is healthy/connected).
 2. Run one read call (for example `list_notifications` or `list_messages`) to confirm auth.
-3. Run one write-safe call in your expected workflow area (for example profile merge or tenant list) to confirm parameter shape expectations.
+3. Run one read call in your workflow area (for example `list_tenants` or `get_user_profile_by_id`) to confirm parameter shapes. Don't write to a workspace only to verify setup.
 4. Verify your needed feature is in `tools/list`; if not, route to the SDK, CLI, or REST.
-5. Save a short note in project docs or PR description indicating which path is used (`MCP` vs `CLI/REST`) for repeatability.
 
 ### MCP vs CLI
 

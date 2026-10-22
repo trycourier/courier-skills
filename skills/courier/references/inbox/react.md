@@ -26,6 +26,8 @@ npm install @trycourier/courier-react
 npm install @trycourier/courier-react-17
 ```
 
+On React 17, import from `@trycourier/courier-react-17` wherever this file says `@trycourier/courier-react`. The exports are the same.
+
 If the app sets a Content Security Policy, add the Courier hosts and `style-src 'unsafe-inline'` before
 you start debugging anything: see [Content Security Policy](./rendering.md#content-security-policy). EU
 workspaces also need different hosts, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
@@ -101,7 +103,7 @@ Filter options per tab:
 | Filter Property | Type | Description |
 |----------------|------|-------------|
 | `tags` | `string[]` | Messages with any of the specified tags |
-| `archived` | `boolean` | Include archived messages (defaults to `false`) |
+| `archived` | `boolean` | `true` shows only archived messages. Unset or `false` shows only unarchived ones, so no single tab mixes both |
 | `status` | `'read' \| 'unread'` | Filter by read/unread status |
 | `from` | `string` | ISO 8601 datetime. Only messages created at or after it |
 
@@ -117,6 +119,7 @@ import { CourierInbox, type CourierInboxTheme } from "@trycourier/courier-react"
 const theme: CourierInboxTheme = {
   inbox: {
     header: {
+      feeds: { button: { unreadCountIndicator: { backgroundColor: "#9121C2" } } },
       tabs: {
         default: { unreadIndicator: { backgroundColor: "#9121C2" } },
         selected: { unreadIndicator: { backgroundColor: "#9121C2" } },
@@ -131,7 +134,7 @@ const theme: CourierInboxTheme = {
 <CourierInbox lightTheme={theme} darkTheme={theme} mode="light" />;
 ```
 
-A feed with one tab hides the tab bar and shows its count next to the feed name. Style that with `inbox.header.feeds.button.unreadCountIndicator`.
+With the default feeds, or any feed with one tab, the tab bar is hidden and the count sits on the feed button, so `tabs.*.unreadIndicator` shows nothing. Style it with `inbox.header.feeds.button.unreadCountIndicator`.
 
 Dark mode switches automatically with `mode="system"`, or force with `mode="light"` / `mode="dark"`.
 
@@ -180,7 +183,7 @@ import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier
 ```tsx
 <CourierInbox
   onMessageClick={({ message, index }) => {
-    router.push(message.data?.deepLink);
+    if (message.data?.deepLink) router.push(message.data.deepLink);
   }}
   onMessageActionClick={({ message, action, index }) => {
     window.open(action.href);
@@ -254,7 +257,8 @@ export default function App() {
     await inbox.load();
   }
 
-  const unreadCount = inbox.totalUnreadCount ?? 0;
+  // One tab's count. totalUnreadCount sums every tab, so overlapping tabs count a message twice.
+  const unreadCount = inbox.feeds["all_messages"]?.unreadCount ?? 0;
   const messages = inbox.feeds["all_messages"]?.messages ?? [];
 
   return (

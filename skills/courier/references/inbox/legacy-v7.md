@@ -6,7 +6,7 @@
 
 ### When to use this file
 
-- An existing codebase imports `@trycourier/react-provider`, `@trycourier/react-inbox`, or `@trycourier/react-toast`, **and**
+- An existing codebase imports `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast`, or `@trycourier/react-hooks`, **and**
 - The user has asked about maintaining that code, **and**
 - They cannot upgrade yet.
 
@@ -43,7 +43,7 @@ For every other case, including new inboxes, new features on existing inboxes, o
 | `@trycourier/courier-react` or `@trycourier/courier-react-17` in `package.json` | **v8** |
 | `@trycourier/courier-ui-inbox` (Web Components) in `package.json` | **v8** |
 | `<CourierInbox />`, `useCourier()`, `courier.shared.signIn()` | **v8** |
-| `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast` in `package.json` | **v7** |
+| `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast`, `@trycourier/react-hooks` in `package.json` | **v7** |
 | `<CourierProvider>`, `<Inbox />`, `useInbox()`, `clientKey` prop | **v7** |
 | New project / no existing code | **Use v8** |
 
@@ -74,7 +74,7 @@ Contrast with the v8 shape in [react.md](./react.md): a single package (`@trycou
 
 | Concern | v7 | v8 |
 |---------|----|----|
-| Packages | `@trycourier/react-provider` + `@trycourier/react-inbox` + `@trycourier/react-toast` | Single: `@trycourier/courier-react` |
+| Packages | `@trycourier/react-provider` + `@trycourier/react-inbox` + `@trycourier/react-toast` (+ `@trycourier/react-hooks`) | Single: `@trycourier/courier-react` |
 | Wrapping | `<CourierProvider>` | No provider; `useCourier()` hook |
 | Auth | `clientKey` prop accepted (JWT preferred) | JWT required |
 | Sign in | Implicit via provider props | Explicit: `courier.shared.signIn({ userId, jwt })` |
@@ -90,8 +90,8 @@ These are the v7 hosts. On their own they aren't enough for v8.
 |---|---|
 | v7 | `https://inbox.courier.com` `wss://realtime.courier.com` |
 
-v8 adds `https://api.courier.com`, and its SDK opens the WebSocket on **`wss://realtime.courier.io`**.
-The docs still list `wss://realtime.courier.com` for v8, so keep it. See
+v8 adds `https://api.courier.com`. Every v8 release opens its WebSocket on **`wss://realtime.courier.io`**, with `.io`.
+Courier's CSP list also names `wss://realtime.courier.com`, the v7 host. Allowing it is harmless, so allow both. See
 [Content Security Policy](./rendering.md#content-security-policy) for the full v8 set.
 
 ## Migration Path
@@ -100,7 +100,7 @@ When the user is ready to upgrade, the canonical migration is documented here: h
 
 High-level steps:
 
-1. Replace the three v7 packages with `@trycourier/courier-react`.
+1. Replace the v7 packages (`react-provider`, `react-inbox`, `react-toast`, and `react-hooks` if present) with `@trycourier/courier-react`.
 2. Remove `<CourierProvider>`; call `courier.shared.signIn({ userId, jwt })` inside an effect once the JWT is available.
 3. Replace `<Inbox />` with `<CourierInbox />`.
 4. Wire a server endpoint that issues a JWT (example in [auth.md](./auth.md)).

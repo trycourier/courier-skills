@@ -190,7 +190,7 @@ Pass `locale` to render a translation. Use the key exactly as the template store
 |---|---|
 | `category` | `desktop`, `mobile`, `webmail` |
 | `app` | Mobile: the app (`apple_mail`, `gmail`, `outlook`). Desktop: the app with its version (`apple_mail_16`, `outlook_2016` … `outlook_2024`, `outlook_microsoft_365`, `outlook_office_365`). Webmail: the service (`gmail_com`, `outlook_com`, `yahoo_com`, `aol_com`, and more) |
-| `platform`, `platform_version` | Phone or browser (`iphone`, `pixel`, `chrome`, `edge`, `firefox`) and its model or version; `null` on desktop |
+| `platform`, `platform_version` | Phone or browser (`iphone`, `pixel`, `chrome`, `edge`, `firefox`) and its model or version. `platform` is `null` on desktop, and `platform_version` is `null` on desktop and webmail |
 | `os`, `os_version` | `windows`, `macos`, `ios`, `android`, and the OS version |
 | `theme` | `light`, `dark` |
 
@@ -199,8 +199,8 @@ Always filter on `category` as well as `app`: `outlook` alone is the iPhone app,
 ```typescript
 const { results: devices } = await client.previews.listDevices();
 const picks = [
-  devices.find((d) => d.app === "outlook_microsoft_365" && d.os === "windows" && d.theme === "light"),
-  devices.find((d) => d.app === "gmail_com" && d.theme === "dark"),
+  devices.find((d) => d.category === "desktop" && d.app === "outlook_microsoft_365" && d.os === "windows" && d.theme === "light"),
+  devices.find((d) => d.category === "webmail" && d.app === "gmail_com" && d.theme === "dark"),
 ].filter((d) => d !== undefined);
 const device_ids = picks.map((d) => d.id); // 2 devices = 2 previews
 ```

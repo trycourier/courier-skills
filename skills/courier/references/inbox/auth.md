@@ -6,13 +6,13 @@ The inbox is the only Courier channel that runs client-side, so it is the only o
 
 ### Rules
 - JWT is required for the inbox. Mint it server-side from your API key; never ship an API key to a browser.
-- Scopes are checked per call: `inbox:read:messages` to read, `inbox:write:events` to mark read, opened, or archived, and `read:preferences write:preferences` if you mount preferences.
+- Always grant both inbox scopes, `inbox:read:messages` and `inbox:write:events` (mark read, opened, archived). Add `read:preferences write:preferences` only if you mount preferences.
 - Refresh before expiry rather than letting the socket drop.
 
 ### Common Mistakes
 
 - Minting the JWT in client code. That requires the API key in the browser, which grants full workspace access to anyone who opens devtools.
-- Granting the wrong scopes. Reading needs `inbox:read:messages`, marking read, opened, or archived needs `inbox:write:events`, and the preference center needs `read:preferences write:preferences`. `user_id:{id}` ties the token to one user. A token missing a scope still signs in, and the inbox loads empty with no error, so a scope problem looks like an empty feed, not a `401`.
+- Granting the wrong scopes. Reading needs `inbox:read:messages`, marking read, opened, or archived needs `inbox:write:events`, and the preference center needs `read:preferences write:preferences`. `user_id:{id}` ties the token to one user. A token missing either inbox scope still signs in and the feed loads empty with no error, so it looks like an empty feed, not a `401`. Missing the preference scopes leaves the preference center empty.
 - Minting a token for one user and signing in as another. Sign out on user switch.
 - Letting a token expire instead of refreshing. The socket drops and the inbox silently stops updating.
 - Treating a v7 **client key** as interchangeable with a JWT. It isn't, and its own format has a trap, see [v7 client keys](#v7-client-keys).
@@ -39,6 +39,8 @@ Only relevant when maintaining a v7 integration ([legacy-v7.md](./legacy-v7.md))
 | `test` against an env-scoped API key | **`200` with an empty node list.** No error at all |
 
 The second is the single biggest v7 trap: auth looks like it succeeded and the inbox is simply empty.
+
+### Minting a JWT
 
 JWT is required for Inbox. Generate tokens server-side using your API key. The SDKs expose the issue-token endpoint directly. Prefer that over raw HTTP.
 

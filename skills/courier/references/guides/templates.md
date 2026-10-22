@@ -13,7 +13,7 @@
 - Elemental version string is always `"2022-01-01"`
 - ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - Templates created via API appear in Design Studio, and vice versa
-- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected** on create: `400 Template content must place its elements inside a channel block`. Only create checks this. `replace` and `putContent` still store flat elements, which Design Studio can't open, so wrap them on every write. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type has no `group`, `columns`, `list`, `jsonnet` or `comment` node; suppress that with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
+- **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel the template serves. Flat top-level elements are **rejected** on create: `400 Template content must place its elements inside a channel block`. Only create checks this. `replace` and `putContent` still store flat elements, which Design Studio can't open, so wrap them on every write. Inline sends still accept them, which is why the two paths differ. Rules in [elemental.md](./elemental.md#channel). In TypeScript the SDK type has no `group`, `columns`, `list`, `jsonnet` or `comment` node, and no `text` `elements`; suppress that with `// @ts-expect-error` rather than changing the shape, see [elemental.md](./elemental.md#channel).
 - **Elemental blocks by default, raw HTML by exception.** Blocks stay editable in Design Studio's drag-and-drop editor; a `raw` HTML or MJML email only shows there and must be edited as HTML. See [elemental.md](./elemental.md#channel).
 - A template needs a `routing.strategy_id` from your workspace to route through channels. Three ways to obtain one:
   1. **Create one programmatically** via `client.routingStrategies.create({ name, routing, channels, providers })`, returns an `rs_...` you can pass to `notifications.create`. See [routing-strategies.md](./routing-strategies.md).
@@ -798,7 +798,7 @@ output = client.messages.content(send_response.request_id)
 
 This guide covers **workspace templates**, the `/notifications/...` endpoints. These are the templates visible in your Courier dashboard and shared across all tenants.
 
-For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/templates/...` endpoints. See the [Courier Create API](https://www.courier.com/docs/design/embedded-designer/api) and [Courier Create tutorial](https://www.courier.com/docs/design/embedded-designer/api) for those routes.
+For **per-tenant templates** (Courier Create), use the `/tenants/{tenant_id}/templates/...` endpoints. See the [Courier Create API](https://www.courier.com/docs/design/embedded-designer/api) and [Courier Create tutorial](https://www.courier.com/docs/design/embedded-designer/template-editor) for those routes.
 
 ## Related
 

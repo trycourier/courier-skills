@@ -60,7 +60,7 @@ All element types share these optional properties:
 |----------|------|-------------|
 | `channels` | `string[]` | Restrict this element to specific channels (e.g., `["email", "push"]`) |
 | `ref` | `string` | Tag the element with a name for cross-element references |
-| `if` | `string` | Conditional expression, element renders only when truthy |
+| `if` | `string` \| structured condition array | Conditional expression, element renders only when truthy. The SDK types only the string form |
 | `loop` | `string` | Path to an array, element renders once per item |
 
 ---
@@ -147,7 +147,7 @@ Clickable button or link.
 | `action_id` | `string` | No | Unique ID for tracking clicks |
 | `style` | `"button"` \| `"secondary"` \| `"tertiary"` \| `"link"` | No | `button` (default) is filled, `secondary` outlined, `tertiary` the quietest, `link` inline text. Each channel draws them as closely as it can. |
 | `align` | `"center"` \| `"left"` \| `"right"` \| `"full"` | No | Alignment (default: `"center"`) |
-| `background_color` | `string` | No | The fill for `button`; the border and label for `secondary`; the label for `tertiary` |
+| `background_color` | `string` | No | The fill for `button`; the border and label for `secondary`; for `tertiary`, the label (underlined in email) and the fill in the Inbox |
 
 ### image
 
@@ -196,7 +196,7 @@ Channel-specific content branches. When present at the top level, **all** siblin
 
 **`inbox` is a valid value and Design Studio writes it.** A template built in the designer for the in-app inbox stores `{ "type": "channel", "channel": "inbox", "elements": [...] }`, so wrap inbox content the same way. Channel-wrapped is the expected shape, not malformed.
 
-**SDK typing gap.** The generated SDK types cover `text`, `meta`, `channel`, `image`, `action`, `divider`, `quote` and `html`. They have no `group`, `columns`, `list`, `jsonnet` or `comment` node, so those fail in TypeScript with TS2322 even though they're documented Elemental elements (and Design Studio produces `group`). Keep the shape and add `// @ts-expect-error accepted by the API, missing from the SDK type` on that line, or cast the node. Python accepts them at runtime. Don't drop an element to satisfy the compiler. Channel `elements` are typed; if an older SDK rejects them with TS2353, upgrade. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
+**SDK typing gap.** The generated SDK types cover `text`, `meta`, `channel`, `image`, `action`, `divider`, `quote` and `html`. They have no `group`, `columns`, `list`, `jsonnet` or `comment` node, and `text` has no `elements` field (the styled form), so those fail with TS2322 or TS2353 even though they're documented (and Design Studio produces `group`). A `locales` entry is typed with `content` only, so `title`, `href` or `src` in one also fails with TS2353. Keep the shape and add `// @ts-expect-error accepted by the API, missing from the SDK type` on that line, or cast the node. Python accepts them at runtime. Don't drop an element to satisfy the compiler. A channel's own `elements` are typed in 9.12.0; TS2353 on those alone means an older SDK, so upgrade. See [inbox.md](../channels/inbox.md#elemental-content-for-inbox).
 
 #### The channel element vs the three other places a channel is named
 
@@ -450,7 +450,7 @@ The `if` expression is evaluated at render time against the message, with send d
   "type": "text",
   "content": "As a premium member, you get early access.",
   "align": "left",
-  "if": "data.tier == 'premium'"
+  "if": "data.tier === 'premium'"
 }
 ```
 
@@ -459,7 +459,7 @@ The `if` expression is evaluated at render time against the message, with send d
   "type": "action",
   "content": "Upgrade to Premium",
   "href": "https://example.com/upgrade",
-  "if": "data.tier != 'premium'"
+  "if": "data.tier !== 'premium'"
 }
 ```
 
@@ -468,7 +468,7 @@ The `if` expression is evaluated at render time against the message, with send d
   "type": "text",
   "content": "Reminder: your trial ends soon.",
   "align": "left",
-  "if": "data.trial == true && data.days_left <= 3"
+  "if": "data.trial === true && data.days_left <= 3"
 }
 ```
 

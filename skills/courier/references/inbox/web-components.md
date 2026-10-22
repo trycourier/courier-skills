@@ -13,7 +13,7 @@
 - Loading from the CDN without an import map, without `script-src https://unpkg.com` in the CSP, or with `@latest` in production.
 - Omitting `style-src 'unsafe-inline'`, which renders the inbox unstyled with no error, see [Content Security Policy](./rendering.md#content-security-policy).
 - Calling element methods before the custom element is defined. Await the module import first.
-- Skipping `listenForUpdates()` in a custom UI built on `CourierInboxDatastore`.
+- Skipping `listenForUpdates()` in a custom UI built on `CourierInboxDatastore`. Call `CourierInboxDatastore.shared.registerFeeds(defaultFeeds())`, then `listenForUpdates()`, then `load()`.
 
 Framework-agnostic custom elements for Svelte, plain JavaScript, server-rendered HTML, or any framework without its own Courier package. Vue and Angular have wrappers built on these elements, `@trycourier/courier-vue` and `@trycourier/courier-angular`.
 
@@ -120,7 +120,7 @@ Still no build step. A CSP needs `script-src https://unpkg.com`, and inline scri
   const toast = document.querySelector('courier-toast');
 
   toast.onToastItemClick(({ message }) => {
-    window.location.href = message.data?.deepLink;
+    if (message.data?.deepLink) window.location.href = message.data.deepLink;
   });
 
   Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
@@ -177,7 +177,7 @@ All the same callbacks available in React are available on the Web Component ele
   const inbox = document.getElementById('inbox');
 
   inbox.onMessageClick(({ message, index }) => {
-    window.location.href = message.data?.deepLink;
+    if (message.data?.deepLink) window.location.href = message.data.deepLink;
   });
 
   inbox.onMessageActionClick(({ message, action, index }) => {
@@ -197,7 +197,7 @@ bind declaratively:
 <script type="module">
   document.getElementById('inbox').addEventListener('message-click', (e) => {
     const { message, index } = e.detail;
-    window.location.href = message.data?.deepLink;
+    if (message.data?.deepLink) window.location.href = message.data.deepLink;
   });
 </script>
 ```
@@ -240,11 +240,16 @@ Build a custom notification bell with unread count without any framework:
     badge.style.display = count > 0 ? 'inline' : 'none';
   }
 
-  // The mounted <courier-inbox> loads the feed after sign-in; the datastore reports every count change.
+  // The mounted <courier-inbox> loads the default feeds after sign-in. Count one tab:
+  // totalUnreadCount also adds unread messages from the Archive tab.
   CourierInboxDatastore.shared.addDataStoreListener(
-    new CourierInboxDataStoreListener({ onTotalUnreadCountChange: updateBadge })
+    new CourierInboxDataStoreListener({
+      onUnreadCountChange: (count, datasetId) => {
+        if (datasetId === 'all_messages') updateBadge(count);
+      },
+    })
   );
-  updateBadge(CourierInboxDatastore.shared.totalUnreadCount);
+  updateBadge(CourierInboxDatastore.shared.getDatasetById('all_messages')?.unreadCount ?? 0);
 
   Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
 </script>
@@ -266,7 +271,7 @@ Build a custom notification bell with unread count without any framework:
 | `onMessageClick(cb)` | `courier-inbox` | Handle message click |
 | `onMessageActionClick(cb)` | `courier-inbox` | Handle action button click |
 | `onToastItemClick(cb)` | `courier-toast` | Handle toast click |
-| `CourierInboxDatastore.shared.totalUnreadCount` | datastore | Total unread across every feed (read-only) |
+| `CourierInboxDatastore.shared.totalUnreadCount` | datastore | Sum of every registered tab's unread count (read-only). Overlapping tabs count a message once per tab; for a badge read one tab: `CourierInboxDatastore.shared.getDatasetById('all_messages')?.unreadCount` |
 
 The `message-click`, `message-action-click`, and `message-long-press` `CustomEvent`s carry the same
 payload as the matching `on...` method in `event.detail`. The identically named **HTML attributes** are a

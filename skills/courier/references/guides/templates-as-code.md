@@ -15,7 +15,7 @@ local files → validate → diff → push → publish → verify → (rollback 
 - Local files are the source of truth; validate, diff against the draft, then push.
 - Sends always use the published version, so drafts are free to iterate. Publishing is the release.
 - Rollback is `publish { "version": "v001" }`. History is append-only, so the rollback itself lands as a new version.
-- Sends take the `nt_...` ID or a template alias. Content, publish, versions and locales calls take the `nt_...` ID.
+- Sends take the `nt_...` ID or a template alias. Every other `/notifications/{id}` call except metrics takes the `nt_...` ID.
 - Keep element `id`s and `locales` in the repo files. A push replaces the draft's whole content, translations included.
 
 ### Common Mistakes
@@ -159,8 +159,9 @@ better in app code, and you can point the name at a different template without t
 - **`PUT` without `alias` keeps the template's aliases.** A string replaces them. `null` removes them all.
 - **Reads** return `alias` as a string, as an array for a template with several, or leave it out when
   there is none.
-- **Management calls take the `nt_...` ID** (content, publish, versions, locales). Keep
-  `templates.map.json` for pushes and promotion. The metrics endpoint also accepts an alias.
+- **Every `/notifications/{id}` call except metrics takes the `nt_...` ID:** get, replace, archive,
+  content, publish, versions, locales, previews. Keep `templates.map.json` for pushes and promotion.
+  The metrics endpoint also accepts an alias.
 
 **TypeScript:**
 
@@ -187,12 +188,15 @@ await client.notifications.create({
     },
     alias: "order-shipped",
   },
+  state: "PUBLISHED",
 });
 
 await client.send.message({
   message: { to: { user_id: "user-123" }, template: "order-shipped", data: { order_id: "ORD-9042" } },
 });
 ```
+
+Send by alias only after the template is published (`state: "PUBLISHED"` on create, or `publish(id)`).
 
 **Python:**
 
@@ -205,7 +209,7 @@ client.send.message(
 Agent guidance:
 
 - Use an alias when the user wants a readable name, or one they can repoint to another template.
-- On `409`, pick another name, or clear the alias from the template that holds it first.
+- On `409`, pick another name, or clear it from the holder first: the error names its `nt_...` ID, so `replace` that template with `alias: null` (a full PUT, so send every field).
 - Don't build an app-side alias map for sends. Courier resolves the alias.
 
 ## Promotion between workspaces
@@ -213,6 +217,9 @@ Agent guidance:
 The same loop promotes templates between environments: validate → diff → push → publish →
 verify against the target workspace's API key, with the per-environment ids from your map.
 Because the content files are identical, dev and prod stay provably in sync.
+
+Templates, and so their aliases, are separate in each environment. Set the same `alias` on the
+target template when you promote it.
 
 ## Related
 
