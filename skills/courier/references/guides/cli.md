@@ -46,6 +46,8 @@
 | List preview device sets | `courier previews list-device-sets` |
 | Start a Device Preview run (billed per device) | `courier notifications:previews:runs create --id "nt_01kmrbq6ypf25tsge12qek41r0" --device-set-id "pvs_..." --idempotency-key "$(uuidgen)"` |
 | Read a preview run | `courier notifications:previews:runs retrieve --id "nt_01kmrbq6ypf25tsge12qek41r0" --preview-run-id "pvr_..."` |
+| Send once per key (retries return the first response) | `courier send message --message '{"to":{"user_id":"user-123"},"template":"nt_01kmrbq6ypf25tsge12qek41r0"}' --idempotency-key "order-12345"` |
+| One-off broadcast to a list | `courier broadcasts create --name "Launch" --channel email`, then `courier broadcasts put-content --broadcast-id "$BROADCAST_ID" --content '{"version":"2022-01-01","elements":[...]}'`, then `courier broadcasts send --broadcast-id "$BROADCAST_ID" --recipient-type list --recipient-id "product-updates"` |
 | Change one provider setting (merges, keeps the rest) | `courier providers patch --id "$PROVIDER_ID" --settings '{"rate_limit":{"rate":10,"period":"second"}}'` |
 
 ### Output Formats
@@ -58,6 +60,7 @@
 | `pretty` | Colorized, indented JSON |
 | `raw` | Raw response body |
 | `jsonl` | Newline-delimited JSON (streaming) |
+| `explore` | Interactive JSON explorer. Terminal only; falls back to `json` when piped |
 
 Filter with GJSON: `--transform "results.#.id"`
 
@@ -134,7 +137,7 @@ Add custom attributes (merges with existing profile, won't overwrite contact inf
 ```bash
 courier profiles create \
   --user-id "user-123" \
-  --profile '{"custom": {"plan": "pro", "company": "Acme Corp", "locale": "en-US"}}'
+  --profile '{"locale": "en-us", "custom": {"plan": "pro", "company": "Acme Corp"}}'
 ```
 
 Look up a profile:
@@ -204,7 +207,7 @@ courier bulk list-users --job-id "1-6a7e474b-..."     # per-recipient status and
 courier tenants update \
   --tenant-id "acme-corp" \
   --name "Acme Corp" \
-  --properties '{"brandId": "brand-acme"}'
+  --brand-id "brand-acme"
 
 courier users:tenants add-single --user-id "user-123" --tenant-id "acme-corp"
 
@@ -213,17 +216,28 @@ courier send message \
   --message.template "welcome-email"
 ```
 
-> `courier tenants update` is an **upsert**. Use it to both create and update a tenant. There is no separate `courier tenants create` command.
+> `courier tenants update` (`PUT /tenants/{tenant_id}`) replaces the tenant; pass every field you want to keep. `properties`, `brand_id`, `user_profile` and `default_preferences` left out are cleared. `--brand-id` doesn't accept null, so omit it to remove a brand. It also creates the tenant if it doesn't exist; there is no separate `courier tenants create` command.
 
-**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI supports the full journey lifecycle. **Journey-scoped templates** (the templates referenced inside `send` nodes) are not yet in the CLI. Use curl/REST for those. See [Journeys](./journeys.md) for the full workflow.
+**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI covers the full lifecycle: `courier journeys` (create, replace, publish, invoke, cancel), `courier journeys:templates` for journey-scoped templates, and `courier journeys:runs` (list, retrieve, list-steps) for debugging. Publishing a journey publishes only its nodes, not its journey-scoped templates. A send whose template was never published fails with `Notification template not found`, while the run still shows `PROCESSED`. See [Journeys](./journeys.md) for the full workflow.
 
 ```bash
-# Create a journey shell (node ids are server-generated — don't supply your own)
+# Create a journey shell: a trigger first, an exit last (node ids are server-generated, don't supply your own)
 courier journeys create \
   --name "Onboarding" \
-  --node '{"type":"trigger","trigger_type":"api-invoke"}'
+  --node '{"type":"trigger","trigger_type":"api-invoke"}' \
+  --node '{"type":"exit"}'
 
-# Publish the current draft
+# Journey-scoped template (--template-id is the journey id)
+courier journeys:templates create \
+  --template-id "$JOURNEY_ID" \
+  --channel email \
+  --notification '{"name":"Welcome","tags":[],"brand":null,"subscription":null,"content":{"version":"2022-01-01","elements":[{"type":"channel","channel":"email","elements":[{"type":"meta","title":"Welcome"},{"type":"text","content":"Hi {{data.first_name}}"}]}]}}'
+
+# Publish each journey-scoped template first (or pass --state PUBLISHED on create).
+# Publishing the journey doesn't publish them.
+courier journeys:templates publish --template-id "$JOURNEY_ID" --notification-id "$TEMPLATE_ID"
+
+# Publish the journey's current draft
 courier journeys publish --template-id "$JOURNEY_ID"
 
 # Invoke a journey (mirror user_id into data so fetch URL templating works)
@@ -253,7 +267,7 @@ Trace why a notification failed in four steps:
 courier messages list --format json --transform "results.#(status=UNDELIVERABLE)"
 ```
 
-`messages list` accepts the filter flags `--status`, `--recipient`, `--notification`, `--event`, `--tag`, `--tenant-id`, `--enqueued-after`, `--cursor`, and `--trace-id`. Note: the flag for looking up messages by a send's `requestId` is `--trace-id`, not `--request-id`. See the [next section](#debugging-list-bulk-sends-requestid-vs-message-id).
+`messages list` filter flags include `--status`, `--recipient`, `--notification`, `--event`, `--tag`, `--tags`, `--provider`, `--list`, `--message-id`, `--archived`, `--tenant-id`, `--enqueued-after`, `--cursor`, and `--trace-id`. Note: the flag for looking up messages by a send's `requestId` is `--trace-id`, not `--request-id`. See the [next section](#debugging-list--bulk-sends-requestid-vs-message-id).
 
 **2. Inspect the message:**
 
@@ -318,7 +332,7 @@ courier notifications get-metrics \
 | Flag | Notes |
 |---|---|
 | `--id` | Required. Template ID or alias |
-| `--lookback` | ISO 8601 duration, default `P30D`. Ignored when `--start`/`--end` are given |
+| `--lookback` | ISO 8601 duration, default `P30D`. Don't combine with `--start`/`--end`: the API returns `400`. The CLI `--help` and SDK say it's ignored |
 | `--granularity` | `HOUR`, `DAY` (default), `WEEK`, `MONTH` |
 | `--start` / `--end` | ISO 8601 timestamps with an offset. Supply both or neither |
 
@@ -392,7 +406,7 @@ Store API keys as secrets in your CI provider (GitHub Actions secrets, GitLab CI
 |------|-------------|
 | `--api-key` | Override `COURIER_API_KEY` for this command |
 | `--base-url` | Use a custom API URL |
-| `--format` | Output format (`auto`, `json`, `yaml`, `pretty`, `raw`, `jsonl`) |
+| `--format` | Output format (`auto`, `explore`, `json`, `jsonl`, `pretty`, `raw`, `yaml`) |
 | `--transform` | Filter output with GJSON syntax |
 | `--debug` | Show HTTP request/response details |
 | `--version`, `-v` | Print CLI version |

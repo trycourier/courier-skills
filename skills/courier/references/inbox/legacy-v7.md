@@ -1,12 +1,12 @@
 # In-App Inbox, v7 Legacy Reference
 
-> **For new projects: use v8.** See [rendering.md](./rendering.md). Only read this file when you are confirming that existing code is on v7 **and** the user has an explicit blocker preventing upgrade (e.g., v7-only Tags or Pins that haven't landed in v8 yet).
+> **For new projects: use v8.** See [rendering.md](./rendering.md). Only read this file when you are confirming that existing code is on v7 **and** the user has an explicit blocker preventing upgrade (e.g., Pins, or adding and removing tags from the client, neither of which v8 supports yet).
 
 ## Quick Reference
 
 ### When to use this file
 
-- An existing codebase imports `@trycourier/react-provider`, `@trycourier/react-inbox`, or `@trycourier/react-toast`, **and**
+- An existing codebase imports `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast`, or `@trycourier/react-hooks`, **and**
 - The user has asked about maintaining that code, **and**
 - They cannot upgrade yet.
 
@@ -26,12 +26,12 @@ For every other case, including new inboxes, new features on existing inboxes, o
 - **Action clicks need `onRouteChange`.** The built-in handler awaits `markMessageRead` and `trackClick` before calling `window.open`, by which point it has lost user activation and popup blockers drop the navigation silently.
 - **A single action renders no button.** The whole row becomes the click target. That is intended in v7, but v8 draws a visible button for the identical payload, so migrating changes the look of every single-action message with no content change.
 - **A client key is base64 of `<tenant>/<env>`, and that env must match the API key's env.** An `env_01k...` segment is rejected with `403`; a `test` segment against an env-scoped API key returns `200` with an empty node list and no error. See [auth.md](./auth.md#v7-client-keys).
-- Carrying the v7 CSP hosts into a v8 app, see [v7 CSP hosts](#v7-csp-hosts).
+- Keeping only the v7 CSP hosts in a v8 app. v8 also needs `https://api.courier.com` and `wss://realtime.courier.io`, see [v7 CSP hosts](#v7-csp-hosts).
 
 ### Quick validation checklist (before shipping a v7 change)
 
 - Confirm this is truly v7 using package/import signals in the Version Detection table below.
-- Confirm and document the migration blocker (for example, dependency on v7-only Tags or Pins).
+- Confirm and document the migration blocker (for example, Pins, or client-side tag edits).
 - Keep scope to maintenance/bugfix updates; avoid introducing new v7-only architectural surface.
 - Run a smoke test: inbox renders, auth succeeds, and new messages appear in the feed.
 - Add a migration pointer to v8 docs in the PR or task notes.
@@ -43,7 +43,7 @@ For every other case, including new inboxes, new features on existing inboxes, o
 | `@trycourier/courier-react` or `@trycourier/courier-react-17` in `package.json` | **v8** |
 | `@trycourier/courier-ui-inbox` (Web Components) in `package.json` | **v8** |
 | `<CourierInbox />`, `useCourier()`, `courier.shared.signIn()` | **v8** |
-| `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast` in `package.json` | **v7** |
+| `@trycourier/react-provider`, `@trycourier/react-inbox`, `@trycourier/react-toast`, `@trycourier/react-hooks` in `package.json` | **v7** |
 | `<CourierProvider>`, `<Inbox />`, `useInbox()`, `clientKey` prop | **v7** |
 | New project / no existing code | **Use v8** |
 
@@ -74,25 +74,25 @@ Contrast with the v8 shape in [react.md](./react.md): a single package (`@trycou
 
 | Concern | v7 | v8 |
 |---------|----|----|
-| Packages | `@trycourier/react-provider` + `@trycourier/react-inbox` + `@trycourier/react-toast` | Single: `@trycourier/courier-react` |
+| Packages | `@trycourier/react-provider` + `@trycourier/react-inbox` + `@trycourier/react-toast` (+ `@trycourier/react-hooks`) | Single: `@trycourier/courier-react` |
 | Wrapping | `<CourierProvider>` | No provider; `useCourier()` hook |
 | Auth | `clientKey` prop accepted (JWT preferred) | JWT required |
 | Sign in | Implicit via provider props | Explicit: `courier.shared.signIn({ userId, jwt })` |
-| Real-time | Auto | Explicit: `inbox.listenForUpdates()` |
-| Tags / Pins | Supported | **Not yet**, only blocker where v7 is still needed |
-| CSP hosts | `https://inbox.courier.com`, `wss://realtime.courier.com` | `https://api.courier.com`, `https://inbox.courier.com`, `wss://realtime.courier.io` |
+| Real-time | Auto | Auto for `<CourierInbox />`. A custom UI calls `inbox.listenForUpdates()` |
+| Tags / Pins | Supported, including client-side `addTag` / `removeTag` | Tags are set on the send and filtered by tabs, with no client-side edits. Pins **not yet** |
+| CSP hosts | `https://inbox.courier.com`, `wss://realtime.courier.com` | `https://api.courier.com`, `https://inbox.courier.com`, `wss://realtime.courier.io`, `wss://realtime.courier.com` |
 
 ### v7 CSP hosts
 
-These values are **v7 only**. Do not carry them into a v8 app.
+These are the v7 hosts. On their own they aren't enough for v8.
 
 | Version | connect-src |
 |---|---|
 | v7 | `https://inbox.courier.com` `wss://realtime.courier.com` |
 
-v8's hosts differ, and the WebSocket in particular moves from `realtime.courier.com` to
-**`realtime.courier.io`**. See [Content Security Policy](./rendering.md#content-security-policy) for the
-full v8 set.
+v8 adds `https://api.courier.com`. Every v8 release opens its WebSocket on **`wss://realtime.courier.io`**, with `.io`.
+Courier's CSP list also names `wss://realtime.courier.com`, the v7 host. Allowing it is harmless, so allow both. See
+[Content Security Policy](./rendering.md#content-security-policy) for the full v8 set.
 
 ## Migration Path
 
@@ -100,14 +100,14 @@ When the user is ready to upgrade, the canonical migration is documented here: h
 
 High-level steps:
 
-1. Replace the three v7 packages with `@trycourier/courier-react`.
+1. Replace the v7 packages (`react-provider`, `react-inbox`, `react-toast`, and `react-hooks` if present) with `@trycourier/courier-react`.
 2. Remove `<CourierProvider>`; call `courier.shared.signIn({ userId, jwt })` inside an effect once the JWT is available.
 3. Replace `<Inbox />` with `<CourierInbox />`.
 4. Wire a server endpoint that issues a JWT (example in [auth.md](./auth.md)).
-5. After sign-in, call `inbox.registerFeeds(defaultFeeds())` and `inbox.listenForUpdates()`.
+5. For a custom UI on `useCourier()`, call `inbox.registerFeeds(defaultFeeds())`, `inbox.listenForUpdates()`, then `inbox.load()` after sign-in. `<CourierInbox />` needs none of these.
 6. Migrate custom styling, v8 uses a different theming API.
-7. **Update the CSP.** Swap `wss://realtime.courier.com` for `wss://realtime.courier.io`, add
-   `https://api.courier.com`, and confirm `style-src` allows `'unsafe-inline'`. Missing this leaves an
+7. **Update the CSP.** Add `wss://realtime.courier.io` and `https://api.courier.com`, keep
+   `wss://realtime.courier.com`, and confirm `style-src` allows `'unsafe-inline'`. Missing this leaves an
    inbox that loads but never updates in real time, or renders unstyled, with no error either way.
 
 ## Related

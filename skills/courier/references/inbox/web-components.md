@@ -3,21 +3,21 @@
 ## Quick Reference
 
 ### Rules
-- Import `Courier` from `@trycourier/courier-ui-inbox`, then `Courier.shared.signIn()` and `listenForUpdates()`.
+- Import `Courier` from `@trycourier/courier-ui-inbox` and call `Courier.shared.signIn()`. The elements load and open the socket themselves.
 - Wire click handlers with the element methods or `CustomEvent`s, not the HTML string attributes.
-- Loading from a CDN needs `script-src https://unpkg.com` and a pinned version.
+- Loading from a CDN needs an import map, `script-src https://unpkg.com`, and pinned versions.
 
 ### Common Mistakes
 
 - Using the `message-click` / `message-action-click` / `message-long-press` **HTML attributes**. They compile with `new Function()`, need `script-src 'unsafe-eval'`, and fail silently without it. Use the element methods or the `CustomEvent`s, see [Event Handling](#event-handling).
-- Loading from the CDN without `script-src https://unpkg.com` in the CSP, or shipping `@latest` to production.
+- Loading from the CDN without an import map, without `script-src https://unpkg.com` in the CSP, or with `@latest` in production.
 - Omitting `style-src 'unsafe-inline'`, which renders the inbox unstyled with no error, see [Content Security Policy](./rendering.md#content-security-policy).
 - Calling element methods before the custom element is defined. Await the module import first.
-- Skipping `listenForUpdates()` after `signIn()`.
+- Skipping `listenForUpdates()` in a custom UI built on `CourierInboxDatastore`. Call `CourierInboxDatastore.shared.registerFeeds(defaultFeeds())`, then `listenForUpdates()`, then `load()`.
 
-Framework-agnostic custom elements, Vue, Angular, Svelte, or plain JavaScript.
+Framework-agnostic custom elements for Svelte, plain JavaScript, server-rendered HTML, or any framework without its own Courier package. Vue and Angular have wrappers built on these elements, `@trycourier/courier-vue` and `@trycourier/courier-angular`.
 
-Web Components work with **any framework or no framework at all**, Vue, Angular, Svelte, vanilla JS, server-rendered HTML, WordPress, etc. They use the same v8 SDK and real-time infrastructure as the React components.
+They use the same v8 SDK and real-time infrastructure as the React components.
 
 ### Installation
 
@@ -27,17 +27,24 @@ Web Components work with **any framework or no framework at all**, Vue, Angular,
 npm install @trycourier/courier-ui-inbox @trycourier/courier-ui-toast
 ```
 
-**Without a bundler (CDN script tag):**
+**Without a bundler (CDN):**
+
+The ES modules import `@trycourier/courier-js` and `@trycourier/courier-ui-core` by bare name, which a browser can't resolve alone. Put an import map before any module script, pinned to the versions each package depends on:
 
 ```html
-<script type="module" src="https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/index.mjs"></script>
-<script type="module" src="https://unpkg.com/@trycourier/courier-ui-toast@latest/dist/index.mjs"></script>
+<script type="importmap">
+{
+  "imports": {
+    "@trycourier/courier-js": "https://unpkg.com/@trycourier/courier-js@3.7.1/dist/index.mjs",
+    "@trycourier/courier-ui-core": "https://unpkg.com/@trycourier/courier-ui-core@2.5.2/dist/index.mjs",
+    "@trycourier/courier-ui-inbox": "https://unpkg.com/@trycourier/courier-ui-inbox@2.7.2/dist/index.mjs",
+    "@trycourier/courier-ui-toast": "https://unpkg.com/@trycourier/courier-ui-toast@2.4.2/dist/index.mjs"
+  }
+}
+</script>
 ```
 
-The CDN approach requires no build step. Add the script tags and use the custom elements immediately.
-Two caveats: a CSP needs `script-src https://unpkg.com` for these to load at all, and `@latest` means a
-future release can change behavior without a deploy on your side. Pin an exact version for anything
-beyond a prototype. A bundled npm install needs no `script-src` host, see
+Still no build step. A CSP needs `script-src https://unpkg.com`, and inline scripts need a nonce or hash. When you bump a version, match `npm view @trycourier/courier-ui-inbox dependencies` so inbox and toast share one `courier-js`. A bundled npm install needs no `script-src` host, see
 [Content Security Policy](./rendering.md#content-security-policy).
 
 ### Basic Setup
@@ -65,13 +72,21 @@ beyond a prototype. A bundled npm install needs no `script-src` host, see
 <!DOCTYPE html>
 <html>
 <head>
-  <script type="module" src="https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/index.mjs"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@trycourier/courier-js": "https://unpkg.com/@trycourier/courier-js@3.7.1/dist/index.mjs",
+      "@trycourier/courier-ui-core": "https://unpkg.com/@trycourier/courier-ui-core@2.5.2/dist/index.mjs",
+      "@trycourier/courier-ui-inbox": "https://unpkg.com/@trycourier/courier-ui-inbox@2.7.2/dist/index.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
   <courier-inbox id="inbox"></courier-inbox>
 
   <script type="module">
-    const { Courier } = await import('https://unpkg.com/@trycourier/courier-ui-inbox@latest/dist/index.mjs');
+    import { Courier } from '@trycourier/courier-ui-inbox';
 
     const jwt = await fetch('/api/courier-token')
       .then(r => r.json())
@@ -105,7 +120,7 @@ beyond a prototype. A bundled npm install needs no `script-src` host, see
   const toast = document.querySelector('courier-toast');
 
   toast.onToastItemClick(({ message }) => {
-    window.location.href = message.data?.deepLink;
+    if (message.data?.deepLink) window.location.href = message.data.deepLink;
   });
 
   Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
@@ -162,7 +177,7 @@ All the same callbacks available in React are available on the Web Component ele
   const inbox = document.getElementById('inbox');
 
   inbox.onMessageClick(({ message, index }) => {
-    window.location.href = message.data?.deepLink;
+    if (message.data?.deepLink) window.location.href = message.data.deepLink;
   });
 
   inbox.onMessageActionClick(({ message, action, index }) => {
@@ -182,7 +197,7 @@ bind declaratively:
 <script type="module">
   document.getElementById('inbox').addEventListener('message-click', (e) => {
     const { message, index } = e.detail;
-    window.location.href = message.data?.deepLink;
+    if (message.data?.deepLink) window.location.href = message.data.deepLink;
   });
 </script>
 ```
@@ -206,26 +221,35 @@ Build a custom notification bell with unread count without any framework:
 <courier-inbox id="inbox" style="display:none;"></courier-inbox>
 
 <script type="module">
-  import { Courier } from '@trycourier/courier-ui-inbox';
+  import {
+    Courier,
+    CourierInboxDatastore,
+    CourierInboxDataStoreListener,
+  } from '@trycourier/courier-ui-inbox';
 
   const inbox = document.getElementById('inbox');
   const badge = document.getElementById('badge');
   const bell = document.getElementById('notif-bell');
 
-  // Toggle inbox visibility
   bell.addEventListener('click', () => {
     inbox.style.display = inbox.style.display === 'none' ? 'block' : 'none';
   });
 
-  // Poll for unread count updates
-  function updateBadge() {
-    const count = inbox.unreadMessageCount ?? 0;
-    badge.textContent = count > 99 ? '99+' : count;
+  function updateBadge(count) {
+    badge.textContent = count > 99 ? '99+' : String(count);
     badge.style.display = count > 0 ? 'inline' : 'none';
   }
 
-  // Check periodically (WebSocket handles real-time, this catches edge cases)
-  setInterval(updateBadge, 2000);
+  // The mounted <courier-inbox> loads the default feeds after sign-in. Count one tab:
+  // totalUnreadCount also adds unread messages from the Archive tab.
+  CourierInboxDatastore.shared.addDataStoreListener(
+    new CourierInboxDataStoreListener({
+      onUnreadCountChange: (count, datasetId) => {
+        if (datasetId === 'all_messages') updateBadge(count);
+      },
+    })
+  );
+  updateBadge(CourierInboxDatastore.shared.getDatasetById('all_messages')?.unreadCount ?? 0);
 
   Courier.shared.signIn({ userId: 'user-123', jwt: '...' });
 </script>
@@ -247,7 +271,7 @@ Build a custom notification bell with unread count without any framework:
 | `onMessageClick(cb)` | `courier-inbox` | Handle message click |
 | `onMessageActionClick(cb)` | `courier-inbox` | Handle action button click |
 | `onToastItemClick(cb)` | `courier-toast` | Handle toast click |
-| `unreadMessageCount` | `courier-inbox` | Current unread count (read-only) |
+| `CourierInboxDatastore.shared.totalUnreadCount` | datastore | Sum of every registered tab's unread count (read-only). Overlapping tabs count a message once per tab; for a badge read one tab: `CourierInboxDatastore.shared.getDatasetById('all_messages')?.unreadCount` |
 
 The `message-click`, `message-action-click`, and `message-long-press` `CustomEvent`s carry the same
 payload as the matching `on...` method in `event.detail`. The identically named **HTML attributes** are a

@@ -9,7 +9,7 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 ### Rules
 
 - **Set the window with `lookback`, or with `start`+`end`.** `lookback` is an ISO 8601 duration counted back from now (`P30D`, `P12W`, `PT12H`), default `P30D`. `start`+`end` are ISO 8601 timestamps with an offset and must be supplied together. Send one form, never both: `lookback` with `start`/`end` returns `400`.
-- **Label charts with the response's `start` and `end`, not the values you requested.** Courier widens the window outward to whole buckets, so a request for the last 36 hours at `DAY` returns two full days.
+- **Label charts with the response's `start` and `end`, not the values you requested.** Courier widens the window outward to whole buckets, so a request for the last 36 hours at `DAY` returns two or three whole UTC days, depending on the time of day.
 - **Go coarser, don't split the range.** A granularity too fine for the window returns `400`. Switch `HOUR` to `DAY` rather than issuing several calls.
 - **There is no bucket-level total.** Sum the rows in a bucket yourself, and guard the division: a quiet bucket has `sent: 0`.
 - **A window past your plan's cap returns `402`, not a truncated series.** Check the cap before widening.
@@ -24,7 +24,7 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 - Assuming `errors` and `undeliverable` are the same failure. They aren't; see the field table below.
 - Requesting `HOUR` granularity over a month and expecting a truncated result instead of a `400`.
 - Retrying a `429` immediately. Honor `Retry-After`.
-- Reading a low `delivered` count as failed mail. `delivered` needs the provider to report back, through polling or a webhook set up on the provider's integration page. With tracking off, messages stay at `sent`. Check tracking before assuming an outage. See [Analytics: set up delivery tracking](https://www.courier.com/docs/monitor/analytics#why-delivery-rates-read-low).
+- Reading a low `delivered` count as failed mail. `delivered` needs the provider to report back, through polling or a webhook set up on the provider's integration page. With tracking off, messages stay at `sent`. Check tracking before assuming an outage. See [Analytics: set up delivery tracking](https://www.courier.com/docs/monitor/analytics#set-up-delivery-tracking).
 
 ### SDK shape
 
@@ -133,7 +133,7 @@ for bucket in metrics.series:
 
 ## Break out by channel
 
-Every row carries `provider` and `channel`, so comparing channels for one template needs no extra calls. Sum rows by `row.channel` across the series, and compare channels without open tracking on `clicked`, not `opened`. Worked example in [multi-channel.md](./multi-channel.md#track-routing-effectiveness).
+Every row carries `provider` and `channel`, so comparing channels for one template needs no extra calls. Sum rows by `row.channel` across the series, and compare channels without open tracking on `clicked` (with link tracking on), not `opened`. Worked example in [multi-channel.md](./multi-channel.md#track-routing-effectiveness).
 
 ## Plan limits and rate limits
 
@@ -141,7 +141,7 @@ Every row carries `provider` and `channel`, so comparing channels for one templa
 |---|---|---|
 | Developer (free) | 30 days | 1 |
 | Business | 90 days | 2 |
-| Enterprise | 730 days | 5 |
+| Enterprise | No limit | 5 |
 
 Rate limits are per workspace, and every response carries `RateLimit-*` headers, so a backfill can pace itself instead of guessing.
 

@@ -4,13 +4,13 @@
 
 ### Rules
 - v8 is `useCourier()` plus `courier.shared.signIn()`. No provider wrapper.
-- Call `inbox.listenForUpdates()` after authentication or nothing updates in real time.
+- `<CourierInbox />` and `<CourierInboxPopupMenu />` stay live on their own after `signIn()`. A custom UI on `useCourier()` must call `inbox.listenForUpdates()`.
 - Components render client-side only. In Next.js 13+, add `'use client'`.
 
 ### Common Mistakes
 
-- Skipping `listenForUpdates()` after `signIn()`. Messages arrive but the UI never changes until reload.
-- Mounting the provider before the JWT exists. Gate the mount on having a token.
+- Skipping `listenForUpdates()` in a custom UI built on `useCourier()`. Messages arrive but the UI never changes until reload.
+- Calling `signIn` before the JWT exists. Gate the call on having a token.
 - Rendering the inbox without allowing the Courier hosts in the CSP, or without `style-src 'unsafe-inline'`. The failure looks like an auth problem, see [Content Security Policy](./rendering.md#content-security-policy).
 - Using the string HTML attributes for click handlers instead of props or the element methods. Those need `script-src 'unsafe-eval'` and fail silently, see [web-components.md](./web-components.md#event-handling).
 - Assuming a US workspace's hosts work for an EU workspace, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
@@ -25,6 +25,8 @@ npm install @trycourier/courier-react
 # React 17
 npm install @trycourier/courier-react-17
 ```
+
+On React 17, import from `@trycourier/courier-react-17` wherever this file says `@trycourier/courier-react`. The exports are the same.
 
 If the app sets a Content Security Policy, add the Courier hosts and `style-src 'unsafe-inline'` before
 you start debugging anything: see [Content Security Policy](./rendering.md#content-security-policy). EU
@@ -101,8 +103,11 @@ Filter options per tab:
 | Filter Property | Type | Description |
 |----------------|------|-------------|
 | `tags` | `string[]` | Messages with any of the specified tags |
-| `archived` | `boolean` | Include archived messages (defaults to `false`) |
+| `archived` | `boolean` | `true` shows only archived messages. Unset or `false` shows only unarchived ones, so no single tab mixes both |
 | `status` | `'read' \| 'unread'` | Filter by read/unread status |
+| `from` | `string` | ISO 8601 datetime. Only messages created at or after it |
+
+A message's tags come from `metadata.tags` on the send, see [Organizing the Feed](./rendering.md#organizing-the-feed).
 
 ### Customized Inbox (v8)
 
@@ -114,7 +119,11 @@ import { CourierInbox, type CourierInboxTheme } from "@trycourier/courier-react"
 const theme: CourierInboxTheme = {
   inbox: {
     header: {
-      filters: { unreadIndicator: { backgroundColor: "#9121C2" } },
+      feeds: { button: { unreadCountIndicator: { backgroundColor: "#9121C2" } } },
+      tabs: {
+        default: { unreadIndicator: { backgroundColor: "#9121C2" } },
+        selected: { unreadIndicator: { backgroundColor: "#9121C2" } },
+      },
     },
     list: {
       item: { unreadIndicatorColor: "#9121C2" },
@@ -125,6 +134,8 @@ const theme: CourierInboxTheme = {
 <CourierInbox lightTheme={theme} darkTheme={theme} mode="light" />;
 ```
 
+With the default feeds, or any feed with one tab, the tab bar is hidden and the count sits on the feed button, so `tabs.*.unreadIndicator` shows nothing. Style it with `inbox.header.feeds.button.unreadCountIndicator`.
+
 Dark mode switches automatically with `mode="system"`, or force with `mode="light"` / `mode="dark"`.
 
 ### Custom Components (v8)
@@ -133,25 +144,31 @@ Override individual parts with render props:
 
 | Render Prop | Type Signature |
 |-------------|----------------|
-| `renderListItem` | `(props: CourierInboxListItemFactoryProps) => ReactNode` |
-| `renderHeader` | `(props: CourierInboxHeaderFactoryProps) => ReactNode` |
-| `renderMenuButton` | `(props: CourierInboxMenuButtonFactoryProps) => ReactNode` |
-| `renderLoadingState` | `(props: CourierInboxStateLoadingFactoryProps) => ReactNode` |
-| `renderEmptyState` | `(props: CourierInboxStateEmptyFactoryProps) => ReactNode` |
-| `renderErrorState` | `(props: CourierInboxStateErrorFactoryProps) => ReactNode` |
-| `renderPaginationItem` | `(props: CourierInboxPaginationItemFactoryProps) => ReactNode` |
+| `renderListItem` | `(props: CourierInboxListItemFactoryProps \| undefined \| null) => ReactNode` |
+| `renderHeader` | `(props: CourierInboxHeaderFactoryProps \| undefined \| null) => ReactNode` |
+| `renderMenuButton` | `(props: CourierInboxMenuButtonFactoryProps \| undefined \| null) => ReactNode`. Popup menu only |
+| `renderLoadingState` | `(props: CourierInboxStateLoadingFactoryProps \| undefined \| null) => ReactNode` |
+| `renderEmptyState` | `(props: CourierInboxStateEmptyFactoryProps \| undefined \| null) => ReactNode` |
+| `renderErrorState` | `(props: CourierInboxStateErrorFactoryProps \| undefined \| null) => ReactNode` |
+| `renderPaginationItem` | `(props: CourierInboxPaginationItemFactoryProps \| undefined \| null) => ReactNode` |
+
+The props can be `undefined` or `null`, so check them before reading fields:
 
 ```tsx
 import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier/courier-react";
 
 <CourierInbox
-  renderListItem={({ message, index }: CourierInboxListItemFactoryProps) => (
-    <div className="custom-message">
-      <strong>{message.title}</strong>
-      <p>{message.body}</p>
-      <time>{message.created}</time>
-    </div>
-  )}
+  renderListItem={(props: CourierInboxListItemFactoryProps | undefined | null) => {
+    if (!props) return null;
+    const { message } = props;
+    return (
+      <div className="custom-message">
+        <strong>{message.title}</strong>
+        <p>{message.body}</p>
+        <time>{message.created}</time>
+      </div>
+    );
+  }}
 />;
 ```
 
@@ -166,7 +183,7 @@ import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier
 ```tsx
 <CourierInbox
   onMessageClick={({ message, index }) => {
-    router.push(message.data?.deepLink);
+    if (message.data?.deepLink) router.push(message.data.deepLink);
   }}
   onMessageActionClick={({ message, action, index }) => {
     window.open(action.href);
@@ -198,7 +215,7 @@ function App() {
       <CourierToast
         autoDismiss={true}
         autoDismissTimeoutMs={5000}
-        onToastItemClick={({ message }) => navigation.navigate(message.data.screen)}
+        onToastItemClick={({ message }) => { if (message.data?.deepLink) window.location.href = message.data.deepLink; }}
       />
       {/* Your app */}
     </>
@@ -240,7 +257,8 @@ export default function App() {
     await inbox.load();
   }
 
-  const unreadCount = inbox.totalUnreadCount ?? 0;
+  // One tab's count. totalUnreadCount sums every tab, so overlapping tabs count a message twice.
+  const unreadCount = inbox.feeds["all_messages"]?.unreadCount ?? 0;
   const messages = inbox.feeds["all_messages"]?.messages ?? [];
 
   return (
@@ -260,7 +278,7 @@ export default function App() {
 }
 ```
 
-You **must** call `inbox.listenForUpdates()` after authentication to enable real-time updates.
+A custom UI **must** call `inbox.listenForUpdates()` after authentication. The built-in components call it for you.
 
 Key hook methods:
 
@@ -268,7 +286,7 @@ Key hook methods:
 |--------|-------------|
 | `inbox.registerFeeds(feeds)` | Register feeds and tabs with the datastore |
 | `inbox.listenForUpdates()` | Start WebSocket connection for real-time updates |
-| `inbox.load()` | Load messages (supports `{ canUseCache, datasetIds }`) |
+| `inbox.load()` | Load messages (supports `{ canUseCache }`) |
 | `inbox.readMessage(message)` | Mark as read |
 | `inbox.unreadMessage(message)` | Mark as unread |
 | `inbox.archiveMessage(message)` | Archive |

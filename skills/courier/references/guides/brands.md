@@ -17,7 +17,7 @@ picks it up without touching message content.
 
 ## The Brand object
 
-`name` and `settings.colors` (`primary` + `secondary`) are the minimum; everything else is optional.
+`name` and `settings` are required on create, and `settings.colors` holds `primary` and `secondary`. Everything else is optional.
 
 ```jsonc
 {
@@ -38,7 +38,7 @@ picks it up without touching message content.
       "placement": "bottom"        // top | bottom | left | right
     }
   },
-  "snippets": { "items": [{ "name": "greeting", "value": "Hi there" }] }
+  "snippets": { "items": [{ "name": "greeting", "value": "Hi there" }] }  // legacy, not for new work
 }
 ```
 
@@ -48,11 +48,11 @@ picks it up without touching message content.
 |---|---|---|
 | Create | `client.brands.create({ name, settings })` | `client.brands.create(name=…, settings=…)` |
 | Get | `client.brands.retrieve(brandId)` | `client.brands.retrieve(brand_id)` |
-| Update | `client.brands.update(brandId, { name, settings })` | `client.brands.update(brand_id, …)` |
+| Update | `client.brands.update(brandId, { name, settings, snippets })` | `client.brands.update(brand_id, …)` |
 | List | `client.brands.list()` | `client.brands.list()` |
 | Delete | `client.brands.delete(brandId)` | `client.brands.delete(brand_id)` |
 
-`update` replaces `settings`. Send the full object, not a partial, or you drop the omitted keys.
+`update` replaces `settings` and `snippets`. Send both in full, not a partial, or you drop the omitted keys.
 
 ```ts
 const brand = await client.brands.create({
