@@ -31,7 +31,7 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - Omitting the trigger node when replacing a journey via `PUT` (every journey needs at least one trigger)
 - Using `POST /journeys/{id}/invoke` on an unpublished journey, returns an error; publish first
 - Publishing the journey and expecting its templates to go live. A send node whose template has no published version fails at delivery (`UNDELIVERABLE`, "Notification template not found") while the run and the send step still show `PROCESSED`. Check the message, not the run.
-- Assuming the trigger `schema` rejects bad payloads at invoke. It does **not**. The `schema` powers editor autofill and variable hints only; missing fields are not rejected at invocation. A run proceeds until it reaches a node that references a missing field, then fails there. Use **trigger `conditions`** to gate invocation (a failed trigger condition returns `422`)
+- Assuming the trigger `schema` rejects bad payloads at invoke. The trigger `schema` is not enforced at invoke: a payload that breaks it gets `202` and the run completes. Validate in your app, or gate with **trigger `conditions`** (a failed trigger condition returns `422`)
 - Including `send` nodes in the `POST /journeys` body. Send nodes are **not allowed on create**. Create the shell (a trigger, then an exit), add templates, then add send nodes via `PUT /journeys/{id}`
 - Wrapping a single condition in an extra array (`[[...]]`) or using non-string values, a single condition is a bare tuple of strings (`["data.plan", "is equal", "pro"]`); use an `{ "AND": [...] }` / `{ "OR": [...] }` object for multiple conditions
 - Hardcoding a literal Slack bot token in `to.slack.access_token` — see [Slack and Teams sends](#slack-and-teams-sends)
@@ -107,7 +107,7 @@ Every journey starts with a trigger node. The API accepts four `trigger_type` va
 
 | Trigger type | How runs begin | Required fields |
 |-------------|----------------|-----------------|
-| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema for editor autofill/variable hints, **not** invoke-time validation), `conditions` (gate invocation; failed condition → `422`). |
+| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema for editor autofill and variable hints, **not enforced at invoke**), `conditions` (gate invocation; failed condition → `422`). |
 | `segment` | A matching Segment event arrives | `request_type` (`identify`, `group`, `track`, or `page`). Optional: `event_id`, `conditions`. With no `event_id` it fires on every event of that type. For `track` events, the event `userId` must be a valid Courier Profile ID or the journey won't start. |
 | `webhook` | An event arrives on one of your [inbound webhooks](./webhooks.md#inbound-webhooks) | `event_source`. Optional: `event_id`, matched against the payload's `event`, and `conditions`. Every payload needs a `userId` matching a Courier user. |
 | `audience` | A user newly matches an [audience](./audiences.md) | `audience_id` (one audience). Optional: `conditions`. Users already in the audience when you publish don't enter. |
@@ -398,7 +398,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 | Branch | `type: "branch"` | `paths[]` (each with `conditions` and `nodes[]`), `default` (with `nodes[]`). Optional: `paths[].label`, `default.label`. |
 | Throttle (static) | `type: "throttle"`, `scope: "user"` or `"global"` | `max_allowed`, `period`. Optional: `conditions`. |
 | Throttle (dynamic) | `type: "throttle"`, `scope: "dynamic"` | `max_allowed`, `period`, `throttle_key`. Optional: `conditions`. |
-| Batch | `type: "batch"`, `scope: "user"` | `wait_period` (ISO 8601 quiet window), `max_wait_period` (ISO 8601 hard ceiling; must be > `wait_period`), `retain` (`{ type: "first"\|"last"\|"highest"\|"lowest", count: 0–25, sort_key }`; `sort_key` required for `highest`/`lowest`). Optional: `max_items` (1–1000, default 100), `category_key` (partition key, ≤256 chars), `conditions`. |
+| Batch | `type: "batch"`, `scope: "user"` | `wait_period` (ISO 8601 quiet window, at least `PT1M`), `max_wait_period` (ISO 8601 hard ceiling; must be > `wait_period`), `retain` (`{ type: "first"\|"last"\|"highest"\|"lowest", count: 0–25, sort_key }`; `sort_key` required for `highest`/`lowest`). Optional: `max_items` (1–1000, default 100), `category_key` (≤256 chars, avoid for now, see [batching.md](./batching.md#batch-data-in-templates)), `conditions`. |
 | Send to Digest | `type: "add-to-digest"` | `subscription_topic_id`. Optional: `conditions`. |
 | AI | `type: "ai"` | `output_schema` (JSON Schema for the structured result). Optional: `model`, `user_prompt`, `web_search`, `conditions`. |
 | Exit | `type: "exit"` | None. Optional: `id`. |
@@ -757,13 +757,13 @@ Collect multiple invocations for the same user into one aggregated payload, then
   "wait_period": "PT10M",
   "max_wait_period": "PT1H",
   "max_items": 50,
-  "category_key": "data.project_id",
   "retain": { "type": "highest", "count": 5, "sort_key": "data.priority" }
 }
 ```
 
 - `retain.type`, which collected events to keep: `first`, `last`, `highest`, or `lowest` (the latter two require `sort_key`). `count` is 0–25.
-- `category_key`, events sharing this value batch together; different values batch separately.
+- `category_key` doesn't split events into separate batches by value, and its payload doesn't follow the documented shape. Avoid it for now, see [batching.md](./batching.md#batch-data-in-templates).
+- `wait_period` is at least `PT1M`. Only one run per batch carries the downstream send.
 
 ### Send to Digest Node
 
@@ -845,6 +845,7 @@ Common **invoke** (`POST /journeys/{id}/invoke`) errors:
 | Status | Cause | Example message |
 |--------|-------|-----------------|
 | `400` | Missing recipient | `User identifier or profile required. Provide user_id, ... or profile with contact info.` |
+| `400` | `user_id` has no stored profile, and the body has no `profile` | `Profile could not be loaded` |
 | `404` | Journey not found / not published | `Automation template abc-123 not found` |
 | `422` | Trigger conditions not met | `Trigger conditions not met` |
 | `422` | Journey archived | `Cannot invoke archived automation template abc-123` |

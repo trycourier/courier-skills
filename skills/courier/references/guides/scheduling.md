@@ -7,7 +7,8 @@ Courier can defer a single send natively. You don't queue it in your own app and
 ### Rules
 
 - **`message.delay` defers one send.** For a delay that's one step inside a multi-step flow, use a journey [`delay` node](./journeys.md) instead.
-- **Duration is rounded up to the next minute.** `90000` ms (90 s) delivers at 2 minutes. Don't rely on sub-minute precision.
+- **Duration is exact.** `90000` ms is scheduled at 90 s. Only the readable `DELAYED` log text rounds ("2 minutes").
+- **While a send is delayed, `GET /messages/{id}` returns `404`** until the delay passes; the history shows `DELAYED` with the scheduled time.
 - **A delay can be at most 31 days.** If a send sets both `duration` and `until`, `duration` wins.
 - **A delivery window delays until the *next* open time.** A send outside the window isn't dropped. It waits.
 - **Cancel a still-pending scheduled send** with `client.messages.cancel(messageId)` if its trigger goes stale. See [Patterns](./patterns.md#sequence-cancellation).
@@ -16,7 +17,7 @@ Courier can defer a single send natively. You don't queue it in your own app and
 
 | Mode | Field | Delivers |
 |---|---|---|
-| Duration | `delay: { duration: <ms> }` | That many milliseconds from now (rounded up to the minute) |
+| Duration | `delay: { duration: <ms> }` | That many milliseconds from now |
 | Timestamp | `delay: { until: "<ISO 8601>" }` | At an exact date/time |
 | Delivery window | `delay: { until: "<opening-hours>", timezone: "<IANA>" }` | At the next moment inside the allowed hours |
 

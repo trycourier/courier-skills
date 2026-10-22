@@ -31,7 +31,8 @@ provider records there is the *Microsoft* tenant, not yours.
 ## Quick Reference
 
 ### Rules
-- `tenants.update` upserts by the id you choose; `name` is required.
+- `tenants.update` creates or replaces by the id you choose; `name` is required. It replaces the whole tenant: `properties`, `brand_id`, `user_profile`, and `default_preferences` you leave out are cleared, so send every field you want to keep.
+- `brand_id: null` returns `400`, even though the SDK types allow `null`. To remove a brand, omit `brand_id`.
 - Four layers load per send, as a sliding window; merging is parent first, child overwrites per key.
 - An inbox client signed in with a `tenantId` shows only that tenant's messages. Signed in without one, it shows only messages sent without a tenant. Sign in with the `tenantId` the send carried.
 - Pass the tenant on the recipient (`to.tenant_id`) or in `message.context.tenant_id`, and use one form consistently.
@@ -40,9 +41,9 @@ provider records there is the *Microsoft* tenant, not yours.
 - Signing the inbox client in without a `tenantId`, or with a different one, after a tenant-scoped send. The message never shows and nothing fails.
 - Relying on auto-inferred tenant context for users who belong to more than one tenant.
 
-## Create or update a tenant (upsert)
+## Create or replace a tenant
 
-`update` upserts by the id you choose; `name` is required.
+`update` creates or replaces by the id you choose (`PUT /tenants/{id}`); `name` is required. It replaces the whole tenant, so a field you leave out (`properties`, `brand_id`, `user_profile`, `default_preferences`) is cleared. To change one field, read the tenant first and send everything back. To remove a brand, omit `brand_id`: `brand_id: null` returns `400`.
 
 ```ts
 // Node

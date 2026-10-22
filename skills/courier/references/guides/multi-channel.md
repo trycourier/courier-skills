@@ -504,7 +504,7 @@ await client.routingStrategies.create({
 
 Courier fails over to the next provider when:
 - Provider returns a 5xx error (after built-in retries)
-- Provider is slower than its timeout (Enterprise plans only. Other plans get `402` if a send sets provider or channel timeouts)
+- Provider is slower than its timeout. Setting `timeout.provider` or `timeout.channel` on a send returns `402` below the Business tier
 - Provider-specific permanent error (e.g., invalid credentials)
 - Provider rate-limits the send, once Courier's retries (up to 24 hours) run out
 

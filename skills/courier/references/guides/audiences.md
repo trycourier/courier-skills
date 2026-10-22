@@ -10,10 +10,12 @@ plan tier, an activity cohort); use a **list** when you want an explicit, manage
 - An audience is a filter whose membership Courier stores and keeps current. Create or update it with an upsert by the id you choose.
 - Send to it with `to: { audience_id: "..." }`; Courier fans out to every current member.
 - Preferences still apply: a marketing audience only reaches opted-in users.
+- A filter `path` is relative to the profile root: `plan` for a top-level field, `custom.plan` for one under `custom`. A `profile.` prefix matches nothing.
 
 ### Common Mistakes
 - Treating an audience like a static list. Membership changes as user data changes.
 - Expecting an audience send to bypass preferences.
+- Prefixing a filter `path` with `profile.`. The audience silently matches no one.
 
 ## Create or update (upsert)
 
@@ -46,8 +48,9 @@ client.audiences.update(
 ```
 
 `filter.filters` is an array of rules; each rule is a single condition (a comparison `operator` with
-a `path` + `value`) or a nested group (`operator` `AND`/`OR` with its own `filters`). `path` is an
-attribute on the user profile. The comparison operators:
+a `path` + `value`) or a nested group (`operator` `AND`/`OR` with its own `filters`). `path` is relative to
+the profile root: `plan` for a top-level field, `custom.plan` for one under `custom`, never
+`profile.plan`. The comparison operators:
 
 | `operator` | Meaning |
 |---|---|
@@ -70,7 +73,7 @@ The SDK types `operator` as a plain string, so it won't catch a typo.
 | Delete | `client.audiences.delete(audienceId)` | `client.audiences.delete(audience_id)` |
 
 `listMembers` shows who is in the audience now. Membership is stored, not computed at send time.
-Changing the filter starts a rebuild that can take many minutes, and a send during a rebuild reads a
+It follows profile edits within about 2 minutes. Changing the filter starts a rebuild that can take many minutes, and a send during a rebuild reads a
 partly updated list, so check `listMembers` before a large send.
 
 ## Send to an audience

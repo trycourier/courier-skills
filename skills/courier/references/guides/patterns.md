@@ -13,7 +13,7 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 - **Fallback routing (`method: "single"`) tries channels in order until one succeeds.** Use `method: "all"` only for genuinely multi-channel events (order shipped = email + push).
 - **Webhook handlers must respond 2xx within 10 seconds** (Courier's timeout) and do the work async. Always verify the `courier-signature` header. See [webhooks.md](./webhooks.md#verify-webhook-signatures).
 - **The SDK already retries transient errors** (`408`/`409`/`429`/`5xx`, with backoff and jitter). Tune `maxRetries` instead of wrapping calls in your own loop. See [Retries](#retries-the-sdk-already-does-this).
-- **Aggregate repeated actors** ("Alice liked your post" × 15) with a journey [`batch` node](./batching.md), keyed by `category_key`, not an app-side queue.
+- **Aggregate repeated actors** ("Alice liked your post" × 15) with a journey [`batch` node](./batching.md), not an app-side queue. Don't rely on `category_key` to split batches by value.
 - **Cancel scheduled messages** with `client.messages.cancel(messageId)` when the triggering condition becomes stale (e.g., cart abandonment after purchase).
 - **Many recipients:** send once with `to: { list_id }` or `to: { audience_id }` and Courier fans out server-side. A plain `to` array caps at **500**; above that use a list, an audience, or a [Bulk API job](./bulk.md).
 - **Tenant-scoped sends** (B2B multi-tenant) pass `tenant_id` in `message` to pick up per-tenant brand and preference overrides.
@@ -371,7 +371,7 @@ To upsert many profiles first, call `client.profiles.create` per user with a bou
 
 Tenants let you scope branding, preferences, and data per customer organization.
 
-`client.tenants.update(tenantID, body)` is a create-or-replace (`PUT`). Tenants reference a brand by `brand_id`; the brand itself (logo, colors) is managed via the Brands API, not inlined on the tenant.
+`client.tenants.update(tenantID, body)` is a create-or-replace (`PUT`): fields you leave out (`properties`, `brand_id`, `user_profile`, `default_preferences`) are cleared, and `brand_id: null` returns `400`, so omit it instead. Tenants reference a brand by `brand_id`; the brand itself (logo, colors) is managed via the Brands API, not inlined on the tenant.
 
 **TypeScript:**
 ```typescript

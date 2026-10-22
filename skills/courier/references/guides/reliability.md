@@ -113,7 +113,7 @@ and transient errors on its side:
 | Status tracking | Delivery/open/click tracking continues for up to **72 hours** |
 | Webhook delivery | Retried for about **24 hours** (see [webhooks.md](./webhooks.md#responding)) |
 
-Don't reimplement it. Courier keeps trying a message for up to 72 hours in total (24 hours is the provider-retry schedule above). To shorten that for one send, set `message.timeout.message` in milliseconds. See [routing timeouts](https://www.courier.com/docs/send/routing#timeouts). Watch it in
+Don't reimplement it. Courier keeps trying a message for up to 72 hours in total (24 hours is the provider-retry schedule above). To shorten that for one send, set `message.timeout.message` in milliseconds. `timeout.message`, `timeout.escalation`, and `timeout.criteria` work on every plan; `timeout.channel` and `timeout.provider` return `402` below the Business tier. `message.channels.<channel>.timeouts` returns `400` even though the SDK types it, so use `message.timeout` instead. See [routing timeouts](https://www.courier.com/docs/send/routing#timeouts). Watch it in
 [Message Logs](https://www.courier.com/docs/monitor/overview) or via
 `courier messages history`.
 
