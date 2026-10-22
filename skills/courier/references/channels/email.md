@@ -48,7 +48,7 @@ client.send.message(
 )
 ```
 
-**With Provider Override (TypeScript):**
+**With Channel Override (TypeScript):**
 ```typescript
 await client.send.message({
   message: {
@@ -57,7 +57,7 @@ await client.send.message({
     channels: {
       email: {
         override: {
-          from: { email: "orders@t.acme.com", name: "Acme Orders" },
+          from: "Acme Orders <orders@t.acme.com>",
           reply_to: "support@acme.com"
         }
       }
@@ -284,14 +284,14 @@ Courier handles failover automatically based on your configuration.
 
 ## Link Tracking
 
-Courier can track link clicks for analytics:
+Open and click tracking are workspace settings (Settings → Tracking), not template settings. Links need absolute URLs. To skip one link, set `disable_tracking: true` on an Elemental action, or `data-courier-link-tracking="false"` on the `<a>`. To skip open tracking for one send, set `channels.email.override.tracking: { open: false }`.
 
 ```typescript
 await client.send.message({
   message: {
     to: { email: "jane@example.com" },
     template: "nt_01kmrbu5x8q2v6d1c4n7w9hj",
-    // Link tracking enabled in template settings
+    // Click tracking follows the workspace setting
   }
 });
 

@@ -4,11 +4,12 @@
 
 ### Rules
 - Bot token starts with `xoxb-` (not user token `xoxp-`)
-- Required scopes: `chat:write`, `chat:write.public`, `users:read.email`
+- Required bot scopes: `chat:write`, `im:write`, `users:read`, `users:read.email`. Add `chat:write.public` to post in channels the bot hasn't joined
 - Use Channel ID (starts with `C`), not channel name
 - Rate limit: 1 message per second per channel
 - Burst limit: 30-50 messages
 - Use Block Kit for rich formatting (not attachments)
+- Slack overrides go in `providers.slack.override.body`, which Courier passes to `chat.postMessage`. `message.channels` keys are channel ids such as `direct_message`, not `slack`
 - Text formatting: `*bold*`, `_italic_`, `~strike~`, `` `code` ``
 - User mention: `<@U0123ABC>`
 - Channel mention: `<#C0123ABC>`
@@ -18,7 +19,7 @@
 - Using channel name instead of channel ID
 - Using user token instead of bot token
 - Missing `chat:write.public` scope (can't post to channels bot isn't in)
-- Exceeding rate limits without queuing
+- Exceeding Slack's rate limits. Set a [send rate limit](../guides/providers.md#send-rate-limits) on the Slack provider config and Courier queues the excess. It covers the whole config, not one channel
 - Using deprecated attachments instead of Block Kit
 - Not handling "channel_not_found" or "not_in_channel" errors
 - Sending walls of text instead of scannable Block Kit layouts
@@ -72,9 +73,9 @@ await client.send.message({
 });
 ```
 
-**Block Kit Override:**
+**Block Kit Override** (a fragment: the `providers` key of `message`):
 ```typescript
-channels: {
+providers: {
   slack: {
     override: {
       body: {
@@ -103,21 +104,22 @@ Best practices for sending Slack notifications with Block Kit formatting.
 
 ### Required Scopes
 
-**Bot Token Scopes** (recommended):
+**Bot Token Scopes:**
 
 | Scope | Purpose |
 |-------|---------|
 | `chat:write` | Send messages |
-| `chat:write.public` | Send to channels without joining |
+| `im:write` | Open direct messages |
 | `users:read` | Look up users |
 | `users:read.email` | Look up users by email |
+| `chat:write.public` | Optional. Post to channels without joining |
 
 ### Install to Workspace
 
 1. Go to "Install App" in your Slack app settings
 2. Click "Install to Workspace"
 3. Copy the "Bot User OAuth Token" (`xoxb-...`)
-4. Add to Courier as a Slack integration
+4. Install the Slack integration in Courier (it takes no token). Pass the token as `to.slack.access_token`, or store it on the profile as `slack.access_token` beside one target (`channel`, `user_id` or `email`), or on a tenant's `user_profile`
 
 ## Message Types
 
@@ -232,13 +234,15 @@ Block Kit is Slack's UI framework for rich messages.
       "type": "button",
       "text": { "type": "plain_text", "text": "Approve" },
       "style": "primary",
-      "action_id": "approve_request"
+      "action_id": "approve_request",
+      "value": "req-123"
     },
     {
       "type": "button",
       "text": { "type": "plain_text", "text": "Deny" },
       "style": "danger",
-      "action_id": "deny_request"
+      "action_id": "deny_request",
+      "value": "req-123"
     }
   ]
 }
@@ -481,7 +485,7 @@ await client.send.message({
       version: "v2.3.1",
       deployedBy: "jane"
     },
-    channels: {
+    providers: {
       slack: {
         override: {
           body: {
@@ -522,12 +526,12 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { 
-      user_id: "user-123" // Must have slack token in profile
+      user_id: "user-123" // profile.slack needs access_token plus one of channel, user_id, email
     },
     template: "nt_01kmrbyt6x9q3v7d1c5n8w2hj",
     routing: {
       method: "single",
-      channels: ["slack"]
+      channels: ["direct_message"]
     }
   }
 });
@@ -568,7 +572,7 @@ await client.send.message({
       version: "2022-01-01",
       elements: [{ type: "text", content: "Build failed. See details above." }]
     },
-    channels: {
+    providers: {
       slack: {
         override: {
           body: {
@@ -583,68 +587,22 @@ await client.send.message({
 
 ### Update Existing Message
 
-```typescript
-// Update a previously sent message
-await client.send.message({
-  message: {
-    to: {
-      slack: {
-        access_token: process.env.SLACK_BOT_TOKEN,
-        channel: "C0123ABCDEF"
-      }
-    },
-    channels: {
-      slack: {
-        override: {
-          body: {
-            ts: "1234567890.123456", // Message to update
-            blocks: [
-              {
-                type: "section",
-                text: {
-                  type: "mrkdwn",
-                  text: "✅ Deployment *complete* to production"
-                }
-              }
-            ]
-          }
-        }
-      }
-    }
-  }
-});
-```
+A `ts` in the override doesn't edit anything. The override body goes to Slack's `chat.postMessage`, which only posts. To update a sent message, set a replacement key (usually `ts`) in the template's Slack channel settings, and Courier updates the message instead of posting a new one. Read the original `ts` from `providers[].reference.ts` on `GET /messages/{message_id}`. See [Updating notifications](https://www.courier.com/docs/integrations/direct-message/slack#updating-notifications).
 
 ## Scheduled Messages
 
 ```typescript
-// Schedule a message for later
-const sendAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-
+// Schedule with Courier's delay. Slack's post_at isn't read by chat.postMessage
 await client.send.message({
   message: {
-    to: {
-      slack: {
-        access_token: process.env.SLACK_BOT_TOKEN,
-        channel: "C0123ABCDEF"
-      }
-    },
-    content: {
-      version: "2022-01-01",
-      elements: [{ type: "text", content: "Daily standup reminder!" }]
-    },
-    channels: {
-      slack: {
-        override: {
-          body: {
-            post_at: sendAt
-          }
-        }
-      }
-    }
+    to: { slack: { access_token: process.env.SLACK_BOT_TOKEN, channel: "C0123ABCDEF" } },
+    content: { version: "2022-01-01", elements: [{ type: "text", content: "Daily standup reminder!" }] },
+    delay: { until: new Date(Date.now() + 60 * 60 * 1000).toISOString() } // 1 hour from now
   }
 });
 ```
+
+A delay can run up to 31 days. See [scheduling.md](../guides/scheduling.md#timestamp-delay).
 
 ## Common Use Cases
 
@@ -660,7 +618,8 @@ await client.send.message({
         channel: process.env.SLACK_DEPLOYS_CHANNEL
       }
     },
-    channels: {
+    content: { title: "Deployment Complete", body: "api-gateway v2.3.1 deployed to production" },
+    providers: {
       slack: {
         override: {
           body: {
@@ -690,7 +649,8 @@ await client.send.message({
                     type: "button",
                     text: { type: "plain_text", text: "Rollback" },
                     style: "danger",
-                    action_id: "rollback_deploy"
+                    action_id: "rollback_deploy",
+                    value: "deploy-123"
                   }
                 ]
               }
@@ -714,7 +674,8 @@ await client.send.message({
         channel: process.env.SLACK_INCIDENTS_CHANNEL
       }
     },
-    channels: {
+    content: { title: "Incident: API Latency Spike", body: "P1 incident affecting api-gateway and payments-service" },
+    providers: {
       slack: {
         override: {
           body: {
@@ -762,7 +723,7 @@ Journey send nodes deliver to Slack via the node's `to.slack` override — exact
 
 - [Journeys](../guides/journeys.md) - Slack send nodes in multi-step flows
 - [MS Teams](./ms-teams.md) - Alternative workplace chat channel
-- [Multi-Channel](../guides/multi-channel.md) - Slack in routing strategies
+- [Multi-Channel](../guides/multi-channel.md) - Routing and fallback across channels
 - [Batching](../guides/batching.md) - Batch notifications to channels
 - [Throttling](../guides/throttling.md) - Respect Slack rate limits
 - [Engagement](../lifecycle-marketing.md) - Alert notification patterns

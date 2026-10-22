@@ -8,15 +8,17 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 - Routing strategy IDs use the `rs_` prefix (e.g., `rs_01abc123`) and are opaque, workspace-scoped values
 - `name` and `routing` are the only required fields on create; both `channels` and `providers` are top-level optional fields that default to empty when omitted
 - **Channel-level vs provider-level config:** `channels.{channel}.providers` is the **ordered failover list** for a channel (position = priority). The **top-level** `providers` map carries **per-provider** settings (`override`, `if`, `timeouts`, `metadata`) keyed by provider name. You typically use both: `channels.email.providers: ["sendgrid","aws-ses"]` for order, and `providers.sendgrid.override: {...}` for SendGrid-specific config
+- Channel and provider `timeouts` need a business tier plan or higher. Below that, create and replace still return `201`/`200` but drop the `timeouts` silently and keep every other field, and sends through the strategy still go out. `GET` the strategy back to confirm the timeouts were kept. On a send, `timeout.channel` and `timeout.provider` return `402` below the business tier, while `timeout.message`, `escalation` and `criteria` work on every plan. See [routing timeouts](https://www.courier.com/docs/send/routing#timeouts)
 - `routing.method` is `"single"` (try channels in order until one succeeds) or `"all"` (send to all channels in parallel)
 - `channels.{channel}.providers` is an **ordered** array, position = failover priority (same as dragging providers in the dashboard)
 - `PUT /routing-strategies/{id}` is a **full replacement**, any field you omit is reset to its default
-- `DELETE /routing-strategies/{id}` archives; it returns **409 Conflict** if any notification template still references the strategy. Unlink templates first (replace their `routing` with a different strategy or `null`)
+- `DELETE /routing-strategies/{id}` archives; it returns **409 Conflict** if any notification template still references the strategy. Unlink templates first (point their `routing.strategy_id` at another strategy; `routing: null` leaves the template unsendable by id)
 - `GET /routing-strategies` returns metadata only (no `routing`/`channels`/`providers` content). Use `GET /routing-strategies/{id}` for the full document
 - Templates and routing strategies are decoupled: one strategy can back many templates, and swapping a strategy's providers reroutes every template pointing at it without republishing
 
 ### Common Mistakes
 - Omitting fields on `PUT` and losing `tags`/`description`/`providers` config silently (it's a replace, not a merge)
+- Assuming `timeouts` were saved below the business tier. They're dropped with no error, so `GET` the strategy to check
 - Trying to archive a strategy that's still linked to templates (returns 409, repoint templates first)
 - Confusing the **message-level** `routing` on `send.message` (per-send override) with the **workspace-level** routing strategy (stored object with an `rs_...` ID and referenced by templates)
 - Forgetting that provider order in `channels.{channel}.providers` determines failover, reordering the array changes which provider gets tried first
@@ -31,6 +33,7 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 | Retrieve | `client.routingStrategies.retrieve(id)` | `client.routing_strategies.retrieve(id)` |
 | Replace | `client.routingStrategies.replace(id, { name, routing, ... })` | `client.routing_strategies.replace(id, name=..., routing=..., ...)` |
 | Archive | `client.routingStrategies.archive(id)` | `client.routing_strategies.archive(id)` |
+| Templates using it | `client.routingStrategies.listNotifications(id, { cursor?, limit? })` | `client.routing_strategies.list_notifications(id, cursor=..., limit=...)` |
 
 ---
 
@@ -92,7 +95,7 @@ const strategy = await client.routingStrategies.create({
   channels: {
     email: {
       providers: ["sendgrid", "aws-ses"], // failover order
-      timeouts: { provider: 5000, channel: 30000 },
+      timeouts: { provider: 5000, channel: 30000 }, // business tier or higher, dropped silently below it
       override: {
         // channel-level override applied to every provider
       },
@@ -102,9 +105,9 @@ const strategy = await client.routingStrategies.create({
   providers: {
     sendgrid: {
       override: {
-        ip_pool_name: "transactional"
+        body: { ip_pool_name: "transactional" }
       },
-      timeouts: 4000,
+      timeouts: 4000, // business tier or higher, dropped silently below it
       if: "profile.email_verified === true"
     }
   }
@@ -121,15 +124,15 @@ strategy = client.routing_strategies.create(
     channels={
         "email": {
             "providers": ["sendgrid", "aws-ses"],
-            "timeouts": {"provider": 5000, "channel": 30000},
+            "timeouts": {"provider": 5000, "channel": 30000},  # business tier or higher, dropped silently below it
             "override": {},
             "if": "data.locale !== 'ja-JP'",
         }
     },
     providers={
         "sendgrid": {
-            "override": {"ip_pool_name": "transactional"},
-            "timeouts": 4000,
+            "override": {"body": {"ip_pool_name": "transactional"}},
+            "timeouts": 4000,  # business tier or higher, dropped silently below it
             "if": "profile.email_verified === true",
         }
     },
@@ -148,12 +151,11 @@ curl -X POST "https://api.courier.com/routing-strategies" \
     "routing": { "method": "single", "channels": ["email"] },
     "channels": {
       "email": {
-        "providers": ["sendgrid", "aws-ses"],
-        "timeouts": { "provider": 5000, "channel": 30000 }
+        "providers": ["sendgrid", "aws-ses"]
       }
     },
     "providers": {
-      "sendgrid": { "override": { "ip_pool_name": "transactional" } }
+      "sendgrid": { "override": { "body": { "ip_pool_name": "transactional" } } }
     }
   }'
 ```
@@ -412,7 +414,7 @@ curl -X DELETE "https://api.courier.com/routing-strategies/rs_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-Returns `204`. Returns `409` if any template still references the strategy, repoint those templates first (set their `routing.strategy_id` to a different strategy or set `routing: null`).
+Returns `204`. Returns `409` if any template still references the strategy. Find them with `client.routingStrategies.listNotifications(id)`, then point each at another strategy with `notifications.replace`. Use `routing: null` only for a template you are retiring: a template with no strategy isn't sendable by id (see [templates.md](./templates.md)).
 
 ---
 
@@ -422,7 +424,7 @@ Two different shapes share the `routing` name; don't confuse them.
 
 | Location | Shape | Purpose |
 |----------|-------|---------|
-| `send.message({ message: { routing: { method, channels } } })` | Inline `method` + `channels` | Per-send override; wins over the template's strategy for that one send |
+| `send.message({ message: { routing: { method, channels } } })` | Inline `method` + `channels` | Per-send override. Replaces the strategy's method and channel list for that send; the strategy's provider order and channel conditions still apply |
 | `notifications.create({ notification: { routing: { strategy_id } } })` | `{ strategy_id }` only | Links a template to a stored strategy |
 | `routingStrategies.create({ routing: { method, channels } })` | Inline `method` + `channels` | Defines the strategy itself |
 
@@ -438,6 +440,6 @@ Rule of thumb: if you're reaching for `routing` in a `send.message` call repeate
 - [Create Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/create-routing-strategy), official endpoint reference
 - [Replace Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/replace-routing-strategy)
 - [Archive Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/archive-routing-strategy)
-- [Routing Configuration (Design Studio)](https://www.courier.com/docs/send/routing#routing-configuration-and-strategies), dashboard equivalent
+- [Routing strategies (Design Studio)](https://www.courier.com/docs/send/routing-strategies), dashboard equivalent
 
 <!-- Target line budget: <= 500 lines. -->

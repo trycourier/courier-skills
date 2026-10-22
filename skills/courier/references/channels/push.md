@@ -12,6 +12,7 @@
 - Aggregate similar notifications with a [batch node](../guides/batching.md) rather than app-side
 - Push tokens can change - always handle token refresh
 - Store tokens with device/platform info for proper routing
+- A user with tokens on more than one provider (APNs and FCM) gets the push on only one of them, unless the send sets `channels: { push: { routing_method: "all" } }`
 
 ### Common Mistakes
 - Requesting iOS permission immediately on first launch (low opt-in)
@@ -199,6 +200,8 @@ notificationManager.createNotificationChannels(listOf(orderChannel, socialChanne
 }
 ```
 
+This is FCM's raw message shape. With Apply Recommended Courier Mobile SDK Formatting on (the default), Courier sends no notification block and moves title, body and image into data.
+
 ## Web Push
 
 Web Push uses the Firebase Cloud Messaging (FCM) provider in Courier. Register the token the same way as Android:
@@ -215,7 +218,7 @@ await client.users.tokens.addSingle(fcmToken, {
 });
 ```
 
-Web Push requires HTTPS and a service worker. Configure FCM credentials in the Courier dashboard under **Channels > Push > Firebase Cloud Messaging**.
+Web Push requires HTTPS and a service worker. Configure FCM credentials in the Courier dashboard under **Integrations → Firebase FCM**.
 
 ## Expo Push Notifications
 
@@ -232,7 +235,7 @@ await client.users.tokens.addSingle(expoPushToken, {
 });
 ```
 
-Configure your Expo access token in the Courier dashboard under **Channels > Push > Expo**. Courier handles the translation from Expo tokens to APNs/FCM delivery.
+Enable the Expo integration under **Integrations → Expo**. It needs no credentials. Courier sends the token to Expo's push service, and Expo delivers through APNs and FCM with your Expo project's credentials.
 
 ## Permission Priming
 
@@ -396,18 +399,9 @@ await client.send.message({
       title: "Delivery arriving soon",
       body: "Your package will arrive in 30 minutes"
     },
-    channels: {
-      push: {
-        override: {
-          data: {
-            category: "DELIVERY", // Maps to registered category in app
-            actions: [
-              { id: "track", title: "Track" },
-              { id: "delay", title: "Delay 1 Hour" }
-            ]
-          }
-        }
-      }
+    providers: {
+      // The app registers the DELIVERY category and its buttons
+      apn: { override: { body: { category: "DELIVERY" } } }
     }
   }
 });
@@ -416,23 +410,17 @@ await client.send.message({
 ### Silent Push (Data Only)
 
 ```typescript
-// Update app data without showing notification
+// iOS: no alert, and wake the app to sync. FCM already ships data-only by
+// default (Apply Recommended Courier Mobile SDK Formatting).
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
-    channels: {
-      push: {
-        override: {
-          data: {
-            type: "sync",
-            resource: "messages",
-            silent: true
-          },
-          notification: null // No visible notification
-        }
-      }
-    }
-  }
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
+    data: { type: "sync", resource: "messages" },
+    providers: {
+      apn: { override: { silent: true, body: { "content-available": 1 } } },
+    },
+  },
 });
 ```
 
@@ -475,12 +463,15 @@ await client.users.tokens.addSingle("abc...", { user_id: "user-123", provider_ke
 await client.users.tokens.addSingle("xyz...", { user_id: "user-123", provider_key: "firebase-fcm" }); // Pixel
 await client.users.tokens.addSingle("123...", { user_id: "user-123", provider_key: "firebase-fcm" }); // Samsung
 
-// Courier sends to all registered tokens
+// The push channel stops at the first provider that works, so without this
+// the iPhone (APNs) and the Android phones (FCM) don't all get it.
 await client.send.message({
   message: {
-    to: { user_id: "user-123" }, // All devices receive
-    template: "nt_01kmrbvk2q5x9v1d4c7n8w6hj"
-  }
+    to: { user_id: "user-123" },
+    template: "nt_01kmrbvk2q5x9v1d4c7n8w6hj",
+    routing: { method: "single", channels: ["push"] },
+    channels: { push: { routing_method: "all" } },
+  },
 });
 ```
 

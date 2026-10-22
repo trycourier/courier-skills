@@ -13,6 +13,7 @@ Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `
 - To cap how fast Courier sends through a provider config, set `settings.rate_limit` with `PATCH`. See [Send rate limits](#send-rate-limits)
 - Provider IDs are opaque workspace-scoped values returned on create (distinct from the catalog `provider` key)
 - `title` defaults to `"Default Configuration"` when omitted. For multiple configs of the same provider (e.g. two SendGrid sub-accounts), set a unique `title` and `alias`
+- In the test environment, a stored `title` gets a `test - ` prefix
 - Routing strategies reference providers by their **catalog key** (e.g. `"sendgrid"`) in `channels.{channel}.providers`. If you need multiple configs for the same provider key (two SendGrid sub-accounts, etc.), set distinct `title`/`alias` values and disambiguate in the dashboard, the docs don't yet spec an API-only way to target a specific configuration from a routing strategy
 
 ### API vs Dashboard
@@ -28,7 +29,7 @@ Prefer the dashboard for:
 - Providers that use OAuth-based setup (Slack, Gmail, MS Teams, Discord), these generally still require dashboard-initiated auth
 
 ### Common Mistakes
-- Guessing `settings` keys instead of reading them from `/providers/catalog`, hallucinated keys are silently ignored and the provider will fail at send time
+- Guessing `settings` keys instead of reading them from `/providers/catalog`. A misspelled or unknown `settings` key is saved silently and does nothing. Read the catalog and compare the stored config with `GET /providers/{id}`. Only a missing required key is rejected: `400`, with the field named in camelCase (e.g. `authToken`)
 - Using `provider` values from documentation prose that don't match the catalog (e.g. `"aws_ses"` vs the real `"aws-ses"`, or `"fcm"` vs `"firebase-fcm"`)
 - Using `PUT` to change one setting. It's a full replacement, so any omitted `settings` are wiped, including `rate_limit`. Use `PATCH` instead
 - Committing an `api_key` directly in a `providers.create` call instead of reading `process.env.SENDGRID_API_KEY`
@@ -45,11 +46,6 @@ Prefer the dashboard for:
 | Replace (full PUT) | `client.providers.update(id, { provider, settings, ... })` | `client.providers.update(id, provider=..., settings=..., ...)` |
 | Delete | `client.providers.delete(id)` | `client.providers.delete(id)` |
 | Catalog list | `client.providers.catalog.list({ keys?, name?, channel? })` | `client.providers.catalog.list(keys=..., name=..., channel=...)` |
-
-> Providers endpoints are **not yet listed in `https://www.courier.com/docs/llms.txt`**. Fetch these URLs directly when you need the full OpenAPI spec:
-> - `https://www.courier.com/docs/api-reference/providers/create-a-provider`
-> - `https://www.courier.com/docs/api-reference/providers/list-available-provider-types`
-> - `https://www.courier.com/docs/api-reference/providers/list-providers`
 
 ---
 
@@ -184,7 +180,7 @@ await client.routingStrategies.create({
 
 ---
 
-## List, Retrieve, Update, Replace, Archive
+## List, Retrieve, Update, Replace, Delete
 
 ### List
 
@@ -229,7 +225,7 @@ provider = client.providers.retrieve("provider_01abc123")
 - `alias: null` clears the alias
 - The body must include at least one of `title`, `alias`, or `settings`. An empty body returns a `400`
 - `provider` is optional. If you send it, it must match the stored provider, otherwise the request returns a `400`
-- A missing or archived id returns a `404`
+- A missing or deleted id returns a `404`
 
 Rotate an API key and leave everything else as it is:
 
@@ -293,7 +289,7 @@ client.providers.update(
 )
 ```
 
-### Archive
+### Delete
 
 **TypeScript:**
 ```typescript
@@ -311,7 +307,7 @@ curl -X DELETE "https://api.courier.com/providers/provider_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-Unlink the provider from any routing strategies (remove its key from each `channels.{channel}.providers` array) before archiving to avoid silent send failures.
+Delete returns 409 while any routing strategy or template still references the provider. Remove its key from each strategy's `channels.{channel}.providers` array and update those templates first.
 
 ---
 
@@ -389,12 +385,14 @@ await client.send.message({
     to: { user_id: "user-123" },
     template: "nt_...",
     providers: {
-      sendgrid: { override: { ip_pool_name: "marketing" } },
-      twilio: { override: { messaging_service_sid: "MG..." } }
+      sendgrid: { override: { body: { ip_pool_name: "marketing" } } },
+      twilio: { override: { body: { MessagingServiceSid: "MG..." } } }
     }
   }
 });
 ```
+
+For SendGrid and Twilio, `body` merges into that provider's own request (SendGrid `/mail/send`, Twilio `Messages.json`), so use their field names. APNs differs: `body` takes Courier's fields (`payload`, `category`, `content-available`), and `body.aps` replaces the whole `aps` dictionary. Check the provider's integration page before writing `body`.
 
 See [multi-channel.md](./multi-channel.md#provider-failover) for failover semantics and [routing-strategies.md](./routing-strategies.md) for workspace-level provider priority.
 

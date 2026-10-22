@@ -3,24 +3,23 @@
 ## Quick Reference
 
 ### Rules
-- Business-initiated messages REQUIRE pre-approved templates
-- Templates must be approved by Meta (24-72 hour review)
-- 24-hour session window: after user messages, can send free-form for 24hrs
-- After 24hrs with no user message: MUST use template
-- Phone numbers MUST be E.164 format: +15551234567
-- Template categories: UTILITY (fastest approval), AUTHENTICATION, MARKETING (strictest)
-- Variables use positional format: `{{1}}`, `{{2}}`, `{{3}}`
-- Quick reply buttons: maximum 3
-- Template variable count must match exactly
+- Courier sends WhatsApp through Twilio. The provider key is `twilio-whatsapp`
+- Connect it under Integrations with a Twilio Account SID, Auth Token and a WhatsApp-enabled From number
+- Every send needs a Twilio Content SID (`HX...`). Set it in the template's WhatsApp channel settings, or per send at `providers["twilio-whatsapp"].override.body.ContentSid`. Without one, the send fails with `No Content SID specified.`
+- Outside the 24-hour window, the Content SID must belong to a template WhatsApp approved. Submit it in the Twilio Console
+- Inside the window, unapproved text, media, quick-reply and list-picker content can go out, but it still needs a Content SID
+- Phone numbers go in `phone_number`, in E.164: `+15551234567`
+- Template categories: Marketing, Authentication, Utility. WhatsApp is likely to reject any other category
+- Content template variables are numbered: `{{1}}`, `{{2}}`, `{{3}}`
+- WhatsApp requires an explicit opt-in from each user before you message them
 
 ### Common Mistakes
-- Sending without approved template (outside 24hr window)
-- Variable count mismatch (template has 3, you send 2)
+- No Content SID on the send, either on the template's WhatsApp channel or in the override
+- Unapproved content outside the 24-hour window
+- Meta Cloud API shapes (`interactive`, `header.image.link`) in an override. Courier calls Twilio, not Meta
 - Phone number not in E.164 format
-- Using MARKETING category for transactional messages (slower approval)
-- Too many template variables (looks spammy, may be rejected)
-- Promotional content in UTILITY templates (will be rejected)
-- Not handling template rejection gracefully
+- Picking a category other than Marketing, Authentication or Utility
+- Promotional content in a Utility template (rejected)
 
 ### Templates
 
@@ -30,13 +29,14 @@ await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
     template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    data: {
-      customerName: "Jane",      // {{1}}
-      orderNumber: "12345",      // {{2}}
-      deliveryDate: "Jan 30"     // {{3}}
+    data: { customerName: "Jane", orderNumber: "12345", deliveryDate: "Jan 30" },
+    routing: { method: "single", channels: ["twilio-whatsapp"] },
+    providers: {
+      "twilio-whatsapp": {
+        override: { body: { ContentSid: "HXXXXXXXXXXXXXXXXXXXXXXXXXXX" } }, // or set it on the template's WhatsApp channel
+      },
     },
-    routing: { method: "single", channels: ["whatsapp"] }
-  }
+  },
 });
 ```
 
@@ -51,33 +51,14 @@ client.send.message(
             "orderNumber": "12345",
             "deliveryDate": "Jan 30",
         },
-        "routing": {"method": "single", "channels": ["whatsapp"]},
+        "routing": {"method": "single", "channels": ["twilio-whatsapp"]},
+        "providers": {
+            "twilio-whatsapp": {
+                "override": {"body": {"ContentSid": "HXXXXXXXXXXXXXXXXXXXXXXXXXXX"}},
+            },
+        },
     }
 )
-```
-
-**With Media Header:**
-```typescript
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbxd9q3x7v1d5c8n2w6hj",
-    data: { orderNumber: "12345" },
-    channels: {
-      whatsapp: {
-        override: {
-          body: {
-            header: {
-              type: "image",
-              image: { link: "https://acme.com/proof.jpg" }
-            }
-          }
-        }
-      }
-    },
-    routing: { method: "single", channels: ["whatsapp"] }
-  }
-});
 ```
 
 **WhatsApp with SMS Fallback:**
@@ -88,7 +69,7 @@ await client.send.message({
     template: "nt_01kmrbr0s4y7qv2n8c5d1xj9k",
     routing: {
       method: "single",
-      channels: ["whatsapp", "sms"]
+      channels: ["twilio-whatsapp", "sms"]
     }
   }
 });
@@ -96,27 +77,27 @@ await client.send.message({
 
 ---
 
-Best practices for sending WhatsApp Business messages with templates and session messaging.
+Best practices for sending WhatsApp messages through Twilio with content templates and the 24-hour window.
 
-## WhatsApp Business API Overview
+## WhatsApp Overview
 
-WhatsApp has strict rules to prevent spam and maintain user trust:
+Courier uses the Twilio API for WhatsApp. Every send names a Twilio content template by its Content SID, and WhatsApp decides whether that content may go out:
 
 | Message Type | When to Use | Approval Required |
 |--------------|-------------|-------------------|
-| Template messages | Business-initiated contact | Yes (by Meta) |
-| Session messages | Response within 24hr window | No |
+| Approved content template | Business-initiated contact, or any time outside the 24-hour window | Yes (by WhatsApp) |
+| Session content | Within 24 hours of the user's last message | No for text, media, quick-reply and list-picker. Still needs a Content SID |
 
 ## Message Types
 
-### Template Messages (Business-Initiated)
+### Approved Templates (Business-Initiated)
 
 Required when:
 - Starting a new conversation
 - User hasn't messaged in 24+ hours
 - Sending proactive notifications
 
-**Must be pre-approved by Meta** (24-72 hour review)
+**WhatsApp must approve the template.** Review takes a few minutes to 24 hours.
 
 ### Session Messages (User-Initiated)
 
@@ -125,7 +106,7 @@ Available when:
 - Responding to user inquiry
 - Continuing active conversation
 
-**No template required** - send free-form text, images, documents, etc.
+**Unapproved text, media, quick-reply or list-picker content.** It still needs a Content SID.
 
 ### 24-Hour Window
 
@@ -136,46 +117,41 @@ User sends message
 ┌───────────────────────────────────────┐
 │       24-Hour Session Window          │
 │                                       │
-│  ✓ Free-form messages allowed         │
-│  ✓ Any media type                     │
-│  ✓ No template required               │
+│  ✓ Unapproved text and media          │
+│  ✓ Quick-reply and list-picker        │
+│  ✓ Still needs a Content SID          │
 │                                       │
 └───────────────────────────────────────┘
         │
         ▼ (24 hours pass)
         
-Must use approved template to re-initiate
+Only approved content templates can go out
 ```
+
+The window runs for 24 hours after the user's most recent message.
 
 ## Template Setup
 
+Templates are built and submitted in Twilio's Content Template Builder (**Messaging → Templates** in the Twilio Console). **Save and submit for WhatsApp approval** creates the template, assigns its `HX...` Content SID, and sends it for review.
+
 ### Template Categories
 
-| Category | Use Case | Approval Time | Cost |
-|----------|----------|---------------|------|
-| **UTILITY** | Order updates, account alerts | ~24 hours | Lower |
-| **AUTHENTICATION** | OTP, verification codes | ~24 hours | Lower |
-| **MARKETING** | Promotions, offers | 24-72 hours | Higher |
+| Category | Use Case |
+|----------|----------|
+| **UTILITY** | Order updates, account alerts |
+| **AUTHENTICATION** | OTP, verification codes |
+| **MARKETING** | Promotions, offers |
 
-**Start with UTILITY templates** - highest approval rates.
+### Content Types
 
-### Template Structure
-
-```
-┌─────────────────────────────────────┐
-│ HEADER (optional)                   │
-│ Text, Image, Video, or Document     │
-├─────────────────────────────────────┤
-│ BODY (required)                     │
-│ Main message with {{variables}}     │
-├─────────────────────────────────────┤
-│ FOOTER (optional)                   │
-│ Small disclaimer text               │
-├─────────────────────────────────────┤
-│ BUTTONS (optional)                  │
-│ Quick Reply or URL buttons          │
-└─────────────────────────────────────┘
-```
+| Content type | Use | Inside the window | Outside the window |
+|--------------|-----|-------------------|--------------------|
+| `twilio/text` | Plain text | No approval needed | Needs approval |
+| `twilio/media` | Image or document with text | No approval needed | Needs approval |
+| `twilio/quick-reply` | Text with reply buttons | No approval needed | Needs approval |
+| `twilio/list-picker` | Menu of options | No approval needed | Can't be sent |
+| `twilio/card` | Card with buttons | Depends on the button types | Needs approval |
+| `whatsapp/authentication` | One-time password with a copy-code button | Needs approval | Needs approval |
 
 ### Template Examples
 
@@ -184,11 +160,9 @@ Must use approved template to re-initiate
 Name: order_shipped
 Category: UTILITY
 Language: en
+Content type: twilio/text
 
-Header: 📦 Your order is on the way!
 Body: Hi {{1}}, your order #{{2}} has shipped and will arrive by {{3}}.
-Footer: Track at acme.com/track
-Buttons: [Track Order] → https://acme.com/track/{{2}}
 ```
 
 **OTP Code (AUTHENTICATION):**
@@ -196,24 +170,18 @@ Buttons: [Track Order] → https://acme.com/track/{{2}}
 Name: otp_verification
 Category: AUTHENTICATION
 Language: en
-
-Body: Your Acme verification code is {{1}}. Valid for 10 minutes. Do not share this code.
+Content type: whatsapp/authentication
 ```
+OTP uses the `whatsapp/authentication` content type, which delivers a WhatsApp-approved one-time password with a copy-code button. It needs approval even inside the 24-hour window.
 
 **Appointment Reminder (UTILITY):**
 ```
 Name: appointment_reminder
 Category: UTILITY
 Language: en
+Content type: twilio/quick-reply
 
-Header: 📅 Appointment Reminder
-Body: Hi {{1}}, this is a reminder for your appointment:
-
-📍 {{2}}
-📆 {{3}}
-⏰ {{4}}
-
-Reply YES to confirm or RESCHEDULE to change.
+Body: Hi {{1}}, this is a reminder for your appointment at {{2}} on {{3}} at {{4}}. Tap a button to reply.
 Buttons: [Confirm] [Reschedule]
 ```
 
@@ -221,10 +189,9 @@ Buttons: [Confirm] [Reschedule]
 
 ### Setup
 
-1. Create Meta Business account at [business.facebook.com](https://business.facebook.com)
-2. Set up WhatsApp Business API (via Meta or BSP)
-3. Get Phone Number ID and Access Token
-4. Configure in Courier dashboard: **Integrations → WhatsApp**
+1. In the Twilio Console, copy your Account SID and Auth Token. Your WhatsApp sender is the From number
+2. In Courier, open **Integrations → WhatsApp** and enter the Account SID, Auth Token and From number
+3. Create the content template in Twilio and get it approved, then paste its Content SID into your Courier template's WhatsApp channel settings
 
 ### Send Template Message
 
@@ -233,7 +200,7 @@ import Courier from "@trycourier/courier";
 
 const client = new Courier();
 
-// Basic template send
+// The Content SID comes from the template's WhatsApp channel settings
 await client.send.message({
   message: {
     to: { phone_number: "+15551234567" },
@@ -241,11 +208,11 @@ await client.send.message({
     data: {
       customerName: "Jane",
       orderNumber: "12345",
-      deliveryDate: "January 30, 2026"
+      deliveryDate: "Jan 30"
     },
     routing: {
       method: "single",
-      channels: ["whatsapp"]
+      channels: ["twilio-whatsapp"]
     }
   }
 });
@@ -253,16 +220,7 @@ await client.send.message({
 
 ### Template Variable Mapping
 
-Configure in your Courier template to map data to WhatsApp variable positions:
-
-```jsonc
-// message.data passed on your send call:
-{
-  "customerName": "Jane",    // Maps to {{1}}
-  "orderNumber":  "12345",   // Maps to {{2}}
-  "deliveryDate": "Jan 30"   // Maps to {{3}}
-}
-```
+The content template uses `{{1}}`, `{{2}}`. Courier sends the Content SID with its variables, and Twilio fills in the approved template. Check the provider request in the message log on the first send to confirm what Courier passed.
 
 ```text
 WhatsApp template body:
@@ -270,35 +228,6 @@ WhatsApp template body:
 
 Rendered message:
   Hi Jane, your order #12345 has shipped and will arrive by Jan 30.
-```
-
-### With Media Header
-
-```typescript
-await client.send.message({
-  message: {
-    to: { phone_number: "+15551234567" },
-    template: "nt_01kmrbxm4x7q1v5d8c2n6w9hj",
-    data: {
-      customerName: "Jane",
-      orderNumber: "12345"
-    },
-    channels: {
-      whatsapp: {
-        override: {
-          body: {
-            header: {
-              type: "image",
-              image: {
-                link: "https://acme.com/delivery-proof/12345.jpg"
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-});
 ```
 
 ### OTP Template
@@ -316,7 +245,7 @@ async function sendWhatsAppOTP(
       data: { code },
       routing: {
         method: "single",
-        channels: ["whatsapp", "sms"], // Fallback to SMS
+        channels: ["twilio-whatsapp", "sms"], // Fallback to SMS
       },
     },
   }, {
@@ -353,103 +282,24 @@ await client.send.message({
     },
     routing: {
       method: "single",
-      channels: ["whatsapp"]
+      channels: ["twilio-whatsapp"]
     }
   }
 });
 ```
 
-## Interactive Messages
+## Interactive Messages and Media
 
-### Quick Reply Buttons
-
-Up to 3 buttons for quick responses:
-
-```typescript
-await client.send.message({
-  message: {
-    to: { phone_number: "+15551234567" },
-    channels: {
-      whatsapp: {
-        override: {
-          body: {
-            type: "interactive",
-            interactive: {
-              type: "button",
-              body: {
-                text: "Your appointment is tomorrow at 2pm. Can you make it?"
-              },
-              action: {
-                buttons: [
-                  { type: "reply", reply: { id: "confirm", title: "Yes, I'll be there" } },
-                  { type: "reply", reply: { id: "reschedule", title: "Need to reschedule" } },
-                  { type: "reply", reply: { id: "cancel", title: "Cancel" } }
-                ]
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-});
-```
-
-### List Messages
-
-For menus with multiple options:
-
-```typescript
-await client.send.message({
-  message: {
-    to: { phone_number: "+15551234567" },
-    channels: {
-      whatsapp: {
-        override: {
-          body: {
-            type: "interactive",
-            interactive: {
-              type: "list",
-              body: {
-                text: "What would you like help with?"
-              },
-              action: {
-                button: "View Options",
-                sections: [
-                  {
-                    title: "Orders",
-                    rows: [
-                      { id: "track", title: "Track my order", description: "Check delivery status" },
-                      { id: "return", title: "Return an item", description: "Start a return" }
-                    ]
-                  },
-                  {
-                    title: "Account",
-                    rows: [
-                      { id: "billing", title: "Billing question", description: "Invoices and payments" },
-                      { id: "password", title: "Reset password", description: "Change your password" }
-                    ]
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-});
-```
+Create `twilio/quick-reply` or `twilio/list-picker` content in Twilio and send its Content SID. List-picker works only inside the 24-hour window. Images and documents go in a `twilio/media` or `twilio/card` content template the same way.
 
 ## Template Best Practices
 
 ### Approval Tips
 
-1. **Start with UTILITY** - Highest approval rates
-2. **Be clear and specific** - Avoid vague language
-3. **Include sample values** - Show Meta what it will look like
-4. **No promotional content in UTILITY** - Or it will be rejected
-5. **Follow Meta's policies** - No prohibited content
+1. **Match content to the category** - Promotions and offers belong in Marketing templates. Keep Utility and Authentication templates free of promotional wording, or WhatsApp rejects or recategorizes them
+2. **Include sample values** - Give every variable a sample value so reviewers have context
+3. **Approve each language** - Every language version needs its own approval
+4. **Watch quality** - Frequent spam reports can cost you the ability to send
 
 ### Variable Guidelines
 
@@ -462,49 +312,34 @@ Hi {{1}}, your order #{{2}} shipped!
 ```
 Hi {{1}}, {{2}} {{3}} {{4}} {{5}} {{6}}...
 ```
-(Too many variables, looks like spam)
 
-### Content Guidelines
-
-| Do | Don't |
-|----|-------|
-| Be clear and specific | Use vague, clickbait language |
-| Personalize with name | Send identical mass messages |
-| Provide value | Be overly promotional (in UTILITY) |
-| Include business name | Forget to identify yourself |
+WhatsApp rejects templates whose variable numbers skip an integer (`{{1}}` then `{{3}}`), whose variables sit next to each other (a space between them still counts), or whose body starts or ends with a variable. Keep at least 2x+1 plain words for every x variables.
 
 ## Pricing
 
-WhatsApp charges per conversation (24-hour window from first message).
-
-Rates are set by Meta, vary by country and conversation category (utility, authentication,
-marketing), and change often.
+Meta charges per message, by category and the recipient's country. Twilio adds its own per-message fee.
 
 > **Never quote a price from memory or from this file.** Fetch
 > https://developers.facebook.com/docs/whatsapp/pricing and read the current rates for the
 > countries the customer sends to.
-| Service (user-initiated) | Free (first 1,000/month) |
-
-**Tip:** Use UTILITY for order updates to minimize costs.
 
 ## Troubleshooting
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| Template rejected | Policy violation | Review Meta guidelines, revise |
-| Message not delivered | Outside 24hr window | Use approved template |
-| "Invalid parameter" | Variable count mismatch | Check template has matching params |
+| `No Content SID specified.` | No SID on template or send | Set ContentSid |
+| Template rejected | Policy violation | Review WhatsApp's guidelines, revise and resubmit |
+| Message not delivered | Unapproved content outside 24hr window | Use an approved template |
 | Phone not found | Invalid format | Use E.164 format (+1...) |
-| Rate limited | Too many messages | Implement queuing |
+| Rate limited | Too many messages | Set a [send rate limit](../guides/providers.md#send-rate-limits) on the provider |
 
 ### Debug Checklist
 
-1. WhatsApp configured correctly in Courier?
-2. Phone number in E.164 format?
-3. Template approved in Meta Business Suite?
-4. Variable count matches template?
+1. WhatsApp (`twilio-whatsapp`) connected in Courier with the Account SID, Auth Token and From number?
+2. Content SID set on the template or the send?
+3. Template approved in Twilio, if the user hasn't messaged in 24 hours?
+4. Phone number in E.164 format?
 5. User has opted in?
-6. Within 24-hour window (for session messages)?
 
 ## Multi-Channel with WhatsApp
 
@@ -519,7 +354,7 @@ await client.send.message({
     data: { code: "847293" },
     routing: {
       method: "single",
-      channels: ["whatsapp", "sms"]
+      channels: ["twilio-whatsapp", "sms"]
     }
   }
 });
@@ -530,13 +365,14 @@ await client.send.message({
 | Use WhatsApp | Use SMS |
 |--------------|---------|
 | Rich media needed | Simple text only |
-| International messaging (cheaper) | US/Canada domestic |
+| International messaging | US/Canada domestic |
 | User prefers WhatsApp | No WhatsApp account |
 | Conversation-style support | One-way notifications |
 
 ## Related
 
 - [SMS](./sms.md) - Alternative mobile channel
-- [Multi-Channel](../guides/multi-channel.md) - WhatsApp in routing strategies
+- [Multi-Channel](../guides/multi-channel.md) - Fallback routing
+- [Providers](../guides/providers.md) - Provider config and send rate limits
 - [Orders](../transactional.md) - Order notification patterns
 - [Appointments](../transactional.md) - Appointment reminders
