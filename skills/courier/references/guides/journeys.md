@@ -8,15 +8,17 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 
 ### Rules
 - A journey must have at least one `trigger` node. It is the entry point for all runs
+- `POST /journeys` takes a trigger node first and an exit node last, with no send nodes and no node `id`s
 - Journey-scoped templates are **not** workspace templates. They live under `POST /journeys/{id}/templates` and cannot be referenced from the Send API or shared across journeys
 - Journeys must be **published** before they can be invoked, draft changes are not executed
 - `PUT /journeys/{id}` is a **full replacement** of the draft, include all nodes, not just the ones you changed
+- End the top-level `nodes` with an `exit` node on create, and keep it last on every `PUT`, which takes the same body shape
 - `POST /journeys/{id}/invoke` returns `202` with a `runId`, processing is asynchronous
-- **Node `id`s are server-generated.** Do **not** send client-supplied node `id`s on `POST /journeys`. They're rejected with `400` (`client-supplied node ids are not allowed`). On `PUT /journeys/{id}` (replace) `id`s are accepted and preserved, but they're optional. Branch paths nest their child nodes inline, so you don't need `id`s to wire the graph at all.
+- **Node `id`s are server-generated.** Do **not** send client-supplied node `id`s on `POST /journeys`. They're rejected with `400` (`client-supplied node ids are not allowed`). On `PUT /journeys/{id}` (replace) `id`s are accepted and preserved, but they're optional. Branch paths nest their child nodes inline, so you don't need `id`s to wire the graph, except to reference an earlier send in a `send_status.<nodeId>` condition.
 - Elemental version string for journey-scoped templates is always `"2022-01-01"`. See [Elemental](./elemental.md)
 - Delay durations use ISO 8601 format (e.g., `"PT1H"` for one hour, `"PT30M"` for 30 minutes, `"P1D"` for one day)
 - Conditions use **string** tuples: `[path, operator, value]` for binary, `[path, operator]` for unary. A single condition is the bare tuple; multiple conditions use an `{ "AND": [...] }` / `{ "OR": [...] }` object. Comparison values are always strings (`"true"`, `"50"`), not native booleans/numbers. See [Conditions](#conditions)
-- Interpolation differs by context: templates, fetch URLs and fetch header values use `{{field}}` (no prefix); branch/trigger conditions use `data.field`. Fetch `headers` values are plain strings, e.g. `"Authorization": "Bearer {{api_token}}"`. See [Variable Interpolation](#variable-interpolation)
+- Interpolation differs by context: templates use `{{data.field}}` (a bare `{{field}}` resolves only in default scope); fetch URLs and header values use `{{field}}`; conditions use `data.field`. Fetch `headers` values are plain strings, e.g. `"Authorization": "Bearer {{api_token}}"`. See [Variable Interpolation](#variable-interpolation)
 - A send node's `to` override takes **exactly one** of `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams` — never a combination. See [Slack and Teams sends](#slack-and-teams-sends)
 - A Slack `access_token` on a send node must be a **runtime reference** (`{{data.slack_token}}`), never a literal token. See [Slack and Teams sends](#slack-and-teams-sends)
 - A send node can carry `message.context.tenant_id` to deliver as one of your customers — literal id or whole-string mustache reference only. See [Send Node Options](#send-node-options)
@@ -118,11 +120,11 @@ Webhook and audience triggers take no `schema`.
 | Used from | Send nodes within the journey | Send API (`client.send.message`) |
 | Shareable | No, exclusive to one journey | Yes, any send can reference them |
 | Content format | [Elemental](./elemental.md) (`version` + `elements`) | Elemental or Design Studio |
-| Publishable | Independently or with journey publish | Via `notifications.publish` |
+| Publishable | Independently (`state: "PUBLISHED"` on create, or `.../publish`) | Via `notifications.publish` |
 
-Journey-scoped templates are published **automatically** when you publish the journey itself. You can also publish them independently via `POST /journeys/{id}/templates/{templateId}/publish` if you need to update a template without republishing the entire journey.
+Publish each journey-scoped template yourself. Create it with `"state": "PUBLISHED"`, or call `POST /journeys/{id}/templates/{templateId}/publish` after an edit. A run sends each template's published version, so don't rely on publishing the journey to publish its templates.
 
-**Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the previously published version with nothing in the journey to indicate an edit is pending. Publish the template (or republish the journey) to make the edit live. `GET .../versions` shows the mismatch while it lasts:
+**Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the previously published version with nothing in the journey to indicate an edit is pending. Publish the template to make the edit live. `GET .../versions` shows the mismatch while it lasts:
 
 ```json
 {
@@ -182,6 +184,7 @@ Create returns `201` with the journey. The response echoes back **server-generat
 {
   "id": "3ac3b1ba-5910-4954-9871-99e601d77bb8",
   "name": "Welcome Journey",
+  "cancelation_token": null,
   "state": "DRAFT",
   "enabled": true,
   "nodes": [
@@ -208,6 +211,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/templates" \
   -H "Content-Type: application/json" \
   -d '{
     "channel": "email",
+    "state": "PUBLISHED",
     "notification": {
       "name": "Welcome Email",
       "tags": [],
@@ -267,7 +271,8 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
         "message": {
           "template": "'"$TEMPLATE_ID"'"
         }
-      }
+      },
+      { "id": "exit-1", "type": "exit" }
     ],
     "enabled": true
   }'
@@ -450,7 +455,7 @@ The `conditions` field accepts one of three shapes:
 `UNDELIVERABLE`, where `<nodeId>` is an earlier send node's id. The first four are cumulative, so
 `was DELIVERED` is also true once the message was opened or clicked. `UNDELIVERABLE` matches only itself.
 
-Node ids are server-generated, and send nodes can't be added on create, so wire it in two `PUT`s: add
+Send nodes can't be added on create, so the safe order is two `PUT`s: add
 the email send node, read its `id` from that response, then `PUT` again with the delay and branch.
 `PUT` is a full replacement, so the second one repeats every node, trigger included. Escalate to SMS when an email is not clicked within a day. Key on `CLICKED`, not `OPENED`, because image-proxy prefetch fires opens nobody saw. `CLICKED` needs click tracking on and a tracked link in the message; without them the condition is always true and everyone gets the SMS:
 
@@ -471,7 +476,8 @@ The `nodes` of the second `PUT`:
       }
     ],
     "default": { "nodes": [] }
-  }
+  },
+  { "type": "exit" }
 ]
 ```
 
@@ -485,7 +491,7 @@ How you reference a context value depends on **where** you use it. Getting this 
 
 | Context | Syntax | Example |
 |---------|--------|---------|
-| Template content (Elemental) | `{{field}}`, **no** `data.` prefix | `"Welcome, {{first_name}}!"` |
+| Template content (Elemental) | `{{data.field}}` works in both scopes. A bare `{{field}}` resolves only in default-scope templates (API-created with no `scope`). Design Studio templates are `scope: "strict"`, so read `content.scope` before editing one. Digest totals are the exception, see [digests.md](./digests.md) | `"Welcome, {{data.first_name}}!"` |
 | Fetch node `url` | `{{field}}` | `"https://api.app.com/users/{{user_id}}/status"` |
 | Branch / trigger `conditions` | `data.field` (string tuples) | `["data.completed", "is equal", "true"]` |
 | Fetch **header values** | `{{field}}` inside a plain string | `{ "Authorization": "Bearer {{api_token}}" }` |
@@ -597,7 +603,8 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
             { "id": "exit-default", "type": "exit" }
           ]
         }
-      }
+      },
+      { "id": "exit-end", "type": "exit" }
     ],
     "enabled": true
   }'
@@ -783,9 +790,11 @@ Run an LLM prompt and merge a structured result (conforming to `output_schema`) 
 }
 ```
 
+`web_search` works only with the `claude-*` models and costs 2 extra credits per run. Use a model id from the [AI node's model list](https://www.courier.com/docs/journeys/nodes/ai#ai-model). Unknown ids may return `400`.
+
 ### Segment-Triggered Journey
 
-Instead of `api-invoke`, start runs from your Segment event stream. Filter which events qualify with trigger `conditions`:
+Instead of `api-invoke`, start runs from your Segment event stream. Filter which events qualify with trigger `conditions`. The `PUT /journeys/{id}` body, after you create the shell and its template:
 
 ```json
 {
@@ -799,13 +808,16 @@ Instead of `api-invoke`, start runs from your Segment event stream. Filter which
       "event_id": "Order Completed",
       "conditions": ["properties.total", "greater than", "100"]
     },
-    { "id": "send-thanks", "type": "send", "message": { "template": "<thanks-template-id>" } }
+    { "id": "send-thanks", "type": "send", "message": { "template": "<thanks-template-id>" } },
+    { "type": "exit" }
   ],
   "enabled": true
 }
 ```
 
 For `track` events, the event's `userId` must be a valid Courier Profile ID or the journey won't start. Segment journeys have no `schema`. Courier receives whatever Segment sends.
+
+A Segment trigger's own `conditions` read the Segment event, so their paths start at `properties.` (`properties.total`). After the trigger, those properties are the run's `data`, so later nodes use `data.total`.
 
 ---
 
@@ -886,7 +898,7 @@ A **Cancel** node stops in-flight runs from within a journey. Its one setting is
 
 This is the pattern for "the newest run wins": a re-engagement journey whose first node cancels any earlier run for the same user, so a returning user doesn't receive two overlapping sequences.
 
-The Cancel node is configured in the journey builder. It is **not currently part of the API journey definition**, there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead. It has the same token semantics. Re-check the API reference before assuming this is still true.
+The Cancel node is configured in the journey builder. It is **not currently part of the API journey definition**, there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead. It has the same token semantics.
 
 ## Debugging Runs
 

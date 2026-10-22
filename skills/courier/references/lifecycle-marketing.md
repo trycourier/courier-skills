@@ -57,7 +57,7 @@ await client.journeys.cancel({ cancelation_token: `onboarding-${userId}` });
 
 ## Targeting: use audiences, not queries
 
-An audience is a filter Courier evaluates and keeps current. Send to it directly instead of resolving a user list yourself.
+An audience is a filter whose membership Courier stores and keeps current. Send to it directly instead of resolving a user list yourself.
 
 ```typescript
 await client.send.message({

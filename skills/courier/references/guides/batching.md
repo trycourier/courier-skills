@@ -103,7 +103,7 @@ async function sendDailyDigest(userId: string) {
 
 ### Batch Data in Templates
 
-Access batched data in your notification template:
+The payload is `batch.count` (the true total) and `batch.items` (the events `retain` kept). Courier's `condition` and `subtract` helpers do the comparison and the math. Without a `category_key`, read them directly:
 
 ```
 {{#if (condition batch.count ">" 1)}}
@@ -113,7 +113,17 @@ Access batched data in your notification template:
 {{/if}}
 ```
 
-The payload is `batch.count` (the true total) and `batch.items` (the events `retain` kept). With a `category_key`, both sit under each category's key. Courier's `condition` and `subtract` helpers do the comparison and the math.
+With a `category_key`, as in the example above, each group's `count` and `items` sit under its own key (`batch.<value>`), so top-level `batch.count` is empty. Loop over the groups:
+
+```
+{{#each batch}}
+  {{#if (condition this.count ">" 1)}}
+    {{this.items.[0].actor_name}} and {{subtract this.count 1}} others liked your post
+  {{else}}
+    {{this.items.[0].actor_name}} liked your post
+  {{/if}}
+{{/each}}
+```
 
 ### Batch Cancellation
 

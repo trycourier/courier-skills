@@ -33,11 +33,11 @@ provider records there is the *Microsoft* tenant, not yours.
 ### Rules
 - `tenants.update` upserts by the id you choose; `name` is required.
 - Four layers load per send, as a sliding window; merging is parent first, child overwrites per key.
-- Tenant-scoped inbox messages are invisible outside their tenant: the client must sign in with the same `tenantId`.
+- Sign the inbox client in with the same `tenantId` the send carried. A different `tenantId` hides the message, and nothing fails.
 - Pass the tenant on the recipient (`to.tenant_id`) or in `message.context.tenant_id`, and use one form consistently.
 
 ### Common Mistakes
-- Sending with `tenant_id` but signing the inbox client in without one. The message never shows and nothing fails.
+- Signing the inbox client in with a `tenantId` other than the one the send carried, or relying on a sign-in with none. Sign in with the send's tenant.
 - Relying on auto-inferred tenant context for users who belong to more than one tenant.
 
 ## Create or update a tenant (upsert)
@@ -91,17 +91,16 @@ see [Slack and Teams sends](./journeys.md#slack-and-teams-sends) for the referen
 - **Auto-infer tenant context:** when a user belongs to exactly one tenant and the send names none,
   Courier loads that tenant's context automatically (toggle in workspace settings). Useful for
   Studio, list, and audience sends; surprising when you didn't expect tenant branding to apply
-- **Tenant-scoped Inbox messages are invisible outside their tenant.** A send with `tenant_id:
-  "acme"` only appears when the client signed in with that same `tenantId`. Sign in without it and
-  the message simply never shows, with nothing failing. See
-  [inbox/rendering.md](../inbox/rendering.md)
+- **Sign the inbox in with the `tenantId` the send carried.** A send with `tenant_id: "acme"` shows
+  for a client signed in with `tenantId: "acme"`. A different `tenantId` hides it, and nothing fails.
+  See [inbox/rendering.md](../inbox/rendering.md)
 
-| Operation | Node |
-|---|---|
-| Get | `client.tenants.retrieve(tenantId)` |
-| List | `client.tenants.list()` |
-| Delete | `client.tenants.delete(tenantId)` |
-| List users in a tenant | `client.tenants.listUsers(tenantId)` |
+| Operation | Node | Python |
+|---|---|---|
+| Get | `client.tenants.retrieve(tenantId)` | `client.tenants.retrieve(tenant_id)` |
+| List | `client.tenants.list()` | `client.tenants.list()` |
+| Delete | `client.tenants.delete(tenantId)` | `client.tenants.delete(tenant_id)` |
+| List users in a tenant | `client.tenants.listUsers(tenantId)` | `client.tenants.list_users(tenant_id)` |
 
 ## Associate users, then send
 

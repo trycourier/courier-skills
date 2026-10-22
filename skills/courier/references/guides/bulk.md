@@ -140,11 +140,12 @@ Worth knowing up front, since several of these fail quietly or with a generic er
 - **A job runs once.** After `runJob`, ingesting more users into it does nothing. Create a new job.
 - **Ingest reports partial failures rather than failing the call.** The response is
   `{"errors":[...],"total":N}` with a 200. Duplicates land in `errors` while the rest succeed, so
-  check it instead of relying on the status code.
-- **Global `data` is merged into every recipient and overridden per user.** Which per-user field
-  wins is ambiguous in the current docs: both `user.data` and `user.to.data` exist, the API
-  reference attaches merge behavior to `user.data`, and the tutorial uses `to.data`. Prefer
-  `user.data` (what the SDK docstrings use) and verify against the installed types if it matters.
+  check it instead of relying on the status code. Python's `add_users` returns `None` and Node types
+  `addUsers` as `void`, so read the raw response:
+  `const res = await client.bulk.addUsers(jobId, body).asResponse(); const { errors } = await res.json();`
+  or `client.bulk.with_raw_response.add_users(job_id, users=[...]).json()`.
+- **Global `message.data` merges into every recipient. Put per-recipient values in `user.data`,
+  which merges into it.**
 
 ## Monitoring a Job
 
@@ -166,10 +167,8 @@ message-level question, so follow `items[].messageId` into
 [`messages.retrieve`](./reliability.md#message-status-glossary), or watch for
 [`message:updated` webhooks](./webhooks.md#event-types).
 
-Job-level aggregates live on `retrieveJob`, never on `client.messages.retrieve`. The job's
-`requestId` is not a message ID: resolve per-recipient message IDs via
-`courier messages list --trace-id "<requestId>"` (see
-[CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id)).
+Job-level aggregates live on `retrieveJob`, never on `client.messages.retrieve`. Per-recipient
+message IDs come from `listUsers` (`items[].messageId`). The `jobId` is not a message ID.
 
 <a id="version-note"></a>
 

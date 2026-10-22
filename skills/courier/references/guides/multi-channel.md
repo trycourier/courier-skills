@@ -17,7 +17,7 @@
 | Password reset | single | [email] |
 | Order confirmation | single | [email] |
 | Order shipped | all | [email, push] |
-| Security alert | all | Tiered by severity, see [authentication.md#security-alert-channels](../transactional.md#security-alert-channels). Lowest tier: `[email, push]`; highest tier: `[email, push, sms, inbox]` |
+| Security alert | all | Tiered by severity, see [Security Alert Channels](../transactional.md#security-alert-channels). Lowest tier: `[email, push]`; highest tier: `[email, push, sms, inbox]` |
 | Activity mention | all | [push, inbox] |
 | Weekly digest | single | [email] |
 
@@ -85,7 +85,7 @@ client.send.message(
 2. If it fails (no contact info, provider error), try the next
 3. Stop after first successful delivery
 
-> For OTP specifically, swap the channel order to `["sms", "email"]`, the Quick Reference and By-Urgency tables above are the source of truth for per-use-case ordering.
+> For OTP specifically, swap the channel order to `["sms", "email"]`, the Quick Reference table above is the source of truth for per-use-case ordering.
 
 ### All Channels (`method: "all"`)
 
@@ -150,8 +150,8 @@ await client.send.message({
 
 ```typescript
 // Email is the durable record; push is the awareness nudge.
-// method: "all" silently skips channels the user has no contact info for
-// (e.g., no push token → push is dropped, email is still sent).
+// method: "all" skips channels the user has no contact info for
+// (e.g., no push token → push skipped, INCOMPLETE_PROFILE_DATA in the log, email still sent).
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
@@ -208,6 +208,8 @@ T+24hr:   SMS (if critical and still unread)
 
 Build the escalation as a journey DAG with delay and send nodes. See [Journeys](./journeys.md) for the full create → template → wire → publish → invoke workflow.
 
+This is the `PUT /journeys/{id}` body once the journey and its templates exist. `POST /journeys` rejects node `id`s (400) and send nodes (422). See [Journeys](./journeys.md#standard-workflow).
+
 ```json
 {
   "name": "Escalating Notification",
@@ -239,7 +241,8 @@ Build the escalation as a journey DAG with delay and send nodes. See [Journeys](
           { "id": "send-email", "type": "send", "message": { "template": "<email-template-id>" } }
         ]
       }
-    }
+    },
+    { "id": "exit-1", "type": "exit" }
   ],
   "enabled": true
 }
@@ -297,7 +300,7 @@ Same notification, optimized for each channel:
   "email": {
     "override": {
       "subject": "Your order #12345 has shipped",
-      "body": "<h1>Order shipped</h1><p>Tracking: <a href=\"https://acme.co/t/12345\">acme.co/t/12345</a></p>"
+      "html": "<h1>Order shipped</h1><p>Tracking: <a href=\"https://acme.co/t/12345\">acme.co/t/12345</a></p>"
     }
   }
 }
@@ -434,21 +437,9 @@ await client.send.message({
 
 ### Read State Sync
 
-Mark notification as read across channels when user engages with one.
+To stop a follow-up after the user engages, cancel that follow-up by its own message ID while it is still pending (for example a delayed send), or branch in a journey. `client.messages.cancel` can't retract a message that already reached the feed.
 
-> ⚠️ **Do not treat an email open as engagement.** Apple Mail Privacy Protection and Gmail's image proxy prefetch tracking pixels on the recipient's behalf, so `OPENED` fires for a large share of recipients who never saw the message. Escalation, suppression, and read-state logic keyed on opens will silently misfire. Key on **clicks** (`CLICKED`), in-app read state, or an action inside your own product instead. The example below uses opens only to illustrate the cancel mechanics, swap the trigger for a click or in-app read event in production.
-
-```typescript
-// Prefer a click or in-app read event over an open — see the caveat above
-app.post('/webhooks/email-clicked', async (req, res) => {
-  const { messageId, userId } = req.body;
-  
-  // Cancel the inbox notification to avoid duplicate engagement
-  await client.messages.cancel(messageId);
-  
-  res.sendStatus(200);
-});
-```
+> ⚠️ **Do not treat an email open as engagement.** Apple Mail Privacy Protection and Gmail's image proxy prefetch tracking pixels on the recipient's behalf, so `OPENED` fires for a large share of recipients who never saw the message. Escalation, suppression, and read-state logic keyed on opens will silently misfire. Key on **clicks** (`CLICKED`), in-app read state, or an action inside your own product instead.
 
 ### Cancellation
 

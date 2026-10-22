@@ -46,7 +46,7 @@ The value returned as `message.status` from `client.messages.retrieve` (and the 
 |--------|---------|---------------------------|
 | `ENQUEUED` | Courier has accepted the request and queued it for routing. | Transient, re-check in a few seconds. |
 | `ROUTED` | Routing decision made; message is ready to hand to a provider. | Transient. |
-| `SENT` | At least one provider accepted the payload for delivery. For email this means the provider returned 2xx; for Inbox it means the message is visible in the feed. | Transient on the way to `DELIVERED`, or terminal for Inbox/webhook channels. |
+| `SENT` | At least one provider accepted the payload for delivery. For email this means the provider returned 2xx; for Inbox it means the message is visible in the feed. | Transient on the way to `DELIVERED`, but terminal for Inbox and for any provider without delivery tracking set up. Slack, Teams and webhook sends go straight to `DELIVERED`. |
 | `DELIVERED` | Provider confirmed the message reached the recipient (e.g. email DSN, SMS carrier report). | Terminal success. |
 | `OPENED` / `CLICKED` | Engagement signals for email (requires open/click tracking). **`OPENED` is not a reliable signal of human engagement**, Apple Mail Privacy Protection and Gmail image proxying prefetch the tracking pixel, so it fires without the recipient reading anything. Build logic on `CLICKED` or in-app read state. | Terminal success with engagement. |
 | `UNMAPPED` | The `event` on the send didn't map to any notification/template in this workspace. Common for bulk sends with a typo'd `event` value. | Fix the event ID or create an event mapping in Settings. |
@@ -75,7 +75,7 @@ Without idempotency, you might send duplicate notifications if:
 
 ### Courier Idempotency Keys
 
-Add the `Idempotency-Key` header to your API requests. Courier keeps keys for 25 hours by default and returns the stored response for a repeat. To keep a key longer, up to a year, send `x-idempotency-expiration` as an ISO 8601 datetime. A key is scoped to the endpoint it was sent to. See [Patterns > Idempotency Keys](./patterns.md#idempotency-keys) for TypeScript, Python, CLI, and curl examples.
+Add the `Idempotency-Key` header to your API requests. Courier keeps keys for 25 hours by default and returns the stored response for a repeat. To keep a key longer, up to a year, send `x-idempotency-expiration` as an ISO 8601 datetime. A key is scoped to the endpoint it was sent to. The stored response includes errors: a key whose first request got a `400` keeps returning it, so use a new key after fixing the request. See [Patterns > Idempotency Keys](./patterns.md#idempotency-keys) for TypeScript, Python, CLI, and curl examples.
 
 ### Key Patterns
 
@@ -113,7 +113,7 @@ and transient errors on its side:
 | Status tracking | Delivery/open/click tracking continues for up to **72 hours** |
 | Webhook delivery | Retried for about **24 hours** (see [webhooks.md](./webhooks.md#responding)) |
 
-Don't reimplement it. To shorten the window for one send, set `message.timeout.message` in milliseconds. Watch it in
+Don't reimplement it. Courier keeps trying a message for up to 72 hours in total (24 hours is the provider-retry schedule above). To shorten that for one send, set `message.timeout.message` in milliseconds. See [routing timeouts](https://www.courier.com/docs/send/routing#timeouts). Watch it in
 [Message Logs](https://www.courier.com/docs/monitor/overview) or via
 `courier messages history`.
 

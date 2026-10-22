@@ -74,6 +74,8 @@ client = Courier(api_key="your-api-key")
 
 ## 3. Send a Message
 
+With a Test key, replace `jane@example.com` with the address you signed up with. The built-in provider delivers nowhere else.
+
 ### TypeScript
 
 ```typescript

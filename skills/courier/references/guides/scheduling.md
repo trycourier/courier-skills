@@ -8,6 +8,7 @@ Courier can defer a single send natively. You don't queue it in your own app and
 
 - **`message.delay` defers one send.** For a delay that's one step inside a multi-step flow, use a journey [`delay` node](./journeys.md) instead.
 - **Duration is rounded up to the next minute.** `90000` ms (90 s) delivers at 2 minutes. Don't rely on sub-minute precision.
+- **A delay can be at most 31 days.** If a send sets both `duration` and `until`, `duration` wins.
 - **A delivery window delays until the *next* open time.** A send outside the window isn't dropped. It waits.
 - **Cancel a still-pending scheduled send** with `client.messages.cancel(messageId)` if its trigger goes stale. See [Patterns](./patterns.md#sequence-cancellation).
 

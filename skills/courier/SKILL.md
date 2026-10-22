@@ -33,7 +33,7 @@ If the project already has `@trycourier/courier` or `trycourier` installed, skip
 | `{ email: "…" }` / `{ phone_number: "…" }` | An inline recipient, no profile required |
 | `{ list_id: "…" }` | Every subscriber of a list |
 | `{ list_pattern: "eng.*" }` | Every list matching the pattern |
-| `{ audience_id: "…" }` | A filter Courier evaluates and keeps current |
+| `{ audience_id: "…" }` | A filter whose membership Courier stores and keeps current |
 | An array of the above | Multiple recipients in one call, with a **hard cap of 500** |
 
 Above 500 ad-hoc recipients, a `to` array returns `400 message.to has N recipients. Max is 500`.
@@ -59,8 +59,7 @@ await client.send.message({
     template: "nt_01kmrbq6ypf25tsge12qek41r0", // OR content: { title, body } / { version, elements }
     data: { /* merge variables */ },
   },
-}, {
-  headers: { "Idempotency-Key": "order-confirmation-12345" },
+  "Idempotency-Key": "order-confirmation-12345",
 });
 ```
 
@@ -78,7 +77,7 @@ client.send.message(
         "template": "nt_01kmrbq6ypf25tsge12qek41r0",
         "data": {},
     },
-    extra_headers={"Idempotency-Key": "order-confirmation-12345"},
+    idempotency_key="order-confirmation-12345",
 )
 ```
 
@@ -96,7 +95,7 @@ translations  users     workspacePreferences
 
 Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `journeys.runs`, `journeys.templates`, `lists.subscriptions`, `notifications.checks`, `notifications.previews`, `notifications.previews.runs`, `profiles.lists`, `providers.catalog`, `tenants.preferences`, `tenants.preferences.items`, `tenants.templates`, `tenants.templates.versions`, `users.preferences`, `users.tenants`, `users.tokens`, `workspacePreferences.topics`.
 
-`auditEvents`, `inbound`, and `requests` have no dedicated guide. Use MCP or the CLI for those.
+`auditEvents` and `inbound` (`inbound.trackEvent`) have no dedicated guide; use MCP or the CLI. `requests.archive` is in [inbox.md](./references/channels/inbox.md).
 
 ### Common operations
 
@@ -179,7 +178,7 @@ When you need an API signature, SDK method, or feature not covered in these reso
 | Source | Use it for | Cost | Caveat |
 |--------|-----------|------|--------|
 | **Installed SDK types**: `node_modules/@trycourier/courier/resources/*.d.ts`, or the Python package's stubs | **Ground truth for what exists** in the version this project actually has | Free (local) | None. Most reliable check available. |
-| **Docs page as markdown**: append `.md` to any docs URL, e.g. `…/platform/journeys/nodes/batch.md` | Reading one specific page you can already name | **~1–2k tokens** (98.9% smaller than the HTML) | Returns real `404`s, so a bad path fails loudly rather than silently. |
+| **Docs page as markdown**: append `.md` to any docs URL, e.g. `…/journeys/nodes/batch.md` | Reading one specific page you can already name | **~1–2k tokens** (98.9% smaller than the HTML) | Returns real `404`s, so a bad path fails loudly rather than silently. |
 | **Docs MCP**: `https://www.courier.com/docs/mcp` (no API key; public docs) | Finding pages when you *don't* know the path. `search_courier` searches everything; `query_docs_filesystem_courier` runs `head`/`cat`/`grep` over a virtual FS of every docs page **and the OpenAPI specs** | search ~20k tokens; filesystem read ~2k | Complete and current, it indexes from nav, so newly shipped pages appear immediately. Prefer the filesystem tool over search once you know the path. |
 | **API MCP** (`https://mcp.courier.com`: needs `api_key`) or **CLI** (`courier <resource> --help`) | The live operation set and parameter shapes | Low | Tools can outlive a removed endpoint, see [mcp.md](./references/guides/mcp.md). |
 | **API reference**: `https://www.courier.com/docs/api-reference/` | Request/response schemas, error codes | Medium | Generated from the OpenAPI spec, so removals show up fast. |
@@ -203,7 +202,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **First notification / addressing (`to` field) / inline vs template** | [quickstart.md](./references/guides/quickstart.md) |
 | **Transactional**: password reset, OTP, orders, receipts, dunning, appointments, security alerts | [transactional.md](./references/transactional.md) |
 | **Lifecycle marketing**: onboarding, adoption, engagement, win-back, referral, campaigns | [lifecycle-marketing.md](./references/lifecycle-marketing.md) |
-| **Multi-step sequences**: delays, branches, batching, A/B, cancellation, run logs (`journeys.runs`), Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
+| **Multi-step sequences**: triggers (API invoke, Segment, inbound webhook, a user joining an audience), delays, branches, batching, A/B, cancellation, run logs (`journeys.runs`), Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |
 | Channel routing, fallbacks, escalation, provider failover | [multi-channel.md](./references/guides/multi-channel.md) |
 | Idempotency, retries, delivery statuses, webhook verification | [reliability.md](./references/guides/reliability.md) |
 | Preference topics, opt-out, preference centers, workspace preference sections | [preferences.md](./references/guides/preferences.md) |
@@ -213,8 +212,9 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | Rolling up bursts of events in a journey (`batch` node) | [batching.md](./references/guides/batching.md) |
 | **Branding**: logo, colors, email/in-app theme, attaching a brand to sends/tenants, sending unbranded | [brands.md](./references/guides/brands.md) |
 | **Audiences**: dynamic segments, filter rules, sending to a segment | [audiences.md](./references/guides/audiences.md) |
+| **Broadcasts**: a one-off send to a list or audience, now or scheduled | [lifecycle-marketing.md](./references/lifecycle-marketing.md), calls in [sdk-reference.md](./references/sdk-reference.md) |
 | **Multi-tenant / B2B**: tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |
-| Frequency caps, quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
+| Frequency caps (send limits per user, topic or tenant; journey `throttle` node), quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, editing a template in place, publishing, versioning, rollback, verify rendered output | [templates.md](./references/guides/templates.md) |
 | **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, template aliases, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
 | **Delivery metrics for a template**: sent/delivered/opened/clicked as a time series, dashboards, alerting on delivery rate | [metrics.md](./references/guides/metrics.md) |
@@ -232,7 +232,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | MCP setup, API server to operate, docs server to look things up | [mcp.md](./references/guides/mcp.md) |
 | Email: deliverability, SPF/DKIM/DMARC, sender config | [email.md](./references/channels/email.md) |
 | SMS: 10DLC registration, character limits, sender setup | [sms.md](./references/channels/sms.md) |
-| Push: APNs/FCM setup, tokens, permission priming | [push.md](./references/channels/push.md) |
+| Push: APNs/FCM setup, tokens, reaching every device (`routing_method: "all"`), permission priming | [push.md](./references/channels/push.md) |
 | Sending **to** the in-app inbox: setup (`courier` provider), content, actions, inbox+push, Elemental for inbox, `UNROUTABLE` triage | [inbox.md](./references/channels/inbox.md) |
 | **Rendering** the inbox in your app: JWT auth, React / Vue / Angular / Web Components / React Native / iOS / Android / Flutter, read state, real-time | [inbox/rendering.md](./references/inbox/rendering.md) |
 | Slack, Block Kit, OAuth, bot setup | [slack.md](./references/channels/slack.md) |
@@ -243,6 +243,6 @@ Most multi-step work pairs a use-case file with **journeys.md**. Most debugging 
 
 ### Not covered here
 
-Broadcasts, Test→Production environment promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/). Don't reconstruct their shapes from memory. (Promoting *template content* between workspaces is covered in [templates-as-code.md](./references/guides/templates-as-code.md); inbound events are covered in [webhooks.md](./references/guides/webhooks.md).)
+Test→Production environment promotion, EU data residency, and audit events have no dedicated file. Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/). Don't reconstruct their shapes from memory. (Promoting *template content* between workspaces is covered in [templates-as-code.md](./references/guides/templates-as-code.md); inbound events are covered in [webhooks.md](./references/guides/webhooks.md).)
 
 For EU data residency specifically: point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.

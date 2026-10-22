@@ -7,7 +7,7 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 ## Quick Reference
 
 ### Rules
-- **Idempotency keys travel as the `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `"Idempotency-Key": "..."` next to `message`. In Python pass `idempotency_key="..."`. In the CLI pass `--idempotency-key`. With curl, set the header. The Node `idempotencyKey` request option is not wired up, so don't use it. Keys last 25 hours by default.
+- **Idempotency keys travel as the `Idempotency-Key` HTTP header**, never inside `message`. In Node pass `"Idempotency-Key": "..."` next to `message`. In Python pass `idempotency_key="..."`. In the CLI pass `--idempotency-key`. With curl, set the header. The Node `idempotencyKey` request option is not wired up, so don't use it. Keys last 25 hours by default. `{ headers: { "Idempotency-Key": … } }` as the second argument (Node) or `extra_headers=` (Python) sends the same header and also works. For a longer expiry use `"x-idempotency-expiration"` / `x_idempotency_expiration=` / `--x-idempotency-expiration`.
 - **Delivery windows delay a send to the next allowed hour.** Skip them for time-critical sends (OTP, password reset, security alerts), which are useless once delayed.
 - **Frequency caps live in Courier.** [Send limits](https://www.courier.com/docs/send/statuses#send-limits) cap a user, topic, or tenant across all sends. A journey [`throttle` node](./throttling.md) caps one point in one journey, per user, globally, or by a dynamic key. Don't rebuild them app-side.
 - **Fallback routing (`method: "single"`) tries channels in order until one succeeds.** Use `method: "all"` only for genuinely multi-channel events (order shipped = email + push).
@@ -168,11 +168,11 @@ app.post("/webhooks/courier", async (req, res) => {
   res.sendStatus(200);
 
   const { type, data } = req.body;
-  const messageId = data?.id;
+  const key = `webhook-${type}-${data?.id}-${data?.status ?? ""}`;
 
-  const alreadyProcessed = await cache.get(`webhook-${messageId}-${type}`);
+  const alreadyProcessed = await cache.get(key);
   if (alreadyProcessed) return;
-  await cache.set(`webhook-${messageId}-${type}`, true, { ttl: 86400 });
+  await cache.set(key, true, { ttl: 86400 });
 
   await queue.add("process-webhook", req.body);
 });
@@ -186,7 +186,7 @@ def courier_webhook():
     event_type = payload.get("type")
     message_id = payload.get("data", {}).get("id")
 
-    cache_key = f"webhook-{message_id}-{event_type}"
+    cache_key = f"webhook-{event_type}-{message_id}-{payload.get('data', {}).get('status', '')}"
     if cache.get(cache_key):
         return "", 200
     cache.set(cache_key, True, ex=86400)
@@ -237,6 +237,8 @@ End a multi-step sequence when the user takes the desired action. With [Journeys
 **Journeys approach (recommended):**
 
 Design the journey with a branch node that checks whether the user has activated before continuing. This makes cancellation part of the flow itself, no external cancel call needed.
+
+These nodes go in the `PUT /journeys/{id}` body once the journey and its templates exist. `POST /journeys` rejects node `id`s (400) and send nodes (422). See [Journeys](./journeys.md#standard-workflow).
 
 ```json
 {

@@ -90,6 +90,9 @@ One send, Courier fans out to every current member, with no cap on how many that
 `requestId` returned is a job id; resolve per-recipient message ids via
 `courier messages list --trace-id "<requestId>"` (see [cli.md](./cli.md)).
 
+`context.tenant_id` on an audience send sets branding, preferences, and template variables only.
+Every member still receives the message.
+
 Audience vs list: an **audience** is a filter whose stored membership Courier updates as profiles
 change; a **list** is an explicit subscriber set you add/remove from. See [patterns.md](./patterns.md) for list sends.
 
