@@ -11,6 +11,7 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - `POST /journeys` takes a trigger node first and an exit node last, with no send nodes and no node `id`s
 - Journey-scoped templates are **not** workspace templates. They live under `POST /journeys/{id}/templates` and cannot be referenced from the Send API or shared across journeys
 - Journeys must be **published** before they can be invoked, draft changes are not executed
+- Publishing a journey publishes only its nodes, never its templates. Publish each journey-scoped template first (create it with `"state": "PUBLISHED"`, or `POST /journeys/{id}/templates/{templateId}/publish` after any content change), then publish the journey.
 - `PUT /journeys/{id}` is a **full replacement** of the draft, include all nodes, not just the ones you changed
 - End the top-level `nodes` with an `exit` node on create, and keep it last on every `PUT`, which takes the same body shape
 - `POST /journeys/{id}/invoke` returns `202` with a `runId`, processing is asynchronous
@@ -29,6 +30,7 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - Creating send nodes before creating the journey-scoped templates they reference (the template must exist to wire its ID)
 - Omitting the trigger node when replacing a journey via `PUT` (every journey needs at least one trigger)
 - Using `POST /journeys/{id}/invoke` on an unpublished journey, returns an error; publish first
+- Publishing the journey and expecting its templates to go live. A send node whose template has no published version fails at delivery (`UNDELIVERABLE`, "Notification template not found") while the run and the send step still show `PROCESSED`. Check the message, not the run.
 - Assuming the trigger `schema` rejects bad payloads at invoke. It does **not**. The `schema` powers editor autofill and variable hints only; missing fields are not rejected at invocation. A run proceeds until it reaches a node that references a missing field, then fails there. Use **trigger `conditions`** to gate invocation (a failed trigger condition returns `422`)
 - Including `send` nodes in the `POST /journeys` body. Send nodes are **not allowed on create**. Create the shell (a trigger, then an exit), add templates, then add send nodes via `PUT /journeys/{id}`
 - Wrapping a single condition in an extra array (`[[...]]`) or using non-string values, a single condition is a bare tuple of strings (`["data.plan", "is equal", "pro"]`); use an `{ "AND": [...] }` / `{ "OR": [...] }` object for multiple conditions
@@ -122,7 +124,7 @@ Webhook and audience triggers take no `schema`.
 | Content format | [Elemental](./elemental.md) (`version` + `elements`) | Elemental or Design Studio |
 | Publishable | Independently (`state: "PUBLISHED"` on create, or `.../publish`) | Via `notifications.publish` |
 
-Publish each journey-scoped template yourself. Create it with `"state": "PUBLISHED"`, or call `POST /journeys/{id}/templates/{templateId}/publish` after an edit. A run sends each template's published version, so don't rely on publishing the journey to publish its templates.
+Publishing the journey never publishes its templates. Publish each one yourself: create it with `"state": "PUBLISHED"`, or call `POST /journeys/{id}/templates/{templateId}/publish` after an edit. A run sends each template's published version.
 
 **Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the previously published version with nothing in the journey to indicate an edit is pending. Publish the template to make the edit live. `GET .../versions` shows the mismatch while it lasts:
 
@@ -279,6 +281,8 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
 ```
 
 ### Step 4: Publish
+
+First publish every journey-scoped template the send nodes use (Step 2 creates them published; republish any you've edited since). Then publish the journey.
 
 Lock in the current draft as a versioned snapshot. All new runs execute against the published version.
 
@@ -913,6 +917,8 @@ The same data is in the runs API:
 | Each step of a run | `client.journeys.runs.listSteps(runId)` | `client.journeys.runs.list_steps(run_id)` | `courier journeys:runs list-steps --run-id RUN_ID` |
 
 Each step's `node_id` is the node's id in the published journey. A send step that produced a message carries its `message_id`, so follow it to `GET /messages/{message_id}` for delivery status.
+
+A run that is `PROCESSED` can still have failed sends. Follow each send step's `message_id` to `GET /messages/{message_id}`. "Notification template not found" means the template was never published.
 
 ---
 
