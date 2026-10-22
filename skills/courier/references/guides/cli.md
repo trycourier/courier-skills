@@ -218,7 +218,7 @@ courier send message \
 
 > `courier tenants update` creates or replaces the tenant (`PUT /tenants/{tenant_id}`). There is no separate `courier tenants create` command.
 
-**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI covers the full lifecycle: `courier journeys` (create, replace, publish, invoke, cancel), `courier journeys:templates` for journey-scoped templates, and `courier journeys:runs` (list, retrieve, list-steps) for debugging. See [Journeys](./journeys.md) for the full workflow.
+**Journeys** are the recommended way to build multi-step notification sequences (delays, branches, throttling). The CLI covers the full lifecycle: `courier journeys` (create, replace, publish, invoke, cancel), `courier journeys:templates` for journey-scoped templates, and `courier journeys:runs` (list, retrieve, list-steps) for debugging. Publishing a journey publishes only its nodes, not its journey-scoped templates. A send whose template was never published fails with `Notification template not found`, while the run still shows `PROCESSED`. See [Journeys](./journeys.md) for the full workflow.
 
 ```bash
 # Create a journey shell: a trigger first, an exit last (node ids are server-generated, don't supply your own)
@@ -233,7 +233,11 @@ courier journeys:templates create \
   --channel email \
   --notification '{"name":"Welcome","tags":[],"brand":null,"subscription":null,"content":{"version":"2022-01-01","elements":[{"type":"channel","channel":"email","elements":[{"type":"meta","title":"Welcome"},{"type":"text","content":"Hi {{data.first_name}}"}]}]}}'
 
-# Publish the current draft
+# Publish each journey-scoped template first (or pass --state PUBLISHED on create).
+# Publishing the journey doesn't publish them.
+courier journeys:templates publish --template-id "$JOURNEY_ID" --notification-id "$TEMPLATE_ID"
+
+# Publish the journey's current draft
 courier journeys publish --template-id "$JOURNEY_ID"
 
 # Invoke a journey (mirror user_id into data so fetch URL templating works)
