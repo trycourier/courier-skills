@@ -12,7 +12,7 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 - `routing.method` is `"single"` (try channels in order until one succeeds) or `"all"` (send to all channels in parallel)
 - `channels.{channel}.providers` is an **ordered** array, position = failover priority (same as dragging providers in the dashboard)
 - `PUT /routing-strategies/{id}` is a **full replacement**, any field you omit is reset to its default
-- `DELETE /routing-strategies/{id}` archives; it returns **409 Conflict** if any notification template still references the strategy. Unlink templates first (replace their `routing` with a different strategy or `null`)
+- `DELETE /routing-strategies/{id}` archives; it returns **409 Conflict** if any notification template still references the strategy. Unlink templates first (point their `routing.strategy_id` at another strategy; `routing: null` leaves the template unsendable by id)
 - `GET /routing-strategies` returns metadata only (no `routing`/`channels`/`providers` content). Use `GET /routing-strategies/{id}` for the full document
 - Templates and routing strategies are decoupled: one strategy can back many templates, and swapping a strategy's providers reroutes every template pointing at it without republishing
 
@@ -32,6 +32,7 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 | Retrieve | `client.routingStrategies.retrieve(id)` | `client.routing_strategies.retrieve(id)` |
 | Replace | `client.routingStrategies.replace(id, { name, routing, ... })` | `client.routing_strategies.replace(id, name=..., routing=..., ...)` |
 | Archive | `client.routingStrategies.archive(id)` | `client.routing_strategies.archive(id)` |
+| Templates using it | `client.routingStrategies.listNotifications(id, { cursor?, limit? })` | `client.routing_strategies.list_notifications(id, cursor=..., limit=...)` |
 
 ---
 
@@ -412,7 +413,7 @@ curl -X DELETE "https://api.courier.com/routing-strategies/rs_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY"
 ```
 
-Returns `204`. Returns `409` if any template still references the strategy, repoint those templates first (set their `routing.strategy_id` to a different strategy or set `routing: null`).
+Returns `204`. Returns `409` if any template still references the strategy. Find them with `client.routingStrategies.listNotifications(id)`, then point each at another strategy with `notifications.replace`. Use `routing: null` only for a template you are retiring: a template with no strategy isn't sendable by id (see [templates.md](./templates.md)).
 
 ---
 
@@ -422,7 +423,7 @@ Two different shapes share the `routing` name; don't confuse them.
 
 | Location | Shape | Purpose |
 |----------|-------|---------|
-| `send.message({ message: { routing: { method, channels } } })` | Inline `method` + `channels` | Per-send override; wins over the template's strategy for that one send |
+| `send.message({ message: { routing: { method, channels } } })` | Inline `method` + `channels` | Per-send override. Replaces the strategy's method and channel list for that send; the strategy's provider order and channel conditions still apply |
 | `notifications.create({ notification: { routing: { strategy_id } } })` | `{ strategy_id }` only | Links a template to a stored strategy |
 | `routingStrategies.create({ routing: { method, channels } })` | Inline `method` + `channels` | Defines the strategy itself |
 
@@ -438,6 +439,6 @@ Rule of thumb: if you're reaching for `routing` in a `send.message` call repeate
 - [Create Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/create-routing-strategy), official endpoint reference
 - [Replace Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/replace-routing-strategy)
 - [Archive Routing Strategy](https://www.courier.com/docs/api-reference/routing-strategies/archive-routing-strategy)
-- [Routing Configuration (Design Studio)](https://www.courier.com/docs/send/routing#routing-configuration-and-strategies), dashboard equivalent
+- [Routing strategies (Design Studio)](https://www.courier.com/docs/send/routing-strategies), dashboard equivalent
 
 <!-- Target line budget: <= 500 lines. -->

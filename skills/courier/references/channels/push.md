@@ -12,6 +12,7 @@
 - Aggregate similar notifications with a [batch node](../guides/batching.md) rather than app-side
 - Push tokens can change - always handle token refresh
 - Store tokens with device/platform info for proper routing
+- A user with tokens on more than one provider (APNs and FCM) gets the push on only one of them, unless the send sets `channels: { push: { routing_method: "all" } }`
 
 ### Common Mistakes
 - Requesting iOS permission immediately on first launch (low opt-in)
@@ -198,6 +199,8 @@ notificationManager.createNotificationChannels(listOf(orderChannel, socialChanne
   }
 }
 ```
+
+This is FCM's raw message shape. With Apply Recommended Courier Mobile SDK Formatting on (the default), Courier sends no notification block and moves title, body and image into data.
 
 ## Web Push
 

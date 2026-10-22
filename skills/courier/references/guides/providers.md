@@ -224,7 +224,7 @@ provider = client.providers.retrieve("provider_01abc123")
 - `alias: null` clears the alias
 - The body must include at least one of `title`, `alias`, or `settings`. An empty body returns a `400`
 - `provider` is optional. If you send it, it must match the stored provider, otherwise the request returns a `400`
-- A missing or archived id returns a `404`
+- A missing or deleted id returns a `404`
 
 Rotate an API key and leave everything else as it is:
 
@@ -391,7 +391,7 @@ await client.send.message({
 });
 ```
 
-`body` merges into the provider's own request, so use that API's field names.
+For SendGrid and Twilio, `body` merges into that provider's own request (SendGrid `/mail/send`, Twilio `Messages.json`), so use their field names. APNs differs: `body` takes Courier's fields (`payload`, `category`, `content-available`), and `body.aps` replaces the whole `aps` dictionary. Check the provider's integration page before writing `body`.
 
 See [multi-channel.md](./multi-channel.md#provider-failover) for failover semantics and [routing-strategies.md](./routing-strategies.md) for workspace-level provider priority.
 

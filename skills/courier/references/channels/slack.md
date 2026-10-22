@@ -73,7 +73,7 @@ await client.send.message({
 });
 ```
 
-**Block Kit Override** (fragment. Pass as `message.providers`):
+**Block Kit Override** (a fragment: the `providers` key of `message`):
 ```typescript
 providers: {
   slack: {
@@ -119,7 +119,7 @@ Best practices for sending Slack notifications with Block Kit formatting.
 1. Go to "Install App" in your Slack app settings
 2. Click "Install to Workspace"
 3. Copy the "Bot User OAuth Token" (`xoxb-...`)
-4. Add to Courier as a Slack integration
+4. Install the Slack integration in Courier (it takes no token). Pass the token as `to.slack.access_token`, or store it on the profile as `slack.access_token` beside one target (`channel`, `user_id` or `email`), or on a tenant's `user_profile`
 
 ## Message Types
 
@@ -234,13 +234,15 @@ Block Kit is Slack's UI framework for rich messages.
       "type": "button",
       "text": { "type": "plain_text", "text": "Approve" },
       "style": "primary",
-      "action_id": "approve_request"
+      "action_id": "approve_request",
+      "value": "req-123"
     },
     {
       "type": "button",
       "text": { "type": "plain_text", "text": "Deny" },
       "style": "danger",
-      "action_id": "deny_request"
+      "action_id": "deny_request",
+      "value": "req-123"
     }
   ]
 }
@@ -524,12 +526,12 @@ await client.send.message({
 await client.send.message({
   message: {
     to: { 
-      user_id: "user-123" // Must have slack token in profile
+      user_id: "user-123" // profile.slack needs access_token plus one of channel, user_id, email
     },
     template: "nt_01kmrbyt6x9q3v7d1c5n8w2hj",
     routing: {
       method: "single",
-      channels: ["slack"]
+      channels: ["direct_message"]
     }
   }
 });
@@ -616,6 +618,7 @@ await client.send.message({
         channel: process.env.SLACK_DEPLOYS_CHANNEL
       }
     },
+    content: { title: "Deployment Complete", body: "api-gateway v2.3.1 deployed to production" },
     providers: {
       slack: {
         override: {
@@ -646,7 +649,8 @@ await client.send.message({
                     type: "button",
                     text: { type: "plain_text", text: "Rollback" },
                     style: "danger",
-                    action_id: "rollback_deploy"
+                    action_id: "rollback_deploy",
+                    value: "deploy-123"
                   }
                 ]
               }
@@ -670,6 +674,7 @@ await client.send.message({
         channel: process.env.SLACK_INCIDENTS_CHANNEL
       }
     },
+    content: { title: "Incident: API Latency Spike", body: "P1 incident affecting api-gateway and payments-service" },
     providers: {
       slack: {
         override: {
@@ -718,7 +723,7 @@ Journey send nodes deliver to Slack via the node's `to.slack` override — exact
 
 - [Journeys](../guides/journeys.md) - Slack send nodes in multi-step flows
 - [MS Teams](./ms-teams.md) - Alternative workplace chat channel
-- [Multi-Channel](../guides/multi-channel.md) - Slack in routing strategies
+- [Multi-Channel](../guides/multi-channel.md) - Routing and fallback across channels
 - [Batching](../guides/batching.md) - Batch notifications to channels
 - [Throttling](../guides/throttling.md) - Respect Slack rate limits
 - [Engagement](../lifecycle-marketing.md) - Alert notification patterns

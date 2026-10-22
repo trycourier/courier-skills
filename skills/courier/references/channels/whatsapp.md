@@ -208,7 +208,7 @@ await client.send.message({
     data: {
       customerName: "Jane",
       orderNumber: "12345",
-      deliveryDate: "January 30, 2026"
+      deliveryDate: "Jan 30"
     },
     routing: {
       method: "single",
@@ -296,7 +296,7 @@ Create `twilio/quick-reply` or `twilio/list-picker` content in Twilio and send i
 
 ### Approval Tips
 
-1. **Keep it clear and non-promotional** - WhatsApp disallows promotional material in templates
+1. **Match content to the category** - Promotions and offers belong in Marketing templates. Keep Utility and Authentication templates free of promotional wording, or WhatsApp rejects or recategorizes them
 2. **Include sample values** - Give every variable a sample value so reviewers have context
 3. **Approve each language** - Every language version needs its own approval
 4. **Watch quality** - Frequent spam reports can cost you the ability to send
@@ -313,7 +313,7 @@ Hi {{1}}, your order #{{2}} shipped!
 Hi {{1}}, {{2}} {{3}} {{4}} {{5}} {{6}}...
 ```
 
-WhatsApp rejects templates whose variables are out of order, sit next to each other, or start or end the message. Keep at least 2x+1 plain words for every x variables.
+WhatsApp rejects templates whose variable numbers skip an integer (`{{1}}` then `{{3}}`), whose variables sit next to each other (a space between them still counts), or whose body starts or ends with a variable. Keep at least 2x+1 plain words for every x variables.
 
 ## Pricing
 
@@ -372,7 +372,7 @@ await client.send.message({
 ## Related
 
 - [SMS](./sms.md) - Alternative mobile channel
-- [Multi-Channel](../guides/multi-channel.md) - WhatsApp in routing strategies
+- [Multi-Channel](../guides/multi-channel.md) - Fallback routing
 - [Providers](../guides/providers.md) - Provider config and send rate limits
 - [Orders](../transactional.md) - Order notification patterns
 - [Appointments](../transactional.md) - Appointment reminders

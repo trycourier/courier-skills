@@ -294,11 +294,12 @@ Your SMS provider answers these keywords. Courier isn't told about the opt-out. 
 
 ### Handle in Your App
 
-With Twilio's Advanced Opt-Out, the Messaging Service's inbound webhook carries `OptOutType` (`STOP`, `START`, or `HELP`):
+With Twilio's Advanced Opt-Out, the Messaging Service's inbound webhook carries `OptOutType` (`STOP`, `START`, or `HELP`). Verify Twilio's signature before trusting the body:
 
 ```typescript
 // Twilio inbound webhook (form-encoded) -> Courier preference
 app.post('/webhooks/twilio-inbound', async (req, res) => {
+  if (!twilio.validateRequest(process.env.TWILIO_AUTH_TOKEN!, req.header('X-Twilio-Signature') ?? '', WEBHOOK_URL, req.body)) return res.sendStatus(403);
   const { From, OptOutType } = req.body;
   const userId = await findUserIdByPhone(From); // your own lookup
 

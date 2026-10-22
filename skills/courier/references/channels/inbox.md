@@ -133,10 +133,10 @@ Read and unread state is set from the client through the Inbox SDK, and Courier 
 Archive an inbox message from the server with `client.requests.archive(requestId)`:
 
 ```typescript
-await client.requests.archive(messageId);
+await client.requests.archive(requestId);
 ```
 
-Read and unread state is set from the client through the Inbox SDK, and Courier stores and syncs it. Archive from the backend to remove a message from the inbox when the user engages via another channel.
+Archive from the backend to remove a message from the inbox when the user engages via another channel.
 
 ### Batching and Digests
 
@@ -159,21 +159,22 @@ See [Batching](../guides/batching.md) for comprehensive batching strategies.
 
 ## Cross-Channel Sync
 
-When a user opens an email, mark the inbox message as read:
+Courier marks the inbox copy read when the user opens the email, as long as email open tracking is on (Settings → Tracking). Nothing to build. To remove the inbox copy after the user acts on another channel, archive it from a click or in-app event:
 
 ```typescript
 // Email click webhook
 app.post('/email-clicked', async (req, res) => {
-  const { messageId, userId } = req.body;
+  const { requestId } = req.body;
 
   // Archive the inbox message since the user engaged via email
-  await client.requests.archive(messageId);
+  await client.requests.archive(requestId);
+  res.sendStatus(200);
 });
 ```
 
 ## Elemental Content for Inbox
 
-The `{ title, body }` shorthand used in the examples above **only works for inline sends**. It is not valid for template creation via the API ([elemental.md](../guides/elemental.md)). A stored inbox template uses Elemental wrapped in a `channel` element. Flat top-level elements are rejected by the Templates API with a `400` telling you to wrap them in a channel block:
+The `{ title, body }` shorthand used in the examples above **only works for inline sends**. It is not valid for template creation via the API ([elemental.md](../guides/elemental.md)). A stored inbox template uses Elemental wrapped in a `channel` element. Flat top-level elements are rejected on create (`POST /notifications`) with a `400`. `replace` and `putContent` store them, but Design Studio can't open the result:
 
 ```json
 {

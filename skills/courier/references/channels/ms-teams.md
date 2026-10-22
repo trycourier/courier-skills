@@ -3,9 +3,9 @@
 ## Quick Reference
 
 ### Rules
-- Courier sends to Teams through a Bot Framework bot. The Courier docs don't cover Teams incoming webhooks or Workflows webhooks, and `ms_teams` has no webhook URL field
+- Courier sends to Teams only through a Bot Framework bot. `ms_teams` has no field for an incoming-webhook or Workflows URL, so don't use one
 - Channel sends need the Teams app installed in that team. Uploading it covers personal chats only
-- Adaptive Card version: use 1.4 or lower for compatibility
+- Teams renders Adaptive Cards up to version 1.6. A card with `Action.Execute` needs version 1.5 or later
 - Card JSON must be valid - test in Adaptive Card Designer first
 - Graph permissions are needed only to address by `email` or `channel_name`: `ChannelSettings.Read.All`, `TeamSettings.Read.All`, `User.Read.All` (Application, admin consent). Sends by `user_id`, `channel_id` or `conversation_id` need none
 - Use FactSet for key-value data display
@@ -13,7 +13,7 @@
 - Journey send nodes: address Teams via `to.ms_teams`; most targets need `service_url` and/or `tenant_id` — see [Teams in Journeys](#teams-in-journeys)
 
 ### Common Mistakes
-- Using Adaptive Card version > 1.4 (won't render)
+- Using a card version above 1.6, which Teams may not render
 - Invalid card JSON (returns 400 error)
 - App not installed in the target team (channel sends fail with 401)
 - Missing Graph permissions when addressing by `email` or `channel_name`
@@ -65,9 +65,11 @@ Best practices for sending Microsoft Teams notifications with Adaptive Cards.
 
 Courier sends to Teams through a Bot Framework bot. You create an Azure app registration, a Teams app to install, and the bot, then add the bot's App ID and client secret to Courier. Full steps: [Microsoft Teams integration](https://www.courier.com/docs/integrations/direct-message/microsoft-teams).
 
+Setup creates two app registrations. The first (multitenant) only links the Teams app in the Developer Portal. The bot you add under Developer Portal > Tools > Bot Management gets its own registration. Add the Graph permissions and the client secret on the bot's registration. Give Courier that registration's Application (client) ID as App ID and the secret's Value as App Password.
+
 ## Azure AD App Registration
 
-### Create App Registration
+### Create App Registration (links the Teams app)
 
 1. Go to [Azure Portal](https://portal.azure.com) → Azure Active Directory
 2. App registrations → New registration
@@ -77,7 +79,7 @@ Courier sends to Teams through a Bot Framework bot. You create an Azure app regi
 
 ### Add API Permissions (only for `email` or `channel_name`)
 
-Microsoft Graph permissions, added as Application permissions:
+On the bot's registration, add these Microsoft Graph permissions as Application permissions:
 - `ChannelSettings.Read.All`
 - `TeamSettings.Read.All`
 - `User.Read.All`
@@ -86,7 +88,7 @@ An administrator must grant admin consent. Sends by `user_id`, `channel_id` or `
 
 ### Create Client Secret
 
-1. Certificates & secrets → New client secret
+1. On the bot's registration, Certificates & secrets → New client secret
 2. Copy the secret value immediately
 
 ## Adaptive Cards
@@ -199,12 +201,13 @@ Adaptive Cards are Microsoft's cross-platform card format.
 }
 ```
 
-**Submit** - Interactive button (requires bot)
+**Execute** - Interactive button. The click goes to your own bot's messaging endpoint as an `adaptiveCard/action` invoke
 
 ```json
 {
-  "type": "Action.Submit",
+  "type": "Action.Execute",
   "title": "Approve",
+  "verb": "approve",
   "data": {
     "action": "approve",
     "requestId": "req-123"
@@ -327,6 +330,8 @@ With entities:
 
 ## Common Use Cases
 
+Paste these card JSONs into the template's Jsonnet block and fill the values from `data`. Don't pass them on the send.
+
 ### Incident Alert
 
 ```typescript
@@ -375,7 +380,7 @@ const incidentCard = {
 ```typescript
 const approvalCard = {
   type: "AdaptiveCard",
-  version: "1.4",
+  version: "1.5", // Action.Execute needs 1.5 or later
   body: [
     {
       type: "TextBlock",
@@ -401,15 +406,15 @@ const approvalCard = {
   ],
   actions: [
     {
-      type: "Action.Submit",
+      type: "Action.Execute",
       title: "Approve",
-      style: "positive",
+      verb: "approve",
       data: { action: "approve", requestId: "req-123" }
     },
     {
-      type: "Action.Submit",
+      type: "Action.Execute",
       title: "Deny",
-      style: "destructive", 
+      verb: "deny",
       data: { action: "deny", requestId: "req-123" }
     },
     {
@@ -421,9 +426,9 @@ const approvalCard = {
 };
 ```
 
-## Handling Action.Submit Responses
+## Handling Action.Execute Responses
 
-When a user clicks an `Action.Submit` button in an Adaptive Card, Teams sends the data to your bot's messaging endpoint. This requires a Bot Framework registration.
+When a user clicks an `Action.Execute` button in an Adaptive Card, Teams sends the data to your bot's messaging endpoint as an `adaptiveCard/action` invoke. This requires a Bot Framework registration. Verify the Bot Framework JWT before trusting `activity.from` (for example with botbuilder's `CloudAdapter`).
 
 ### How It Works
 
@@ -536,9 +541,9 @@ def messages():
     return "", 200
 ```
 
-### Bot Registration for Action.Submit
+### Bot Registration for Action.Execute
 
-`Action.Submit` posts the click to your bot's messaging endpoint, so your own bot service must handle it. Ensure:
+`Action.Execute` posts the click to your bot's messaging endpoint, so your own bot service must handle it. Ensure:
 
 1. Bot is registered in Azure Bot Service
 2. Messaging endpoint is set to your server URL (e.g., `https://api.acme.com/api/messages`)
@@ -549,9 +554,9 @@ def messages():
 
 ## Proactive Messaging
 
-### Send to New Users
+### Send to an existing conversation
 
-To send proactive messages (not in response to user), you need the conversation reference:
+Courier opens the conversation itself for `user_id`, `email` and `channel_id` (send `tenant_id` with a `user_id`, since Teams needs it to open a personal chat). Store a `conversation_id` only to post into an existing conversation, such as a group chat:
 
 ```typescript
 // Store when user installs app or messages bot
@@ -589,9 +594,9 @@ Use Microsoft's [Adaptive Card Designer](https://adaptivecards.io/designer/) to:
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | 400 from Teams | Invalid card JSON | Validate in Card Designer |
-| 401 | App not installed in the team, wrong or expired bot credentials, a single-tenant app registration, or no `tenant_id` | Install the app in the team, check the App ID and App Password, use a multitenant registration, send `tenant_id` |
+| 401 | App not installed in the team, wrong or expired bot credentials, the Teams app ID or the other registration's ID in Courier, a single-tenant app registration, or no `tenant_id` | Install the app in the team, use the bot registration's App ID and secret Value, use a multitenant registration, send `tenant_id` |
 | `tenant_id is required when using 'email' or 'channel_name'` | No `tenant_id` | Send `tenant_id`, or put it in the `service_url` path |
-| Card not rendering | Unsupported version | Use version 1.4 or lower |
+| Card not rendering | Unsupported version | Use version 1.6 or lower |
 
 ## Teams in Journeys
 
@@ -601,7 +606,7 @@ Journey send nodes deliver to Teams via the node's `to.ms_teams` override — ex
 
 - [Journeys](../guides/journeys.md) - Teams send nodes in multi-step flows
 - [Slack](./slack.md) - Alternative workplace chat channel
-- [Multi-Channel](../guides/multi-channel.md) - Teams in routing strategies
-- [Reliability](../guides/reliability.md) - Webhook error handling
+- [Multi-Channel](../guides/multi-channel.md) - Routing and fallback across channels
+- [Reliability](../guides/reliability.md) - Retries and delivery statuses
 - [Batching](../guides/batching.md) - Batch notifications to channels
 - [Throttling](../guides/throttling.md) - Rate limit management
