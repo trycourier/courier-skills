@@ -12,14 +12,14 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 - 1–2 actions maximum
 - Always include deep-link data in `data`, a click with nowhere to go is a dead end
 - Batch similar events rather than sending ten "liked your post" messages
-- No OS permission needed, so the inbox reaches every user. It is the safe default channel **once the `courier` provider is configured**, see [Setup](#setup)
+- No OS permission needed, so the inbox reaches every user. It is the safe default channel: the `courier` provider is already configured in production and test
 
 ### Common mistakes
 
 - Sending one message per event instead of batching
 - Omitting deep-link data, so the click does nothing
 - Not archiving the inbox copy when the user engages via email or push
-- Assuming the inbox needs no configuration. It needs the `courier` provider installed, and `simple_profile_req` set, see [Setup](#setup)
+- Adding the `courier` provider in production or test. It's already there. Only a custom environment, or a deleted provider, needs it added (see [Setup](#setup))
 - Sending a template by id with no routing strategy attached. API-created templates start with `routing: null` and fail `UNROUTABLE`, see [Troubleshooting](#troubleshooting)
 - Reaching for the `{ title, body }` sugar in a stored template. That form is inline-only, see [Elemental Content for Inbox](#elemental-content-for-inbox)
 
@@ -27,7 +27,9 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 
 ## Setup
 
-The inbox needs no OS permission and no third-party account, but it is **not** zero-configuration. It delivers through a built-in provider named `courier`, which has to be installed on the workspace:
+**Already configured in production and test.** The inbox delivers through a built-in provider named `courier`. Every workspace gets it at signup in its production and test environments, with `simple_profile_req` on, so there is nothing to install.
+
+Add it only in a custom environment, or if someone deleted it:
 
 ```bash
 curl -X POST https://api.courier.com/providers \
@@ -44,7 +46,7 @@ curl -X POST https://api.courier.com/providers \
 | `jwt_enabled` | Lets browser and mobile clients authenticate with a short-lived JWT, which the v8 inbox SDKs require. See [inbox/auth.md](../inbox/auth.md) |
 | `simple_profile_req` | Without it, the provider expects a `courier.channel` value inside each user's profile and sends fail with "Information required by the provider was not included." |
 
-`simple_profile_req` is the one that affects sending: without it, sends fail `UNROUTABLE`. `jwt_enabled` affects client authentication, not delivery. See [Troubleshooting](#troubleshooting), and [providers.md](../guides/providers.md) for the provider API in general.
+When you add it yourself, check `simple_profile_req`: it's the setting that affects sending, and without it sends fail `UNROUTABLE`. `jwt_enabled` affects client authentication, not delivery. See [Troubleshooting](#troubleshooting), and [providers.md](../guides/providers.md) for the provider API in general.
 
 ## Sending to Inbox
 
@@ -199,8 +201,8 @@ The `channel` wrapper selects which content renders on the inbox. It does not se
 
 | Symptom | Cause |
 |---|---|
-| `UNROUTABLE`, no `reason` and no `error` field | No `courier` provider on the workspace. See [Setup](#setup) |
-| `UNROUTABLE`, "Information required by the provider was not included." | `courier` provider is missing `simple_profile_req` |
+| `UNROUTABLE`, no `reason` and no `error` field | No `courier` provider in this environment (a custom environment, or it was deleted). See [Setup](#setup) |
+| `UNROUTABLE`, "Information required by the provider was not included." | A re-added `courier` provider is missing `simple_profile_req`. See [Setup](#setup) |
 | `UNROUTABLE` / `PROVIDER_ERROR`, "No provider(s) courier in the list of message channel provider(s): undefined." | The template has no routing strategy attached. See below |
 | Template send fails but the same content sent inline succeeds | Same cause. Inline content never consults the template's routing, so this comparison misleads rather than isolating the bug |
 | Message sent, never visible in the app | Client-side. See [inbox/rendering.md](../inbox/rendering.md) |
