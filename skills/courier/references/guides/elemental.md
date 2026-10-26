@@ -400,7 +400,7 @@ Ordered and unordered lists with nesting support (up to 5 levels deep).
 
 ### html
 
-Raw HTML for formatting the other elements can't express. Renders in email only. Variables work (`{{order_id}}`), and so do Handlebars helpers such as `{{#each}}`. There is no `json` helper: `{{json x}}` fails the render with `Missing helper`. Put loops here or use `loop` on an element (see [Iteration](#iteration-loop)), never `{{#each}}` in a text element, which renders but can't be edited in the designer. `$.item` is loop syntax for `loop`, not Handlebars.
+Raw HTML for formatting the other elements can't express. Renders in email only. Variables work (`{{order_id}}`), and so do Handlebars helpers such as `{{#each}}`. There is no `json` helper: `{{json x}}` fails the render with `Missing helper`. Put loops here or use `loop` on an element (see [Iteration](#iteration-loop)), never `{{#each}}` in a text element, which renders but can't be edited in the designer. The exception is an object, such as a journey batch's `batch.categories`, since `loop` only takes arrays. `$.item` is loop syntax for `loop`, not Handlebars.
 
 ```json
 {

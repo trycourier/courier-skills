@@ -5,13 +5,16 @@
 ### Rules
 - **Let Courier aggregate.** Use the journey `batch` node for event rollups. For summaries on a schedule the recipient picks (daily, weekly), use a topic digest, see [digests.md](./digests.md). Don't queue and aggregate in your own backend unless neither can express the logic
 - The `batch` node releases on a quiet `wait_period` (at least `PT1M`), a `max_wait_period` ceiling, or `max_items`, whichever comes first
-- **Avoid `category_key` for now.** Events with different values are not split into separate batches, and the payload lands under the literal key string, not under `batch.<value>`. To group by value, invoke a separate journey per value, or use a per-value throttle key. See [Batch Data in Templates](#batch-data-in-templates)
+- **`category_key` groups events inside one batch. It doesn't split them.** Write it as one whole reference, `"{{data.event_type}}"`. The batch still releases once, with the groups under `batch.categories.<value>`. See [Batch Data in Templates](#batch-data-in-templates)
 
 ### Common Mistakes
 - Rebuilding aggregation in your own queue when a `batch` node expresses it
 - Setting `max_wait_period` less than or equal to `wait_period` (it must be greater)
 - Setting `wait_period` below `PT1M`, which returns `400 wait_period must be at least 1 minute`
-- Relying on `category_key` to split batches by value. It doesn't
+- Relying on `category_key` to split batches by value. It groups events inside one batch, which still releases once
+- Writing `category_key` as a plain path (`"target_id"` or `"data.target_id"`). It returns `400 category_key must be a reference like "{{data.category}}"`
+- Relying on `retain` names or `sort_key`: `first` keeps the most recent events, `last` the earliest, and `highest`/`lowest` ignore `sort_key`. See [the retain table](#batch-data-in-templates)
+- Writing a list `loop` path without the `data.` root (`batch.items`). The send fails with `js-block: batch is not defined`
 - Using `{{json x}}` in the template. There is no `json` helper, so the render fails with "Missing helper"
 
 ---
@@ -53,9 +56,9 @@ Collects multiple events into one aggregated payload and fires a single downstre
 Field notes:
 
 - **`wait_period`** is a *quiet* window, at least `PT1M`. It resets on each new event. `max_wait_period` is the hard ceiling and must be greater than `wait_period`, so a continuously-active user still gets their batch.
-- **`retain`** controls which items survive into the payload: `{ type: "first" | "last" | "highest" | "lowest", count: 0–25 }`. `highest`/`lowest` also require `sort_key`. The order of the kept items isn't guaranteed.
+- **`retain`** controls which items survive into the payload: `{ type: "first" | "last" | "highest" | "lowest", count: 0–25 }`. `highest`/`lowest` also require `sort_key`, though it has no effect today; see [Batch Data in Templates](#batch-data-in-templates) for what each type actually keeps. `retain` is shared across categories: a count of 3 keeps 3 events for the whole batch, not 3 per category.
 - **One run per batch carries the downstream send.** The other events' runs end at the batch node, and the run that sends isn't reliably the first event's.
-- **`category_key`** (≤256 chars) is best avoided for now, see [Batch Data in Templates](#batch-data-in-templates).
+- **`category_key`** (≤256 chars) is one whole reference into the event, such as `"{{data.event_type}}"`. Events are counted and listed by that value inside the batch. A plain path, or a reference inside other text, returns 400.
 - **Do not include node `id` fields.** They're server-generated; `POST /journeys` rejects client-supplied ids with `400 client-supplied node ids are not allowed`. Send nodes are rejected too, with a `422` that spells out the sequence: create the journey, create its scoped templates, then `PUT` to wire the send nodes. Add them via `PUT` once the journey-scoped templates exist. See [Journeys](./journeys.md#standard-workflow).
 
 Invoke once per event; Courier handles the accumulation:
@@ -115,9 +118,52 @@ The template sees top-level `batch.count` (the true total) and `batch.items` (th
 {{/if}}
 ```
 
-Item order isn't guaranteed, so don't rely on `items.[0]` being the first or latest event. There is no `json` helper: `{{json x}}` fails the render with "Missing helper".
+**`retain` doesn't behave as its names suggest.** In current behavior it only looks at arrival order:
 
-**With a `category_key`** the payload doesn't follow the documented `batch.<value>` shape. It lands at the root under the literal key string, so for `"category_key": "data.target_id"` read `{{[data.target_id].count}}` and `{{[data.target_id].items}}`. A key without a dot, such as `"target_id"`, overwrites that `data` field. Events with different values still share one batch. Avoid it for now. To group by value, invoke a separate journey per value, or use a per-value throttle key. If you must use it, read the payload as above and test the render first.
+| `retain.type` | Keeps | Order of `items` |
+|---|---|---|
+| `first` | The most recent events | Newest first |
+| `last` | The earliest events | Oldest first |
+| `highest` | Same as `first`; `sort_key` is ignored | Newest first |
+| `lowest` | Same as `last`; `sort_key` is ignored | Oldest first |
+
+So `items.[0]` with `first` is the latest event. To keep the latest events, use `first`. There is no way to keep the top events by a value such as priority: send everything and pick in your backend, see [App-side aggregation](#app-side-aggregation-only-when-the-nodes-dont-fit). Check a test run before shipping copy that depends on which events were kept.
+
+There is no `json` helper: `{{json x}}` fails the render with "Missing helper".
+
+**With a `category_key`** such as `"{{data.event_type}}"`, the groups sit under `batch.categories`, keyed by each value, each with its own `count` and `items`. `batch.count` and `batch.items` still cover the whole batch. A category with no events is absent, so guard each one:
+
+```
+{{#if batch.categories.like}}{{batch.categories.like.count}} likes{{/if}}
+{{#if batch.categories.comment}}{{batch.categories.comment.count}} comments{{/if}}
+```
+
+A category's `count` is its true total, but its `items` only holds the events `retain` kept for the whole batch, so it can be shorter than `count`, or empty. An event with no value at the key counts in the totals but in no category, and `categories` is left out when no event had a value.
+
+To list items, use a `list` element whose `loop` starts at `data.` (`data.batch.items`, or `data.batch.categories.like.items`), with each item as `$.item`. A loop path without the `data.` root fails the whole send with `js-block: batch is not defined`:
+
+```json
+{
+  "type": "list",
+  "list_type": "unordered",
+  "loop": "data.batch.categories.like.items",
+  "elements": [
+    { "type": "list-item", "elements": [
+      { "type": "string", "content": "{{$.item.actor_name}} liked your post" }
+    ] }
+  ]
+}
+```
+
+Categories don't split the send: the batch releases once. To cover several posts in one message, key the categories by something readable, such as `"{{data.post_title}}"`, since the key is what the recipient sees. Keys can hold spaces and dots; read one with brackets, `{{batch.categories.[Launch notes].count}}`. `loop` can't iterate `batch.categories`, because it's an object, not an array (the send fails with `A loop expression must evaluate to an array`). List every category with `{{#each}}` instead: in an `html` element for email, or in a text element for other channels, which renders but can't be edited in the designer:
+
+```
+{{#each batch.categories}}{{@key}}: {{count}} new{{/each}}
+```
+
+For a separate notification per post ("3 people liked *this* post"), the batch node can't do it, since every batch is per user. Aggregate per post in your own backend, see [App-side aggregation](#app-side-aggregation-only-when-the-nodes-dont-fit).
+
+The template editor may flag `{{batch.count}}` and other `batch` paths as unknown variables. They render; check with a test run.
 
 ### Batch Cancellation
 
