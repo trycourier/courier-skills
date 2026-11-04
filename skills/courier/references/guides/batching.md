@@ -4,12 +4,12 @@
 
 ### Rules
 - **Let Courier aggregate.** Use the journey `batch` node for event rollups. For summaries on a schedule the recipient picks (daily, weekly), use a topic digest, see [digests.md](./digests.md). Don't queue and aggregate in your own backend unless neither can express the logic
-- The `batch` node releases on a quiet `wait_period` (at least `PT1M`), a `max_wait_period` ceiling, or `max_items`, whichever comes first
+- The `batch` node releases on a quiet `wait_period` (`PT1M` to `P1D`), a `max_wait_period` ceiling (from `wait_period` up to `P7D`), or `max_items`, whichever comes first
 - **`category_key` groups events inside one batch. It doesn't split them.** Write it as one whole reference, `"{{data.event_type}}"`. The batch still releases once, with the groups under `batch.categories.<value>`. See [Batch Data in Templates](#batch-data-in-templates)
 
 ### Common Mistakes
 - Rebuilding aggregation in your own queue when a `batch` node expresses it
-- Setting `max_wait_period` less than or equal to `wait_period` (it must be greater)
+- Setting `max_wait_period` below `wait_period` or above `P7D`, or `wait_period` above `P1D`. Each returns a `400`, such as `max_wait_period must be at most 7 days`
 - Setting `wait_period` below `PT1M`, which returns `400 wait_period must be at least 1 minute`
 - Relying on `category_key` to split batches by value. It groups events inside one batch, which still releases once
 - Writing `category_key` as a plain path (`"target_id"` or `"data.target_id"`). It returns `400 category_key must be a reference like "{{data.category}}"`
@@ -55,7 +55,7 @@ Collects multiple events into one aggregated payload and fires a single downstre
 
 Field notes:
 
-- **`wait_period`** is a *quiet* window, at least `PT1M`. It resets on each new event. `max_wait_period` is the hard ceiling and must be greater than `wait_period`, so a continuously-active user still gets their batch.
+- **`wait_period`** is a *quiet* window, at least `PT1M`. It resets on each new event. `max_wait_period` is the hard ceiling, at least `wait_period` and at most `P7D`, so a continuously-active user still gets their batch.
 - **`retain`** controls which items survive into the payload: `{ type: "first" | "last" | "highest" | "lowest", count: 0–25 }`. `highest`/`lowest` also require `sort_key`, though it has no effect today; see [Batch Data in Templates](#batch-data-in-templates) for what each type actually keeps. `retain` is shared across categories: a count of 3 keeps 3 events for the whole batch, not 3 per category.
 - **One run per batch carries the downstream send.** The other events' runs end at the batch node, and the run that sends isn't reliably the first event's.
 - **`category_key`** (≤256 chars) is one whole reference into the event, such as `"{{data.event_type}}"`. Events are counted and listed by that value inside the batch. A plain path, or a reference inside other text, returns 400.
@@ -81,7 +81,7 @@ If your aggregation needs data or logic that only your backend has, cross-entity
 {
   "type": "fetch",
   "method": "get",
-  "url": "https://api.yourapp.com/users/{{user_id}}/pending-notifications",
+  "url": "https://api.yourapp.com/users/{{recipient}}/pending-notifications",
   "merge_strategy": "overwrite"
 }
 ```

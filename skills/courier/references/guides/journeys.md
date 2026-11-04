@@ -18,8 +18,8 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - **Node `id`s are server-generated.** Do **not** send client-supplied node `id`s on `POST /journeys`. They're rejected with `400` (`client-supplied node ids are not allowed`). On `PUT /journeys/{id}` (replace) `id`s are accepted and preserved, but they're optional. Branch paths nest their child nodes inline, so you don't need `id`s to wire the graph, except to reference an earlier send in a `send_status.<nodeId>` condition.
 - Elemental version string for journey-scoped templates is always `"2022-01-01"`. See [Elemental](./elemental.md)
 - Delay durations use ISO 8601 format (e.g., `"PT1H"` for one hour, `"PT30M"` for 30 minutes, `"P1D"` for one day)
-- Conditions use **string** tuples: `[path, operator, value]` for binary, `[path, operator]` for unary. A single condition is the bare tuple; multiple conditions use an `{ "AND": [...] }` / `{ "OR": [...] }` object. Comparison values are always strings (`"true"`, `"50"`), not native booleans/numbers. See [Conditions](#conditions)
-- Interpolation differs by context: templates use `{{data.field}}` (a bare `{{field}}` resolves only in default scope); fetch URLs and header values use `{{field}}`; conditions use `data.field`. Fetch `headers` values are plain strings, e.g. `"Authorization": "Bearer {{api_token}}"`. See [Variable Interpolation](#variable-interpolation)
+- Conditions use **string** tuples: `[path, operator, value]` for binary, `[path, operator]` for unary. A single condition is the bare tuple; multiple conditions use an `{ "AND": [...] }` / `{ "OR": [...] }` object. Comparison values are always strings (`"true"`, `"50"`), not native booleans/numbers. Every path starts with `data.`, `profile.`, `tenant.` or `send_status.<nodeId>`, trigger conditions included; any other root is a `400` on create or replace. See [Conditions](#conditions)
+- Interpolation differs by context: templates use `{{data.field}}` (a bare `{{field}}` resolves only in default scope); fetch URLs, headers, query params and bodies need a root on every variable (`{{data.field}}`, `{{profile.field}}`, `{{tenant.field}}`, or `{{recipient}}` for the user ID), and a bare `{{field}}` there is a `400` on create or replace; conditions use `data.field`. Fetch `headers` values are plain strings, e.g. `"Authorization": "Bearer {{data.api_token}}"`. See [Variable Interpolation](#variable-interpolation)
 - A send node's `to` override takes **exactly one** of `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams` — never a combination. See [Slack and Teams sends](#slack-and-teams-sends)
 - A Slack `access_token` on a send node must be a **runtime reference** (`{{data.slack_token}}`), never a literal token. See [Slack and Teams sends](#slack-and-teams-sends)
 - A send node can carry `message.context.tenant_id` to deliver as one of your customers — literal id or whole-string mustache reference only. See [Send Node Options](#send-node-options)
@@ -33,6 +33,7 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 - Publishing the journey and expecting its templates to go live. A send node whose template has no published version fails at delivery (`UNDELIVERABLE`, "Notification template not found") while the run and the send step still show `PROCESSED`. Check the message, not the run.
 - Assuming the trigger `schema` rejects bad payloads at invoke. The trigger `schema` is not enforced at invoke: a payload that breaks it gets `202` and the run completes. Validate in your app, or gate with **trigger `conditions`** (a failed trigger condition returns `422`)
 - Including `send` nodes in the `POST /journeys` body. Send nodes are **not allowed on create**. Create the shell (a trigger, then an exit), add templates, then add send nodes via `PUT /journeys/{id}`
+- Treating a fetch as best-effort. A failed fetch stops the run with `ERROR`, and no later node runs. See [When a fetch fails](#when-a-fetch-fails)
 - Wrapping a single condition in an extra array (`[[...]]`) or using non-string values, a single condition is a bare tuple of strings (`["data.plan", "is equal", "pro"]`); use an `{ "AND": [...] }` / `{ "OR": [...] }` object for multiple conditions
 - Hardcoding a literal Slack bot token in `to.slack.access_token` — see [Slack and Teams sends](#slack-and-teams-sends)
 - Addressing Teams by `channel_name`, `user_id`, or `email` without `service_url` or `tenant_id` — see [Slack and Teams sends](#slack-and-teams-sends)
@@ -300,7 +301,7 @@ Start a run. The journey must be **published** first. You can invoke by journey 
 { "runId": "1-65f240a0-47a6a120c8374de9bcf9f22c" }
 ```
 
-> **Tip:** If any downstream `fetch` node references `{{user_id}}` in its URL, also include `user_id` inside `data`, the top-level `user_id` is used for recipient resolution, but Courier does not guarantee it is projected into `data` for variable interpolation. Passing it both places is the safe default.
+> **Tip:** In a `fetch` node, `{{recipient}}` is the recipient's user ID. If you use `{{data.user_id}}` instead, also pass `user_id` inside `data`: the top-level `user_id` resolves the recipient, but Courier doesn't guarantee it is projected into `data`.
 
 **Recipient resolution & profiles:**
 - **Profile-only** (no stored Courier user): pass `profile` with contact info and omit `user_id`.
@@ -398,9 +399,9 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 | Branch | `type: "branch"` | `paths[]` (each with `conditions` and `nodes[]`), `default` (with `nodes[]`). Optional: `paths[].label`, `default.label`. |
 | Throttle (static) | `type: "throttle"`, `scope: "user"` or `"global"` | `max_allowed`, `period`. Optional: `conditions`. |
 | Throttle (dynamic) | `type: "throttle"`, `scope: "dynamic"` | `max_allowed`, `period`, `throttle_key`. Optional: `conditions`. |
-| Batch | `type: "batch"`, `scope: "user"` | `wait_period` (ISO 8601 quiet window, at least `PT1M`), `max_wait_period` (ISO 8601 hard ceiling; must be > `wait_period`), `retain` (`{ type: "first"\|"last"\|"highest"\|"lowest", count: 0–25, sort_key }`; `sort_key` required for `highest`/`lowest`). Optional: `max_items` (1–1000, default 100), `category_key` (≤256 chars, one whole reference such as `"{{data.event_type}}"`, see [batching.md](./batching.md#batch-data-in-templates)), `conditions`. |
+| Batch | `type: "batch"`, `scope: "user"` | `wait_period` (ISO 8601 quiet window, `PT1M` to `P1D`), `max_wait_period` (ISO 8601 hard ceiling, from `wait_period` up to `P7D`), `retain` (`{ type: "first"\|"last"\|"highest"\|"lowest", count: 0–25, sort_key }`; `sort_key` required for `highest`/`lowest`). Optional: `max_items` (1–1000, default 100), `category_key` (≤256 chars, one whole reference such as `"{{data.event_type}}"`, see [batching.md](./batching.md#batch-data-in-templates)), `conditions`. |
 | Send to Digest | `type: "add-to-digest"` | `subscription_topic_id`. Optional: `conditions`. |
-| AI | `type: "ai"` | `output_schema` (JSON Schema for the structured result). Optional: `model`, `user_prompt`, `web_search`, `conditions`. |
+| AI | `type: "ai"` | `model`, `user_prompt`, `output_schema` (JSON Schema for the structured result). Optional: `web_search`, `conditions`. |
 | Exit | `type: "exit"` | None. Optional: `id`. |
 
 ---
@@ -485,7 +486,14 @@ The `nodes` of the second `PUT`:
 ]
 ```
 
-Condition paths reference the journey context: `data.*` (invocation `data` + merged fetch responses), `profile.*`, and `user.*`.
+Every condition path starts with one of these roots, on branch paths, node `conditions` and trigger `conditions` alike:
+
+- `data.`: the invocation `data`, plus anything a fetch or AI node merged in
+- `profile.`: the recipient's profile. There is no `user.` root, so write `profile.tier`, not `user.tier`
+- `tenant.`: the run's tenant. Only when the trigger sets one, otherwise the save fails
+- `send_status.<nodeId>`: an earlier send's delivery status, with `was` or `was not` only
+
+Create and replace check every condition and return a `400` that names the bad path, for example `Condition path "user.tier" must start with data., profile., tenant., or send_status.` Array wildcards (`data.items.#.sku`) are rejected the same way.
 
 ---
 
@@ -496,15 +504,16 @@ How you reference a context value depends on **where** you use it. Getting this 
 | Context | Syntax | Example |
 |---------|--------|---------|
 | Template content (Elemental) | `{{data.field}}` works in both scopes. A bare `{{field}}` resolves only in default-scope templates (API-created with no `scope`). Design Studio templates are `scope: "strict"`, so read `content.scope` before editing one. Digest totals are the exception, see [digests.md](./digests.md) | `"Welcome, {{data.first_name}}!"` |
-| Fetch node `url` | `{{field}}` | `"https://api.app.com/users/{{user_id}}/status"` |
-| Branch / trigger `conditions` | `data.field` (string tuples) | `["data.completed", "is equal", "true"]` |
-| Fetch **header values** | `{{field}}` inside a plain string | `{ "Authorization": "Bearer {{api_token}}" }` |
+| Fetch node `url`, query params, body | `{{data.field}}`, `{{profile.field}}`, `{{tenant.field}}`, or `{{recipient}}` (the user ID). A bare `{{field}}` is a `400` on create or replace | `"https://api.app.com/users/{{recipient}}/status"` |
+| Branch / trigger `conditions` | `data.field`, `profile.field`, `tenant.field` (string tuples) | `["data.completed", "is equal", "true"]` |
+| Fetch **header values** | A rooted variable inside a plain string | `{ "Authorization": "Bearer {{data.api_token}}" }` |
 | Send node `to.slack` / `to.ms_teams` / `context.tenant_id` values | `{{field}}` as the **whole string** | `"access_token": "{{data.slack_token}}"` |
 
 Notes:
-- `user_id` passed at the top level of an invoke is used for **recipient resolution** and is not guaranteed to be projected into `data`. If a fetch URL or template needs it, declare `user_id` in the trigger schema and pass it inside `data` too.
-- Fetch responses are merged into the context (per `merge_strategy`) and are then referenced like any other field: `data.field` in conditions, `{{field}}` in templates.
-- There is **no `{{secrets.*}}` namespace.** Pass credentials via `data`/`profile` and interpolate them into the header string with `{{field}}`, or store them in the provider/workspace settings.
+- `user_id` passed at the top level of an invoke is used for **recipient resolution** and is not guaranteed to be projected into `data`. In a fetch, use `{{recipient}}`. If a template needs it, declare `user_id` in the trigger schema and pass it inside `data` too.
+- A fetch variable with no value (missing, `null`, or `""`) in the URL, headers or query params fails the run with `Variable {{data.user_id}} has no value in this run`.
+- Fetch responses are merged into the context (per `merge_strategy`) and are then referenced like any other field: `data.field` in conditions, `{{data.field}}` in a later fetch, `{{field}}` in templates.
+- There is **no `{{secrets.*}}` namespace.** Pass credentials via `data`/`profile` and interpolate them into the header string with `{{data.field}}` or `{{profile.field}}`, or store them in the provider/workspace settings.
 
 ---
 
@@ -519,7 +528,13 @@ When a fetch node receives a response, `merge_strategy` determines how the respo
 | `replace` | Replaces the entire run state with the response. |
 | `none` | Doesn't merge into existing context. If the run's context is empty, the response is used. |
 
-Fetch nodes require **HTTPS** URLs. If a fetch fails (network error or non-2xx), the journey **continues** and no data is merged, guard downstream nodes with conditions like `["data.expected_field", "exists"]`.
+Fetch nodes require **HTTPS** URLs on a public host.
+
+### When a fetch fails
+
+**A failed fetch stops the run.** The step and the run both end in `ERROR`, and the nodes after it show `NOT PROCESSED`. Causes are a non-2xx status (redirects aren't followed), a 10-second timeout, a body over 1 MB, no response, or a URL variable with no value. The step's `error.message` names the cause, for example `Fetch failed: GET api.yourapp.com returned 404`. Read it from the run's steps, see [Debugging Runs](#debugging-runs).
+
+If the run should go on without the data, make the endpoint return `200` with an empty or default body, then branch on the field with `["data.expected_field", "exists"]`.
 
 ---
 
@@ -564,9 +579,9 @@ curl -sS -X PUT "https://api.courier.com/journeys/$JOURNEY_ID" \
         "id": "check-setup",
         "type": "fetch",
         "method": "get",
-        "url": "https://api.yourapp.com/users/{{user_id}}/setup-status",
+        "url": "https://api.yourapp.com/users/{{recipient}}/setup-status",
         "merge_strategy": "soft-merge",
-        "headers": { "Authorization": "Bearer {{app_api_token}}" }
+        "headers": { "Authorization": "Bearer {{data.app_api_token}}" }
       },
       {
         "id": "branch-setup",
@@ -775,13 +790,13 @@ Add the event to a subscription topic's digest. The topic controls the schedule,
 
 ### AI Node
 
-Run an LLM prompt and merge a structured result (conforming to `output_schema`) into the journey context for downstream branching:
+Run an LLM prompt and store a structured result (conforming to `output_schema`) under `data.ai_result` for downstream nodes. `model` and `user_prompt` are required; a missing one is a `400` (`AI step needs a model`, `AI step needs a prompt`):
 
 ```json
 {
   "type": "ai",
   "model": "gpt-5.4-mini",
-  "user_prompt": "Classify this support message intent: {{message_body}}",
+  "user_prompt": "Classify this support message intent: {{data.message_body}}",
   "web_search": false,
   "output_schema": {
     "type": "object",
@@ -794,7 +809,11 @@ Run an LLM prompt and merge a structured result (conforming to `output_schema`) 
 }
 ```
 
-`web_search` works only with the `claude-*` models and costs 2 extra credits per run. Use a model id from the [AI node's model list](https://www.courier.com/docs/journeys/nodes/ai#ai-model). Unknown ids may return `400`.
+- Read the result as `data.ai_result.intent` in conditions and `{{ai_result.intent}}` in templates. A second AI node overwrites `data.ai_result`, so use the first result before the run reaches the next one
+- A failed AI node stops the run with `ERROR`, like a failed fetch. The step's `error.message` names the cause
+- AI nodes run in the US datacenter only. In the EU, create, replace and publish fail
+- `web_search` works only with the `claude-*` models and costs 2 extra credits per run
+- Use a model id from the [AI node's model list](https://www.courier.com/docs/journeys/nodes/ai#ai-model). An unknown id is a `400` that lists the valid ones
 
 ### Segment-Triggered Journey
 
@@ -810,7 +829,7 @@ Instead of `api-invoke`, start runs from your Segment event stream. Filter which
       "trigger_type": "segment",
       "request_type": "track",
       "event_id": "Order Completed",
-      "conditions": ["properties.total", "greater than", "100"]
+      "conditions": ["data.total", "greater than", "100"]
     },
     { "id": "send-thanks", "type": "send", "message": { "template": "<thanks-template-id>" } },
     { "type": "exit" }
@@ -821,7 +840,7 @@ Instead of `api-invoke`, start runs from your Segment event stream. Filter which
 
 For `track` events, the event's `userId` must be a valid Courier Profile ID or the journey won't start. Segment journeys have no `schema`. Courier receives whatever Segment sends.
 
-A Segment trigger's own `conditions` read the Segment event, so their paths start at `properties.` (`properties.total`). After the trigger, those properties are the run's `data`, so later nodes use `data.total`.
+A Segment event's properties are the run's `data`, so trigger `conditions` and later nodes both use `data.total`. A `properties.total` path is a `400` on create or replace, like any condition without a `data.`, `profile.`, `tenant.` or `send_status.` root.
 
 ---
 
@@ -918,6 +937,10 @@ The same data is in the runs API:
 | Each step of a run | `client.journeys.runs.listSteps(runId)` | `client.journeys.runs.list_steps(run_id)` | `courier journeys:runs list-steps --run-id RUN_ID` |
 
 Each step's `node_id` is the node's id in the published journey. A send step that produced a message carries its `message_id`, so follow it to `GET /messages/{message_id}` for delivery status.
+
+- A step with `status: "ERROR"` carries `error.message`, such as `Fetch failed: GET api.yourapp.com returned 404`. A `SKIPPED` step carries `skip_reason`, such as `Node conditions not met`. Both are `null` otherwise
+- Nodes the run never reached show `NOT PROCESSED`
+- Steps aren't returned in the order they ran, and they share one `created_at`. Use each step's `updated_at` and `node_id` to place it
 
 A run that is `PROCESSED` can still have failed sends. Follow each send step's `message_id` to `GET /messages/{message_id}`. "Notification template not found" means the template was never published.
 

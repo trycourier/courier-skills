@@ -186,14 +186,13 @@ channel display names configured in page settings, not the raw enum values.
 ## Tenant Preferences (Multi-Tenant)
 
 In a multi-tenant workspace a user can hold different preferences per tenant: alerts on for
-`prod-project`, off for `stage-project`. At send time Courier merges five layers top to bottom,
-each overriding the one above it, with only explicitly set fields applied:
+`prod-project`, off for `stage-project`. At send time Courier resolves each topic through these
+layers, top to bottom. A layer overrides the ones above it for the topics it sets:
 
 1. Workspace-level topic defaults (the Preferences Editor)
-2. Parent tenant defaults (inherited down the tenant hierarchy)
-3. The tenant's own defaults (`tenants.preferences.items`, see [tenants.md](./tenants.md#per-tenant-preference-overrides))
-4. The user's global preferences
-5. The user's per-tenant overrides (highest priority)
+2. The tenant's defaults (`default_preferences`, written with `tenants.preferences.items`, see [tenants.md](./tenants.md#per-tenant-preference-overrides)). They inherit as **one list, not topic by topic**. A tenant with no items uses its parent's list. A tenant with any items uses only its own, so a topic it leaves out falls back to the workspace default, not the parent's
+3. The user's global preferences
+4. The user's per-tenant overrides (highest priority)
 
 Read or write the per-tenant layer by adding `tenant_id` as a query parameter on any
 [User Preferences API](#user-preferences-api) call. The embedded UI scopes the same way, via

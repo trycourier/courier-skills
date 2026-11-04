@@ -19,7 +19,7 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 | Direct email | `to: { email: "jane@example.com" }` | Quick send, no profile needed |
 | Direct phone | `to: { phone_number: "+15551234567" }` | SMS/WhatsApp, no profile needed |
 | User profile | `to: { user_id: "user-123" }` | User exists in Courier with stored contact info |
-| Multi-tenant | `to: { user_id: "user-123", tenant_id: "acme-corp" }` | B2B apps with per-tenant branding |
+| Multi-tenant | `to: { user_id: "user-123", context: { tenant_id: "acme-corp" } }` | B2B apps with per-tenant branding. `tenant_id` directly beside `user_id` is a `400` |
 | List | `to: { list_id: "beta-testers" }` | Send to a group of users |
 | List pattern | `to: { list_pattern: "eng.*" }` | Send to all lists matching a prefix |
 
