@@ -63,4 +63,6 @@ function App() {
 }
 ```
 
+`message.data` is the `data` object from the send, nesting intact. Put structured fields there, not as JSON in `content`, see [the inline content rule](../../SKILL.md#universal-rules).
+
 ---

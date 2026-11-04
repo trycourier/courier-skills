@@ -188,6 +188,8 @@ All the same callbacks available in React are available on the Web Component ele
 </script>
 ```
 
+`message.data` is the `data` object from the send, nesting intact. Put structured fields there, not as JSON in `content`, see [the inline content rule](../../SKILL.md#universal-rules).
+
 The elements also dispatch `CustomEvent`s of the same names, which is the right hook for frameworks that
 bind declaratively:
 
