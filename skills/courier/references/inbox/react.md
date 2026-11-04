@@ -6,17 +6,14 @@
 
 ### Rules
 - v8 is `useCourier()` plus `courier.shared.signIn()`. No provider wrapper.
-- `<CourierInbox />` and `<CourierInboxPopupMenu />` stay live on their own after `signIn()`. A custom UI on `useCourier()` must call `inbox.listenForUpdates()`.
+- `<CourierInbox />` and `<CourierInboxPopupMenu />` stay live on their own after `signIn()`. A custom UI on `useCourier()` must call `inbox.listenForUpdates()`, or messages arrive but the UI never changes until reload.
 - Components render client-side only. In Next.js 13+, add `'use client'`.
 
 ### Common Mistakes
 
-- Skipping `listenForUpdates()` in a custom UI built on `useCourier()`. Messages arrive but the UI never changes until reload.
-- Calling `signIn` before the JWT exists. Gate the call on having a token.
+- Calling `signIn` before the JWT exists, or on every render. Gate it on having a token and call it once per user session.
 - Rendering the inbox without allowing the Courier hosts in the CSP, or without `style-src 'unsafe-inline'`. The failure looks like an auth problem, see [Content Security Policy](./rendering.md#content-security-policy).
-- Using the string HTML attributes for click handlers instead of props or the element methods. Those need `script-src 'unsafe-eval'` and fail silently, see [web-components.md](./web-components.md#event-handling).
 - Assuming a US workspace's hosts work for an EU workspace, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
-- Calling `signIn` on every render instead of once per user session.
 
 ### Installation
 
@@ -30,13 +27,7 @@ npm install @trycourier/courier-react-17
 
 On React 17, import from `@trycourier/courier-react-17` wherever this file says `@trycourier/courier-react`. The exports are the same.
 
-If the app sets a Content Security Policy, add the Courier hosts and `style-src 'unsafe-inline'` before
-you start debugging anything: see [Content Security Policy](./rendering.md#content-security-policy). EU
-workspaces also need different hosts, see [EU and regional hosts](./rendering.md#eu-and-regional-hosts).
-
 ### Basic Setup (v8)
-
-v8 uses `useCourier()` hook + `courier.shared.signIn()`, no provider wrapper needed:
 
 ```tsx
 import { useEffect } from "react";
@@ -59,23 +50,7 @@ export default function App() {
 
 ### Popup Menu (v8)
 
-```tsx
-import { useEffect } from "react";
-import { CourierInboxPopupMenu, useCourier } from "@trycourier/courier-react";
-// useCourierToken — see auth.md, "JWT Refresh Strategy".
-
-export default function App() {
-  const courier = useCourier();
-  const courierToken = useCourierToken("user-123");
-
-  useEffect(() => {
-    if (!courierToken) return;
-    courier.shared.signIn({ userId: "user-123", jwt: courierToken });
-  }, [courierToken]);
-
-  return <CourierInboxPopupMenu />;
-}
-```
+Same sign-in; render `<CourierInboxPopupMenu />` instead of `<CourierInbox />` for a bell icon with a dropdown. Gate `signIn` on the token, e.g. with `useCourierToken` from [auth.md](./auth.md#jwt-refresh-strategy).
 
 ### Feeds and Tabs (v8)
 
@@ -142,19 +117,7 @@ Dark mode switches automatically with `mode="system"`, or force with `mode="ligh
 
 ### Custom Components (v8)
 
-Override individual parts with render props:
-
-| Render Prop | Type Signature |
-|-------------|----------------|
-| `renderListItem` | `(props: CourierInboxListItemFactoryProps \| undefined \| null) => ReactNode` |
-| `renderHeader` | `(props: CourierInboxHeaderFactoryProps \| undefined \| null) => ReactNode` |
-| `renderMenuButton` | `(props: CourierInboxMenuButtonFactoryProps \| undefined \| null) => ReactNode`. Popup menu only |
-| `renderLoadingState` | `(props: CourierInboxStateLoadingFactoryProps \| undefined \| null) => ReactNode` |
-| `renderEmptyState` | `(props: CourierInboxStateEmptyFactoryProps \| undefined \| null) => ReactNode` |
-| `renderErrorState` | `(props: CourierInboxStateErrorFactoryProps \| undefined \| null) => ReactNode` |
-| `renderPaginationItem` | `(props: CourierInboxPaginationItemFactoryProps \| undefined \| null) => ReactNode` |
-
-The props can be `undefined` or `null`, so check them before reading fields:
+Override parts with render props: `renderListItem`, `renderHeader`, `renderMenuButton` (popup menu only), `renderLoadingState`, `renderEmptyState`, `renderErrorState`, `renderPaginationItem`. Each receives the matching `CourierInbox…FactoryProps` (e.g. `CourierInboxListItemFactoryProps`), which can be `undefined` or `null`, so check before reading fields:
 
 ```tsx
 import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier/courier-react";
@@ -176,11 +139,7 @@ import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier
 
 ### Click Handlers (v8)
 
-| Callback Prop | Type Signature |
-|---------------|----------------|
-| `onMessageClick` | `(props: CourierInboxListItemFactoryProps) => void` |
-| `onMessageActionClick` | `(props: CourierInboxListItemActionFactoryProps) => void` |
-| `onMessageLongPress` | `(props: CourierInboxListItemFactoryProps) => void` |
+`onMessageClick` and `onMessageLongPress` receive `{ message, index }`; `onMessageActionClick` receives `{ message, action, index }`.
 
 ```tsx
 <CourierInbox
@@ -193,48 +152,21 @@ import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier
 />
 ```
 
-`message.data` is the `data` object from the send, nesting intact. Put structured fields there, not as JSON in `content`, see [the inline content rule](../../SKILL.md#universal-rules).
-
 ### Toast Notifications (v8)
 
-Toasts are short-lived notifications connected to the Inbox message feed:
+Toasts are short-lived notifications connected to the Inbox message feed. Mount one beside your app; it uses the same `signIn` as the inbox:
 
 ```tsx
-import { useEffect } from "react";
-import { CourierToast, useCourier } from "@trycourier/courier-react";
-// useCourierToken — defined in auth.md, "JWT Refresh Strategy"; fetches a
-// short-lived JWT from your backend and refreshes before expiry.
+import { CourierToast } from "@trycourier/courier-react";
 
-function App() {
-  const courier = useCourier();
-  const courierToken = useCourierToken("user-123");
-
-  useEffect(() => {
-    if (!courierToken) return;
-    courier.shared.signIn({ userId: "user-123", jwt: courierToken });
-  }, [courierToken]);
-
-  return (
-    <>
-      <CourierToast
-        autoDismiss={true}
-        autoDismissTimeoutMs={5000}
-        onToastItemClick={({ message }) => { if (message.data?.deepLink) window.location.href = message.data.deepLink; }}
-      />
-      {/* Your app */}
-    </>
-  );
-}
+<CourierToast
+  autoDismiss={true}
+  autoDismissTimeoutMs={5000}
+  onToastItemClick={({ message }) => { if (message.data?.deepLink) window.location.href = message.data.deepLink; }}
+/>;
 ```
 
 Use `lightTheme` and `darkTheme` props for styling. Use `renderToastItem` or `renderToastItemContent` for fully custom rendering.
-
-#### Toast Best Practices
-
-- **Auto-dismiss for non-critical**: Background task completions, status updates
-- **Persistent for actions**: Require user to acknowledge or take action
-- **Combine with Inbox**: Toasts alert, inbox provides persistent access
-- **Keep content brief**: Title under 50 chars, body under 100 chars
 
 ### useCourier Hook (v8)
 
@@ -266,23 +198,14 @@ export default function App() {
   const messages = inbox.feeds["all_messages"]?.messages ?? [];
 
   return (
-    <div>
-      <div>Unread: {unreadCount}</div>
-      <ul>
-        {messages.map((msg: InboxMessage) => (
-          <li key={msg.messageId} style={{
-            backgroundColor: msg.read ? "transparent" : "#fee2e2",
-          }}>
-            {msg.title}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul aria-label={`${unreadCount} unread`}>
+      {messages.map((msg: InboxMessage) => (
+        <li key={msg.messageId}>{msg.read ? "" : "• "}{msg.title}</li>
+      ))}
+    </ul>
   );
 }
 ```
-
-A custom UI **must** call `inbox.listenForUpdates()` after authentication. The built-in components call it for you.
 
 Key hook methods:
 
@@ -300,17 +223,6 @@ Key hook methods:
 
 ### Next.js / SSR (v8)
 
-Courier components only render client-side. In Next.js 13+, add `'use client'`:
-
-```tsx
-"use client";
-
-import { CourierInbox } from "@trycourier/courier-react";
-
-export default function Page() {
-  // Authentication code...
-  return <CourierInbox />;
-}
-```
+Courier components only render client-side. In Next.js 13+, put `"use client";` at the top of any file that renders them.
 
 ---

@@ -1,88 +1,26 @@
 # Inbox Authentication
 
-The inbox is the only Courier channel that runs client-side, so it is the only one that needs a per-user credential. Generate it server-side; never ship an API key to a browser.
+The inbox is the only Courier channel that runs client-side, so it is the only one that needs a per-user credential.
 
 **Contents:** [Quick Reference](#quick-reference) · [Authentication](#authentication) · [Minting a JWT](#minting-a-jwt) · [JWT Refresh Strategy](#jwt-refresh-strategy)
 
 ## Quick Reference
 
 ### Rules
-- JWT is required for the inbox. Mint it server-side from your API key; never ship an API key to a browser.
-- Always grant both inbox scopes, `inbox:read:messages` and `inbox:write:events` (mark read, opened, archived). Add `read:preferences write:preferences` only if you mount preferences.
-- Refresh before expiry rather than letting the socket drop.
 
-### Common Mistakes
-
-- Minting the JWT in client code. That requires the API key in the browser, which grants full workspace access to anyone who opens devtools.
-- Granting the wrong scopes. Reading needs `inbox:read:messages`, marking read, opened, or archived needs `inbox:write:events`, and the preference center needs `read:preferences write:preferences`. `user_id:{id}` ties the token to one user. A token missing either inbox scope still signs in and the feed loads empty with no error, so it looks like an empty feed, not a `401`. Missing the preference scopes leaves the preference center empty.
-- Minting a token for one user and signing in as another. Sign out on user switch.
-- Letting a token expire instead of refreshing. The socket drops and the inbox silently stops updating.
-- Treating a v7 **client key** as interchangeable with a JWT. It isn't, and its own format has a trap, see [v7 client keys](#v7-client-keys).
+- **Mint the JWT server-side.** Minting it in client code needs the API key in the browser, which grants full workspace access to anyone who opens devtools.
+- **Scopes:** `user_id:{id}` ties the token to one user. Reading needs `inbox:read:messages`; marking read, opened, or archived needs `inbox:write:events`. A token missing either still signs in and the feed loads empty with no error, not a `401`. Add `read:preferences write:preferences` only if you mount preferences; without them the preference center is empty.
+- **Sign out on user switch.** Never sign in with a token minted for another user.
+- **Refresh before expiry.** An expired token drops the socket and the inbox silently stops updating.
+- A v7 **client key** is not a JWT, and its format has its own trap, see [legacy-v7.md](./legacy-v7.md#common-mistakes).
 
 ### Authentication
 
-Courier uses three types of credentials in different contexts:
-
-| Credential | Where used | Exposure |
-|------------|-----------|----------|
-| **API Key** | Server-side SDK, CLI, raw HTTP (`COURIER_API_KEY` env var) | Never expose to client |
-| **Client Key** | Legacy v7 setups only | Safe for client-side, limited scope |
-| **JWT** | Inbox, Preferences, Toast components | Generated server-side, passed to client |
-
-The API Key is the same key regardless of which env var you store it in. The SDK and CLI just look for different variable names by convention.
-
-#### v7 client keys
-
-Only relevant when maintaining a v7 integration ([legacy-v7.md](./legacy-v7.md)). A v7 client key is **base64 of `<tenant>/<env>`**, and that env segment must match the environment of the API key behind it. Two failure modes, one of them silent:
-
-| Client key env segment | Result |
-|---|---|
-| An `env_01k...` id | Rejected outright, `403` |
-| `test` against an env-scoped API key | **`200` with an empty node list.** No error at all |
-
-The second is the single biggest v7 trap: auth looks like it succeeded and the inbox is simply empty.
+Three credentials: the **API key** (server-side SDK, CLI, and raw HTTP; never in a client), the **JWT** (minted server-side, used by the inbox, preferences, and toast components), and the legacy v7 **client key**, covered only in [legacy-v7.md](./legacy-v7.md).
 
 ### Minting a JWT
 
-JWT is required for Inbox. Generate tokens server-side using your API key. The SDKs expose the issue-token endpoint directly. Prefer that over raw HTTP.
-
-**TypeScript (`@trycourier/courier`):**
-
-```typescript
-import Courier from "@trycourier/courier";
-const client = new Courier(); // reads COURIER_API_KEY
-
-const { token } = await client.auth.issueToken({
-  scope: "user_id:user-123 inbox:read:messages inbox:write:events read:preferences write:preferences",
-  expires_in: "7 days",
-});
-```
-
-**Python (`trycourier`):**
-
-```python
-from courier import Courier
-client = Courier()  # reads COURIER_API_KEY
-
-resp = client.auth.issue_token(
-    scope="user_id:user-123 inbox:read:messages inbox:write:events read:preferences write:preferences",
-    expires_in="7 days",
-)
-token = resp.token
-```
-
-**Raw HTTP** (for languages without a Courier SDK):
-
-```bash
-curl -X POST https://api.courier.com/auth/issue-token \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"scope":"user_id:user-123 inbox:read:messages inbox:write:events read:preferences write:preferences","expires_in":"7 days"}'
-```
-
-### JWT Refresh Strategy
-
-JWTs expire based on `expires_in`. Build a refresh mechanism to avoid broken inbox connections:
+Mint it server-side with the SDK's issue-token call, from an endpoint your signed-in client fetches:
 
 ```typescript
 import Courier from "@trycourier/courier";
@@ -96,6 +34,12 @@ app.get("/api/courier-token", authenticate, async (req, res) => {
   res.json({ token });
 });
 ```
+
+Python: `client.auth.issue_token(scope=..., expires_in=...)`, token in `.token`. Without an SDK: `POST https://api.courier.com/auth/issue-token` with the same `scope` and `expires_in` JSON body.
+
+### JWT Refresh Strategy
+
+JWTs expire based on `expires_in`. Refresh on the client before expiry:
 
 ```tsx
 // Client-side: refresh before expiry

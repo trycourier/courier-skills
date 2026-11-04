@@ -36,15 +36,7 @@ and the categories.
 
 ## How it works
 
-1. Link (map) the templates you send to the topic (`subscription: { topic_id }`, see [preferences.md](./preferences.md#setting-it-up)). Each renders one event.
-2. Build a separate digest template that renders the collected list. Don't link it to the topic.
-3. Configure the topic's digest: that digest template, at least one schedule, and optional categories.
-4. Send once per event. What happens depends on the recipient's schedule for the topic:
-   - **Instant:** delivered now with the template you sent.
-   - **Any other schedule:** held as `DIGESTED`. At the scheduled time Courier renders the digest template once with everything held for that recipient.
-
-A recipient who never picked a schedule is on the topic's default schedule, or its first schedule
-when none is marked default. Digests are kept per recipient and per tenant.
+Link the per-event templates to the topic (`subscription: { topic_id }`, see [preferences.md](./preferences.md#setting-it-up)), configure the topic's digest (a separate, unlinked digest template, at least one schedule, optional categories), then send once per event. A recipient on **Instant** gets each send now with the template you sent. On any other schedule it's held as `DIGESTED`, and at the scheduled time Courier renders the digest template once with everything held for that recipient. Digests are kept per recipient and per tenant.
 
 ## Configure a topic's digest
 
@@ -72,25 +64,7 @@ const topic = await client.workspacePreferences.topics.create(sectionId, {
 const scheduleIds = topic.digest?.schedules.map((s) => s.schedule_id);
 ```
 
-```python
-topic = client.workspace_preferences.topics.create(
-    section_id,
-    name="Activity",
-    default_status="OPTED_IN",
-    routing_options=["email"],
-    digest={
-        "template_id": "nt_01kmrbwx4c8p2n6v0d3j7t9qf",  # renders the list; not linked to the topic
-        "schedules": [
-            {"frequency": "daily", "time": "09:00", "timezone": "America/New_York", "is_default": True},
-            {"frequency": "instant"},
-        ],
-        "categories": [{"category_key": "comments", "retain": "FIRST", "limit": 10}],
-    },
-)
-
-topic_id = topic.id
-schedule_ids = [s.schedule_id for s in topic.digest.schedules]
-```
+Python takes the same fields as keyword arguments: `client.workspace_preferences.topics.create(section_id, name=..., default_status=..., routing_options=[...], digest={...})`, and the ids are at `topic.id` and `topic.digest.schedules[].schedule_id`.
 
 | Field | Notes |
 |---|---|
@@ -189,14 +163,6 @@ await client.users.preferences.updateOrCreateTopic(topicId, {
   user_id: "user-123",
   topic: { status: "OPTED_IN", digest_schedule_id: scheduleId },
 });
-```
-
-```python
-client.users.preferences.update_or_create_topic(
-    topic_id,
-    user_id="user-123",
-    topic={"status": "OPTED_IN", "digest_schedule_id": schedule_id},
-)
 ```
 
 The next send follows the new schedule. Omit `digest_schedule_id` to keep the current choice, and send

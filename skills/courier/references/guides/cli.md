@@ -1,6 +1,6 @@
 # Courier CLI
 
-**Contents:** [Quick Reference](#quick-reference) · [Installation](#installation) · [Authentication](#authentication) · [Inline Sends](#inline-sends) · [User Profiles](#user-profiles) · [Lists and Bulk](#lists-and-bulk) · [Tenants, Journeys, and Preferences](#tenants-journeys-and-preferences) · [Debugging Workflow](#debugging-workflow) · [Template Metrics](#template-metrics) · [Machine-Readable Output](#machine-readable-output) · [Zero-Config Agent Pattern](#zero-config-agent-pattern) · [CI/CD Integration](#cicd-integration) · [Global Flags](#global-flags) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [Installation](#installation) · [Authentication](#authentication) · [Inline Sends](#inline-sends) · [User Profiles](#user-profiles) · [Lists and Bulk](#lists-and-bulk) · [Tenants, Journeys, and Preferences](#tenants-journeys-and-preferences) · [Debugging Workflow](#debugging-workflow) · [Template Metrics](#template-metrics) · [Machine-Readable Output](#machine-readable-output) · [Global Flags](#global-flags) · [Related](#related)
 
 ## Quick Reference
 
@@ -10,17 +10,6 @@
 - All commands support `--format json` for machine-readable output
 - Resource-based command structure: `courier [resource] <command> [flags]`
 - One level of dot-notation for top-level nested args with inline JSON values: `--message.to '{"user_id":"abc"}'`. Two-level dots like `--message.to.user_id "abc"` are **not** supported; pass the full sub-object as a JSON string instead.
-- Native binary (Go); no runtime dependencies
-
-### When to Use CLI vs SDK
-
-| Use CLI | Use SDK |
-|---------|---------|
-| Ad-hoc sends and testing | Production application code |
-| Debugging delivery issues | Automated workflows in your app |
-| Inspecting messages, profiles, logs | Sending from your backend |
-| CI/CD smoke tests | Anything that needs error handling, retries, types |
-| Agent workflows (Cursor, Claude Code) | Scheduled or event-driven sends |
 
 ### Common Commands
 
@@ -41,7 +30,6 @@
 | Release one user's digest now | `courier workspace-preferences:topics release-digest --section-id "$SECTION_ID" --topic-id "$TOPIC_ID" --user-id "user-123"` |
 | Turn off a topic's digest | `courier workspace-preferences:topics delete-digest --section-id "$SECTION_ID" --topic-id "$TOPIC_ID"` |
 | Invoke a journey (recommended for multi-step flows) | `courier journeys invoke --template-id "$JOURNEY_ID" --user-id "user-123" --data '{"plan":"pro"}'` |
-| Send to many recipients | `courier send message --message.to '{"list_id":"beta-testers"}' --message.template "nt_01kmrbq6ypf25tsge12qek41r0"` |
 | List templates | `courier notifications list` |
 | Template delivery metrics | `courier notifications get-metrics --id "nt_01kmrbq6ypf25tsge12qek41r0" --lookback P7D --granularity DAY` |
 | Write one locale's translations | `courier notifications put-locale --id "nt_01kmrbq6ypf25tsge12qek41r0" --locale-id es --element '{id: elem_..., content: Hola}'` |
@@ -54,65 +42,24 @@
 
 ### Output Formats
 
-| Format | Description |
-|--------|-------------|
-| `auto` | Human-readable for terminals, JSON for pipes |
-| `json` | JSON output |
-| `yaml` | YAML output |
-| `pretty` | Colorized, indented JSON |
-| `raw` | Raw response body |
-| `jsonl` | Newline-delimited JSON (streaming) |
-| `explore` | Interactive JSON explorer. Terminal only; falls back to `json` when piped |
-
-Filter with GJSON: `--transform "results.#.id"`
+`--format` takes `auto` (human-readable in a terminal, JSON when piped), `json`, `jsonl`, `yaml`, `pretty`, `raw`, or `explore` (interactive, terminal only). Filter with GJSON: `--transform "results.#.id"`.
 
 ---
 
 ## Installation
 
-**npm** (recommended):
-
 ```bash
-npm install -g @trycourier/cli
-```
-
-Downloads a platform-specific binary via postinstall. No Node.js runtime needed after installation.
-
-**Direct download**:
-
-Download from [GitHub Releases](https://github.com/trycourier/courier-cli/releases) and add to your `PATH`.
-
-Verify:
-
-```bash
+npm install -g @trycourier/cli   # or a binary from https://github.com/trycourier/courier-cli/releases
 courier --version
 ```
 
 ## Authentication
 
-Set the `COURIER_API_KEY` environment variable:
-
-```bash
-export COURIER_API_KEY="your-api-key"
-```
-
-Override per command with `--api-key`:
-
-```bash
-courier messages list --api-key "different-key"
-```
+`export COURIER_API_KEY="your-api-key"`, and override it per command with `--api-key`.
 
 ## Inline Sends
 
-Send without a pre-built template by passing content directly:
-
-```bash
-courier send message \
-  --message.to '{"email":"alex@example.com"}' \
-  --message.content '{"title":"New comment on your design file","body":"Sara left a comment on Homepage Redesign: '\''Love the new hero section.'\''"}'
-```
-
-Route across multiple channels with fallback:
+Inline content with fallback routing (`method: "single"` stops at the first channel that delivers):
 
 ```bash
 courier send message \
@@ -121,8 +68,6 @@ courier send message \
   --message.data '{"city": "San Francisco", "country": "US"}' \
   --message.routing '{"method":"single","channels":["email","sms"]}'
 ```
-
-`method: "single"` tries channels in order and stops at the first successful delivery. Use `"all"` only for critical notifications that must reach every channel.
 
 ## User Profiles
 
@@ -134,19 +79,7 @@ courier profiles create \
   --profile '{"email": "alex@example.com", "phone_number": "+15551234567", "name": "Alex Chen"}'
 ```
 
-Add custom attributes (merges with existing profile, won't overwrite contact info):
-
-```bash
-courier profiles create \
-  --user-id "user-123" \
-  --profile '{"locale": "en-us", "custom": {"plan": "pro", "company": "Acme Corp"}}'
-```
-
-Look up a profile:
-
-```bash
-courier profiles retrieve --user-id "user-123" --format json
-```
+`profiles create` merges into an existing profile, so a later call with only `{"custom": {...}}` keeps the contact info. Read one back with `courier profiles retrieve --user-id "user-123" --format json`.
 
 ## Lists and Bulk
 
@@ -304,19 +237,12 @@ For a single send (`to: { email }` / `to: { user_id }`), the `requestId` returne
 For **list**, **list-pattern**, **audience**, or **bulk** sends, the `requestId` is the *job* ID, which fans out to one message per recipient. Passing the job's requestId to `messages retrieve` returns `404 Message not found`. Instead:
 
 ```bash
-# 1. From a list/bulk send, you have the job requestId (e.g. 1-69e16217-36dbd96d7abbe2ccc14cb989).
-# 2. Find every per-recipient message the job generated:
-courier messages list --trace-id "1-69e16217-36dbd96d7abbe2ccc14cb989" --format json
-
-# 3. For each row, the `id` is the per-channel message ID:
+# Every per-recipient message the job generated; each row's `id` is a message ID:
 courier messages list --trace-id "1-69e16217-36dbd96d7abbe2ccc14cb989" \
   --format json --transform "results.#.id"
-
-# 4. Use those IDs with retrieve / history / content:
-courier messages retrieve --message-id "1-abc123" --format json
-courier messages history  --message-id "1-abc123" --format json
-courier messages content  --message-id "1-abc123" --format json
 ```
+
+Pass each ID to `messages retrieve`, `history`, and `content` as in the steps above.
 
 In the SDKs the same distinction applies: `client.messages.list({ traceId: "<requestId>" })` (Node) / `client.messages.list(trace_id="<requestId>")` (Python) returns the per-recipient messages; each has an `id` you can pass to `client.messages.retrieve`.
 
@@ -362,45 +288,6 @@ courier messages retrieve --message-id "1-abc123" --format json --transform "sta
 # Pull both and use whichever is populated.
 courier notifications list --format json --transform "results.#.{id:id,name:name,title:title}"
 ```
-
-## Zero-Config Agent Pattern
-
-AI agents in Cursor, Claude Code, Codex, and similar environments can invoke the CLI directly via shell. No MCP server, API keys in code, or SDK setup required.
-
-**Setup** (once per machine):
-
-```bash
-npm install -g @trycourier/cli
-export COURIER_API_KEY="your-api-key"
-```
-
-**Then agents can run:**
-
-```bash
-courier send message \
-  --message.to '{"user_id":"user-123"}' \
-  --message.template "nt_01kmrbq6ypf25tsge12qek41r0" \
-  --message.data '{"orderId": "12345"}'
-
-courier messages list --format json
-courier profiles retrieve --user-id "user-123" --format json
-```
-
-The `--format json` flag makes output parseable by agents without additional processing.
-
-## CI/CD Integration
-
-Use the CLI in automated pipelines for smoke tests during deployment:
-
-```bash
-export COURIER_API_KEY="$COURIER_TEST_KEY"
-
-courier send message \
-  --message.to '{"user_id":"smoke-test-user"}' \
-  --message.template "welcome"
-```
-
-Store API keys as secrets in your CI provider (GitHub Actions secrets, GitLab CI variables, etc.).
 
 ## Global Flags
 

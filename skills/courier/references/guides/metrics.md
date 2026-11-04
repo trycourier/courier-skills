@@ -23,9 +23,6 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 - Treating an all-empty series as proof a template sent nothing. **An unknown template ID returns `200` with an empty series, not `404`.** Confirm the ID first.
 - Expecting sends made without a template to show up. They never appear here.
 - Reading `opened` on a channel with no open tracking. It is always `0` there, which is not the same as "nobody opened it."
-- Assuming `errors` and `undeliverable` are the same failure. They aren't; see the field table below.
-- Requesting `HOUR` granularity over a month and expecting a truncated result instead of a `400`.
-- Retrying a `429` immediately. Honor `Retry-After`.
 - Reading a low `delivered` count as failed mail. `delivered` needs the provider to report back, through polling or a webhook set up on the provider's integration page. With tracking off, messages stay at `sent`. Check tracking before assuming an outage. See [Analytics: set up delivery tracking](https://www.courier.com/docs/monitor/analytics#set-up-delivery-tracking).
 
 ### SDK shape
@@ -33,8 +30,6 @@ These are aggregates for one template. For one message's timeline, use [cli.md](
 | | Node | Python |
 |---|---|---|
 | Fetch metrics | `client.notifications.getMetrics(templateId, { lookback, granularity })` | `client.notifications.get_metrics(template_id, lookback=..., granularity=...)` |
-
-Available in all seven server SDKs (Node, Python, Ruby, Go, Java, PHP, C#).
 
 CLI: `courier notifications get-metrics --id <template-id> --lookback P7D --granularity DAY`. See [cli.md](./cli.md#template-metrics).
 
@@ -120,19 +115,6 @@ for (const bucket of metrics.series) {
 
 Chart the range as `metrics.start` to `metrics.end`, the snapped values.
 
-```python
-metrics = client.notifications.get_metrics(
-    template_id,
-    lookback="P7D",
-    granularity="DAY",
-)
-
-for bucket in metrics.series:
-    sent = sum(row.sent for row in bucket.data)
-    delivered = sum(row.delivered for row in bucket.data)
-    print(bucket.period, delivered / sent if sent else None)
-```
-
 ## Break out by channel
 
 Every row carries `provider` and `channel`, so comparing channels for one template needs no extra calls. Sum rows by `row.channel` across the series, and compare channels without open tracking on `clicked` (with link tracking on), not `opened`. Worked example in [multi-channel.md](./multi-channel.md#track-routing-effectiveness).
@@ -182,7 +164,7 @@ See [templates.md](./templates.md#list-templates) for the list call itself.
 
 ## Observability exports
 
-To chart and alert on delivery health in the monitoring tool you already use, send Courier's metrics and logs there instead of polling this API. Courier exports to **Datadog** (API key and site, with a ready-made dashboard), **New Relic** (license key in the API Key field; set the metrics and logs endpoints for an EU account) and any **OpenTelemetry** endpoint. Metrics are aggregated over 10-second windows and tagged with the environment (`production` or `test`); Datadog gets per-channel `courier.<channel>.error` and `.undeliverable` counts. These integrations need the Enterprise plan. Use [outbound webhooks](./webhooks.md) instead when your own code must act on each event.
+Courier also exports metrics and logs to Datadog, New Relic and any OpenTelemetry endpoint (Enterprise plan), set up in the console: [Observability](https://www.courier.com/docs/monitor/observability). Use [outbound webhooks](./webhooks.md) instead when your own code must act on each event.
 
 ## Related
 

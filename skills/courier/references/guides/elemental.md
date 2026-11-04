@@ -2,7 +2,7 @@
 
 Elemental is Courier's JSON-based templating language. It defines the `content` payload used in both inline sends and stored templates.
 
-> **Where to read what:** This file is the element-by-element reference. For the **template lifecycle** (create, publish, version, archive via `/notifications`) and inline-vs-templated decision, see [Templates](./templates.md). For a full end-to-end example combining both, see the "Full Lifecycle Example" section in [Templates](./templates.md).
+> Template lifecycle (create, publish, versions, the end-to-end example) is in [templates.md](./templates.md); the translation workflow is in [localization.md](./localization.md).
 
 **Contents:** [Quick Reference](#quick-reference) · [Structure](#structure) · [Element Types](#element-types) · [Control Flow](#control-flow) · [Localization](#localization) · [Related](#related)
 
@@ -18,8 +18,6 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 
 ### Common Mistakes
 - Nesting `channel` elements inside other `channel` elements (they must be top-level siblings).
-- Using Sugar `{ title, body }` inside `POST /notifications` payloads (the API expects the full `version` + `elements` form).
-- The `text` element supports an `align` property (`"left"`, `"center"`, `"right"`). It defaults to `"left"` when omitted, but including it explicitly is recommended to avoid ambiguity across renderers.
 - Using `loop` without a `group` wrapper when you need to repeat multiple elements per item.
 - Placing `raw` provider payloads outside a `channel` element.
 
@@ -27,30 +25,9 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 
 ## Structure
 
-Every Elemental template has two required fields:
-
-```json
-{
-  "version": "2022-01-01",
-  "elements": []
-}
-```
-
-- `version`. Always `"2022-01-01"` (the only supported version)
-- `elements`, array of element objects
-
 ### ElementalContentSugar (Inline Sends Only)
 
-For simple inline sends, use the shorthand:
-
-```json
-{
-  "title": "Welcome!",
-  "body": "Thanks for signing up, {{name}}."
-}
-```
-
-Courier auto-converts this to a `meta` element (title) and a `text` element (body). This format does **not** work when creating templates via `POST /notifications`. Use the full `version` + `elements` structure.
+`{ "title": "Welcome!", "body": "Thanks for signing up." }` converts to a `meta` element (title) and a `text` element (body).
 
 Both `title` and `body` are required, even for SMS, which sends only the body. For a body-only message on a channel that would show a title, use one `text` element in the full form instead.
 
@@ -116,16 +93,6 @@ Styling properties on `string`/`link` children:
 | `underline` | `boolean` | Apply underline |
 
 Inline sends via `POST /send` also tolerate these styling properties flat on the `text` element itself, but the Templates API accepts only the nested form — use the nested form everywhere.
-
-**Heading example:**
-```json
-{ "type": "text", "content": "Order Summary", "text_style": "h1", "align": "left" }
-```
-
-**Markdown example:**
-```json
-{ "type": "text", "content": "**Important:** Your trial ends in {{days}} days.", "format": "markdown", "align": "left" }
-```
 
 ### action
 
@@ -221,40 +188,6 @@ They don't override one another because they answer different questions. Routing
 { "type": "channel", "channel": "email", "raw": { "html": "<p>Hi {{profile.first_name}}</p>", "transformers": ["handlebars"] } }
 ```
 
-**Multi-channel example:**
-```json
-{
-  "version": "2022-01-01",
-  "elements": [
-    {
-      "type": "channel",
-      "channel": "email",
-      "elements": [
-        { "type": "meta", "title": "Order #{{order_id}} Confirmed" },
-        { "type": "text", "content": "Hi {{name}}, here are your full order details...", "align": "left" },
-        { "type": "image", "src": "{{product_image}}", "alt_text": "{{product_name}}" },
-        { "type": "action", "content": "Track Order", "href": "{{tracking_url}}" }
-      ]
-    },
-    {
-      "type": "channel",
-      "channel": "sms",
-      "elements": [
-        { "type": "text", "content": "Order #{{order_id}} confirmed! Track: {{tracking_url}}", "align": "left" }
-      ]
-    },
-    {
-      "type": "channel",
-      "channel": "push",
-      "elements": [
-        { "type": "meta", "title": "Order Confirmed" },
-        { "type": "text", "content": "Your order #{{order_id}} is confirmed.", "align": "left" }
-      ]
-    }
-  ]
-}
-```
-
 ### divider
 
 Visual separator between content sections.
@@ -333,7 +266,7 @@ Multi-column layouts for email and other rich channels.
 
 `columns` contains `column` children. Each `column` has a `width` (CSS percentage or pixel value) and its own `elements` array.
 
-Columns are also Elemental's design surface: `column` accepts background, padding, and border styling, and `columns` accepts `gap` — so colored cards, card grids with gutters, and full-width section panels are all buildable in native blocks.
+`column` also takes card styling and `columns` takes a `gap`, so cards, card grids and full-width panels build from native blocks:
 
 | Property | On | Type | Description |
 |----------|----|------|-------------|
@@ -345,44 +278,16 @@ Columns are also Elemental's design surface: `column` accepts background, paddin
 | `border_width` | `column` | `string` | Border width |
 | `vertical_align` | `column` | `"top"` \| `"middle"` \| `"bottom"` | Vertical alignment of the column's content |
 
-A card grid — one styled `column` per card, repeated for each card in the row (a three-up
-grid is three of these at `"33.33%"`):
-
 ```json
-{
-  "type": "columns",
-  "gap": "12px",
-  "elements": [
-    {
-      "type": "column",
-      "width": "50%",
-      "background_color": "#EEF9F7",
-      "padding": "18px",
-      "border_radius": "14px",
-      "elements": [
-        { "type": "text", "content": "**42%**", "format": "markdown", "align": "center" },
-        { "type": "text", "content": "faster onboarding", "align": "center" }
-      ]
-    },
-    {
-      "type": "column",
-      "width": "50%",
-      "background_color": "#EEF9F7",
-      "padding": "18px",
-      "border_radius": "14px",
-      "elements": [
-        { "type": "text", "content": "**3×**", "format": "markdown", "align": "center" },
-        { "type": "text", "content": "more engagement", "align": "center" }
-      ]
-    }
-  ]
-}
+{ "type": "columns", "gap": "12px", "elements": [
+  { "type": "column", "width": "50%", "background_color": "#EEF9F7", "padding": "18px", "border_radius": "14px",
+    "elements": [{ "type": "text", "content": "**42%** faster onboarding", "format": "markdown", "align": "center" }] },
+  { "type": "column", "width": "50%", "background_color": "#EEF9F7", "padding": "18px", "border_radius": "14px",
+    "elements": [{ "type": "text", "content": "**3×** more engagement", "format": "markdown", "align": "center" }] }
+] }
 ```
 
-`gap` adds the gutter without requiring you to reduce column widths — equal-width columns
-with a gap render correctly.
-
-A single 100%-width styled column makes a full-width section panel — it aligns with the email's content column for a consistent layout. Set borders on `column` via `border_color`/`border_width` (that's where they render).
+`gap` doesn't require narrower columns: equal widths plus a gap render correctly. A single 100%-width styled column makes a full-width panel aligned with the email's content column. Borders go on `column` (`border_color`/`border_width`).
 
 ### list / list-item
 
@@ -423,25 +328,11 @@ Raw HTML for formatting the other elements can't express. Renders in email only.
 
 ### jsonnet
 
-Programmatic content generation with Jsonnet, a data templating language that produces JSON.
-
-```json
-{ "type": "jsonnet", "template": "local formatPrice(amount) = '$' + std.toString(amount); { price: formatPrice(99.99) }" }
-```
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `template` | `string` | Yes | Jsonnet source, evaluated to JSON at render time |
+`{ "type": "jsonnet", "template": "<Jsonnet source>" }`: evaluated to JSON at render time.
 
 ### comment
 
-Non-rendered documentation within templates.
-
-```json
-{ "type": "comment", "comment": "Author note: add product image after launch" }
-```
-
-An optional `object` field holds structured notes. Neither field renders.
+`{ "type": "comment", "comment": "Author note" }`: never renders. An optional `object` field holds structured notes.
 
 ---
 
@@ -459,24 +350,6 @@ The `if` expression is JavaScript, evaluated at render time against the message,
   "content": "As a premium member, you get early access.",
   "align": "left",
   "if": "data.tier === 'premium'"
-}
-```
-
-```json
-{
-  "type": "action",
-  "content": "Upgrade to Premium",
-  "href": "https://example.com/upgrade",
-  "if": "data.tier !== 'premium'"
-}
-```
-
-```json
-{
-  "type": "text",
-  "content": "Reminder: your trial ends soon.",
-  "align": "left",
-  "if": "data.trial === true && data.days_left <= 3"
 }
 ```
 
@@ -516,44 +389,17 @@ Tag an element and reference it from another:
 
 ### Channel Filtering (`channels`)
 
-Show an element only on specific channels without using a `channel` container:
-
-```json
-{
-  "type": "image",
-  "src": "https://example.com/banner.jpg",
-  "alt_text": "Welcome banner",
-  "channels": ["email"]
-}
-```
+Show an element only on some channels without a `channel` container: add `"channels": ["email"]` to the element.
 
 ---
 
 ## Localization
 
-Elements carry translations in a `locales` map keyed by locale code. Each locale stores only the fields it translates:
-
-```json
-{
-  "type": "text",
-  "content": "Welcome, {{name}}!",
-  "locales": {
-    "es": { "content": "¡Bienvenido, {{name}}!" },
-    "fr": { "content": "Bienvenue, {{name}} !" }
-  }
-}
-```
-
-The translatable field depends on the type: `content` on `text`, `action`, `quote`, and `html`; `title` on `meta` (the subject); `href` on `action` and `image`; `src` on `image`; `raw` on `channel`; and `elements` on `text`, `list-item`, and containers. `divider`, `jsonnet`, `partial`, and `comment` take none.
-
-Courier picks the locale from `message.to.locale`, else the profile's `locale`, and matches it exactly (`es-MX` doesn't fall back to `es`). To translate a stored template, use `putLocale` rather than hand-editing `locales` into a full content write. Workflow, rules, and Design Studio AI Translation: [localization.md](./localization.md).
+Elements carry translations in a `locales` map keyed by locale code (`"locales": { "es": { "content": "¡Bienvenido!" } }`). Which fields each element type can translate, how Courier picks the locale, and how to write translations (`putLocale`): [localization.md](./localization.md).
 
 ## Related
 
 - [Templates](./templates.md), template lifecycle (create, publish, version, archive) and inline-vs-templated decisions
 - [Multi-Channel](./multi-channel.md), routing strategies for the top-level `channel` elements
-- [Quickstart](./quickstart.md). Send your first notification
 - [Elemental Overview](https://www.courier.com/docs/design/elemental/overview), official reference
 - [Elements Reference](https://www.courier.com/docs/design/elemental/elements/text), one page per element type, starting with `text`
-
-<!-- Target line budget: <= 550 lines. If you are about to push this past 575, split (e.g., control flow + localization out) rather than letting it grow. -->

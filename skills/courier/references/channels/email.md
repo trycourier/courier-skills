@@ -1,206 +1,21 @@
 # Email Channel
 
-**Contents:** [Quick Reference](#quick-reference) · [Email Authentication](#email-authentication) · [Sender Configuration](#sender-configuration) · [Sender Reputation](#sender-reputation) · [Courier Integration](#courier-integration) · [Link Tracking](#link-tracking) · [Bounce Handling](#bounce-handling) · [Troubleshooting](#troubleshooting) · [Testing](#testing) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [Courier Integration](#courier-integration) · [Link Tracking](#link-tracking) · [Bounce Handling](#bounce-handling) · [Troubleshooting](#troubleshooting) · [Testing](#testing) · [Related](#related)
 
 ## Quick Reference
 
 ### Rules
-- MUST configure SPF, DKIM, and DMARC before sending (Gmail/Yahoo/Microsoft require it)
-- Only ONE SPF record per domain (combine includes if multiple providers)
-- DMARC progression: start with `p=none`, then `p=quarantine`, finally `p=reject`
-- Keep bounce rate under 2% (under 1% is good)
-- Keep complaint rate under 0.1%
-- Use subdomains to separate transactional (`t.acme.com`) from marketing (`m.acme.com`)
-- Avoid `noreply@` addresses - use monitored inboxes
-- Subject lines: under 50 characters for mobile
-- Pre-header text: under 90 characters, don't repeat subject
-
-### Common Mistakes
-- Missing SPF/DKIM/DMARC authentication (emails go to spam or get rejected)
-- Having multiple SPF records (only one allowed per domain)
-- Rushing IP warming (causes reputation damage)
-- Sending to purchased lists (destroys sender reputation)
-- Ignoring bounces and complaints (reputation damage)
-- Sudden volume spikes (triggers spam filters)
-- Using URL shorteners like bit.ly (spam trigger)
+- Authenticate the sending domain (SPF, DKIM, DMARC) at your email provider and in DNS before sending. Gmail, Yahoo and Microsoft reject or spam-file unauthenticated mail
+- Overrides apply after rendering and aren't templated, and attachments go through a provider-specific override. See [Courier Integration](#courier-integration)
+- Courier doesn't classify bounces as hard or soft. See [Bounce Handling](#bounce-handling)
 
 ### Templates
 
 Build email templates from Elemental blocks unless the design needs markup the blocks cannot express. Blocks stay editable in Design Studio's drag-and-drop editor; a `raw` HTML or MJML body renders and displays in Design Studio but has to be edited as HTML. See [elemental.md](../guides/elemental.md#channel).
 
-**Basic Email Send (TypeScript):**
-```typescript
-await client.send.message({
-  message: {
-    to: { email: "jane@example.com" },
-    template: "nt_01kmrc1k3q6x9v2d5c8n1w4ht",
-    data: { userName: "Jane" }
-  }
-});
-```
-
-**Basic Email Send (Python):**
-```python
-client.send.message(
-    message={
-        "to": {"email": "jane@example.com"},
-        "template": "nt_01kmrc1k3q6x9v2d5c8n1w4ht",
-        "data": {"userName": "Jane"},
-    }
-)
-```
-
-**With Channel Override (TypeScript):**
-```typescript
-await client.send.message({
-  message: {
-    to: { email: "jane@example.com" },
-    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    channels: {
-      email: {
-        override: {
-          from: "Acme Orders <orders@t.acme.com>",
-          reply_to: "support@acme.com"
-        }
-      }
-    }
-  }
-});
-```
-
 ---
 
-Best practices for sending emails that reach inboxes and engage users.
-
-## Email Authentication
-
-**Required by Gmail/Yahoo/Microsoft** - unauthenticated emails will be rejected or spam-filtered.
-
-### SPF (Sender Policy Framework)
-
-Specifies which servers can send email for your domain.
-
-```
-# Example DNS TXT record
-v=spf1 include:sendgrid.net include:_spf.google.com ~all
-```
-
-- Add the SPF TXT record provided by your email provider
-- `~all` (soft fail) for setup flexibility, `-all` (hard fail) for production
-- Only one SPF record per domain (combine includes if multiple providers)
-
-### DKIM (DomainKeys Identified Mail)
-
-Cryptographic signature proving email authenticity.
-
-- Your email provider generates DKIM keys
-- Add CNAME or TXT records to your DNS as instructed
-- Common selector names: `s1._domainkey`, `mail._domainkey`
-
-### DMARC
-
-Policy for handling SPF/DKIM failures + reporting.
-
-```
-# Start with monitoring (p=none)
-_dmarc.yourdomain.com  TXT  "v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com"
-
-# Progress to quarantine
-v=DMARC1; p=quarantine; pct=10; rua=mailto:dmarc@yourdomain.com
-
-# Finally, reject
-v=DMARC1; p=reject; rua=mailto:dmarc@yourdomain.com
-```
-
-**Progression:** `p=none` (monitor) → `p=quarantine` (spam folder) → `p=reject` (block)
-
-## Sender Configuration
-
-| Field | Best Practice | Example |
-|-------|--------------|---------|
-| From Name | Brand name for transactional/system mail (recognizable sender builds reputation); a person's name for Primary-inbox marketing (e.g., Gmail Promotions → Primary) | Transactional: `Acme` · Marketing: `Jane at Acme` |
-| From Email | Subdomain for transactional | notifications@t.acme.com |
-| Reply-To | Monitored inbox | support@acme.com |
-
-### Subdomain Strategy
-
-Separate sender reputation by email type:
-
-| Subdomain | Purpose | Example |
-|-----------|---------|---------|
-| `t.acme.com` | Transactional | receipts, password resets |
-| `m.acme.com` | Marketing | newsletters, promotions |
-| `alerts.acme.com` | Alerts | security, system status |
-
-**Why?** If marketing reputation suffers, transactional emails still deliver.
-
-### Avoid `noreply@`
-
-- Users DO reply to transactional emails (questions about orders, etc.)
-- Signals low trust to spam filters
-- Use `notifications@` or `hello@` with forwarding rules instead
-
-## Sender Reputation
-
-### IP Warming Schedule
-
-New sending domain/IP? Gradually increase volume:
-
-| Week | Daily Volume | Target Audience |
-|------|-------------|-----------------|
-| 1 | 50-100 | Most engaged users |
-| 2 | 200-500 | Recent active users |
-| 3 | 1,000-2,000 | Active in last 30 days |
-| 4 | 5,000-10,000 | Full list |
-| 5+ | Full volume | All subscribers |
-
-**Tips:**
-- Send to engaged users first (recently opened/clicked)
-- Maintain consistent daily volume
-- Monitor bounce rates closely
-- Pause if bounce rate exceeds 2%
-
-### Reputation Metrics
-
-| Metric | Good | Warning | Critical |
-|--------|------|---------|----------|
-| Bounce rate | <1% | 1-2% | >2% |
-| Complaint rate | <0.05% | 0.05-0.1% | >0.1% |
-| Open rate | >20% | 10-20% | <10% |
-
-### List Hygiene
-
-```typescript
-// Implement automatic list cleaning
-async function cleanEmailList() {
-  // Remove hard bounces immediately
-  await removeHardBounces();
-  
-  // Remove soft bounces after 3 consecutive failures
-  await removePersistentSoftBounces(3);
-  
-  // Sunset inactive subscribers (no opens in 6+ months)
-  await archiveInactiveSubscribers(180);
-}
-```
-
 ## Courier Integration
-
-For the basic email send pattern, see the [Quick Reference templates](#templates) above. The examples below show additional options.
-
-### With Inline Content
-
-```typescript
-await client.send.message({
-  message: {
-    to: { email: "jane@example.com" },
-    content: {
-      title: "Your order has shipped",
-      body: "Hi Jane, your order #12345 is on the way!\n\nTrack at: https://acme.com/track/12345"
-    }
-  }
-});
-```
 
 ### With Email-Specific Overrides
 
@@ -274,72 +89,17 @@ The **override nesting is provider-specific**. It mirrors that provider's own se
 
 A request body caps at **6 MB**, and base64 adds about a third, so one send holds about 4.5 MB of attachments. A bigger body returns `413 Payload Too Large`. Host larger files and link to them.
 
-### SMTP Transport Per Send
+### Other Provider Settings
 
-The stored SMTP integration holds a host, username, password and from address. To change the transport for one message (other credentials, another host), set `message.providers.smtp.override.config`. Courier sends SMTP through [Nodemailer](https://nodemailer.com/smtp), and these values replace the stored ones for that message:
-
-```typescript
-await client.send.message({
-  message: {
-    to: { email: "jane@example.com" },
-    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    providers: {
-      smtp: {
-        override: {
-          config: {
-            host: "smtp.office365.com", port: 587, secure: false, // Office 365 and Gmail: 587 with STARTTLS
-            auth: { user: "alerts@acme.com", pass: process.env.SMTP_APP_PASSWORD },
-          },
-        },
-      },
-    },
-  },
-});
-```
-
-Use an app password for Office 365 and Gmail, not the account password.
-
-### Importing SendGrid Templates
-
-Courier can import SendGrid Dynamic Templates from the SendGrid integration's page. Import needs a SendGrid key with **Full Access to Template Engine**. A Mail Send key is enough to send and to receive delivery events, but it can't list templates, so the import shows none.
-
-### Provider Failover
-
-Configure multiple email providers in Courier dashboard. If SendGrid fails, automatically try Mailgun:
-
-```
-Priority 1: SendGrid
-Priority 2: Mailgun  
-Priority 3: AWS SES
-```
-
-Courier handles failover automatically based on your configuration.
+- **SMTP per send:** `message.providers.smtp.override.config` takes [Nodemailer transport options](https://nodemailer.com/smtp) (`host`, `port`, `secure`, `auth`) and replaces the stored SMTP settings for that one message. See [SMTP](https://www.courier.com/docs/integrations/email/smtp#transport-override).
+- **SendGrid template import** needs a key with Full Access to Template Engine. A Mail Send key sends fine but lists no templates, so the import shows none.
+- **Failover to a second email provider:** see [multi-channel.md](../guides/multi-channel.md#provider-failover).
 
 ## Link Tracking
 
 Open and click tracking are workspace settings (Settings → Tracking), not template settings. Links need absolute URLs. To skip one link, set `disable_tracking: true` on an Elemental action, or `data-courier-link-tracking="false"` on the `<a>`. To skip open tracking for one send, set `channels.email.override.tracking: { open: false }`.
 
-```typescript
-await client.send.message({
-  message: {
-    to: { email: "jane@example.com" },
-    template: "nt_01kmrbu5x8q2v6d1c4n7w9hj",
-    // Click tracking follows the workspace setting
-  }
-});
-
-// Receive webhook when links are clicked
-// POST /webhooks/courier
-// { type: "message:updated", data: { status: "CLICKED", id: "...", ... } }
-```
-
 ## Bounce Handling
-
-| Type | Cause | Action |
-|------|-------|--------|
-| Hard bounce | Invalid address, domain doesn't exist | Remove immediately |
-| Soft bounce | Mailbox full, server temporarily down | Retry: 1h → 4h → 24h |
-| Block | Spam filter rejection | Review content, check authentication |
 
 **Courier does not classify a bounce as hard or soft.** `data.providers[].error` is the provider's
 own message as a **string**, worded differently by each provider, so don't pattern-match it in
@@ -365,70 +125,17 @@ app.post('/webhooks/courier', async (req, res) => {
 
 ## Troubleshooting
 
-### Emails Going to Spam?
-
-1. **Check authentication:** Verify SPF, DKIM, DMARC at [MXToolbox](https://mxtoolbox.com)
-2. **Check reputation:** [Google Postmaster Tools](https://postmaster.google.com), [Microsoft SNDS](https://sendersupport.olc.protection.outlook.com/snds/)
-3. **Review content:** Avoid spam trigger words, excessive images, URL shorteners
-4. **Check patterns:** Sudden volume spikes damage reputation
-
-### Low Open Rates?
-
-| Issue | Solution |
-|-------|----------|
-| Poor subject lines | A/B test, be specific |
-| Wrong send time | Test different times, use send-time optimization |
-| Low relevance | Segment by interest, personalize |
-| Deliverability issues | Check spam folder placement |
-
 ### AWS SES Messages Stay at SENT
 
-SES reports delivery through Amazon SNS, so until SNS is wired up every SES message stays at `SENT`:
-
-1. In Courier, open the SES integration and copy its **Message Events Webhook URL**.
-2. In SES, create a configuration set, and add an SNS event destination for `Bounce`, `Delivery` and `Reject`.
-3. In SNS, subscribe that topic to the Courier URL over HTTPS, with **raw message delivery off**. Courier confirms the subscription itself.
-4. Make the configuration set the default for your sending identity, and add its ARN to the IAM policy Courier sends with, or every send fails with `not authorized to perform ses:SendRawEmail`.
-
-Errors SES returns at send time show in Courier without this; the setup adds delivery, bounce and reject events that arrive later.
+SES reports delivery through SNS, so every SES message stays at `SENT` until an SES configuration set publishes `Bounce`, `Delivery` and `Reject` to an SNS topic subscribed to the SES integration's **Message Events Webhook URL** (raw message delivery off). Add the configuration set's ARN to the IAM policy Courier sends with, or every send fails with `not authorized to perform ses:SendRawEmail`. Steps: [AWS SES](https://www.courier.com/docs/integrations/email/aws-ses).
 
 ### Gmail Clips the Email
 
-Gmail truncates a message whose HTML is over about 102 KB and shows "[Message clipped]", hiding the rest, including the footer and unsubscribe link. Images don't count toward it, but inline CSS and repeated markup do. Check the size of the HTML in the message's [rendered output](../guides/templates.md#verify-the-rendered-output) and trim it.
-
-### Gmail Tabs
-
-To land in Primary (not Promotions):
-- Avoid heavy images and marketing language
-- Include personalization
-- Prefer a person-in-brand sender (e.g., `Jane at Acme`) for marketing mail, raw brand senders (`Acme`) are fine for transactional but tend to get sorted into Promotions for promotional copy
-- Keep content relevant and expected
+Gmail clips HTML over about 102 KB, hiding the footer and unsubscribe link. Check the size in the [rendered output](../guides/templates.md#verify-the-rendered-output).
 
 ## Testing
 
-### Pre-Send Checklist
-
-- [ ] Subject line under 50 characters
-- [ ] Pre-header text set
-- [ ] Unsubscribe link present
-- [ ] Physical address in footer
-- [ ] Links tested and working
-- [ ] Rendered on real clients (Outlook, Gmail, Apple Mail, mobile, dark mode) with [Device Preview](../guides/device-preview.md)
-- [ ] Plain text version included
-- [ ] Personalization tokens have fallbacks
-
-### Send Test Emails
-
-```typescript
-// Send to yourself first
-await client.send.message({
-  message: {
-    to: { email: "your-test@example.com" },
-    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    data: { /* test data */ }
-  }
-});
-```
+Render the email on real clients (Outlook, Gmail, Apple Mail, mobile, dark mode) with [Device Preview](../guides/device-preview.md) before a real send, and check what a send produced in its [rendered output](../guides/templates.md#verify-the-rendered-output).
 
 ## Related
 
@@ -436,5 +143,5 @@ await client.send.message({
 - [Quickstart](../guides/quickstart.md) - New to Courier? Start here for install, API key, first send
 - [Multi-Channel](../guides/multi-channel.md) - Email as part of routing strategy
 - [Reliability](../guides/reliability.md) - Retry logic and error handling
-- [Batching](../guides/batching.md) - Email digests
+- [Digests](../guides/digests.md) - roll many events into one scheduled email
 - [Throttling](../guides/throttling.md) - Send rate management

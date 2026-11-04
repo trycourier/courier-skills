@@ -3,16 +3,10 @@
 ## Quick Reference
 
 ### Rules
-- `signIn` takes `accessToken`, the same JWT the web SDKs call `jwt`.
-- `CourierInboxView` keeps itself updated. Use `addInboxListener` only for a custom UI or your own unread badge.
+- `signIn` takes **`accessToken`**, not `jwt`. It's the same JWT the web SDKs call `jwt`, under a different name.
 - Gate `signIn` on having the token.
-
-### Common Mistakes
-
-- Passing the JWT as `jwt`. The React Native `signIn` parameter is **`accessToken`**, the same token under a different name.
-- Signing in before the token resolves. Gate on having it.
-- Reaching for `listenForUpdates()`. That is the web API and does not exist here. `CourierInboxView` keeps itself updated; for a custom UI or your own unread badge use `addInboxListener({ onMessagesChanged, onUnreadCountChanged, onMessageEvent })`, which resolves to a `CourierInboxListener`, and remove it with `removeInboxListener({ listenerId })`.
-- Expecting web CSP guidance to apply. It doesn't, native has no CSP, but push setup does apply, see [push.md](../channels/push.md).
+- There is no `listenForUpdates()`; that's the web API. `CourierInboxView` keeps itself updated. For a custom UI or your own unread badge use `addInboxListener({ onMessagesChanged, onUnreadCountChanged, onMessageEvent })`, which resolves to a `CourierInboxListener`, and remove it with `removeInboxListener({ listenerId })`.
+- Web CSP guidance doesn't apply (native has no CSP), but push setup does, see [push.md](../channels/push.md).
 
 ### Installation
 
@@ -23,23 +17,12 @@ npm install @trycourier/courier-react-native
 ### Setup
 
 ```tsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import Courier, { CourierInboxView } from "@trycourier/courier-react-native";
 
-// Fetches a short-lived Courier JWT from your backend. The React Native
-// signIn API calls it `accessToken`. It's the same JWT the web SDKs call `jwt`.
-function useCourierToken(userId: string): string | null {
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("https://api.example.com/courier-token")
-      .then((r) => r.json())
-      .then((d) => setToken(d.token));
-  }, [userId]);
-
-  return token;
-}
+// useCourierToken: fetches a short-lived JWT from your backend and refreshes it,
+// see auth.md, "JWT Refresh Strategy".
 
 function App() {
   const navigation = useNavigation();
@@ -62,7 +45,5 @@ function App() {
   );
 }
 ```
-
-`message.data` is the `data` object from the send, nesting intact. Put structured fields there, not as JSON in `content`, see [the inline content rule](../../SKILL.md#universal-rules).
 
 ---

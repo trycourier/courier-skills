@@ -10,19 +10,13 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 
 ### Rules
 
-- Title under 50 characters; body under 150
-- 1–2 actions maximum
 - Always include deep-link data in `data`, a click with nowhere to go is a dead end
-- Send structured payloads as an object in `data`, never as JSON in `content`, where the innermost `{…}` renders as `[Error]`. See [Keep JSON out of inline content](../guides/templates.md#inline-vs-templated-sending)
-- Batch similar events rather than sending ten "liked your post" messages
-- No OS permission needed, so the inbox reaches every user. It is the safe default channel: the `courier` provider is already configured in production and test
+- Batch similar events into one message rather than one per event, see [batching.md](../guides/batching.md)
+- No OS permission needed, so the inbox reaches every user. It is the safe default channel: the `courier` provider is already configured in production and test, so don't add it there (see [Setup](#setup))
 
 ### Common mistakes
 
-- Sending one message per event instead of batching
-- Omitting deep-link data, so the click does nothing
-- Not archiving the inbox copy when the user engages via email or push
-- Adding the `courier` provider in production or test. It's already there. Only a custom environment, or a deleted provider, needs it added (see [Setup](#setup))
+- Not archiving the inbox copy when the user engages via email or push, see [Cross-Channel Sync](#cross-channel-sync)
 - Sending a template by id with no routing strategy attached. API-created templates start with `routing: null` and fail `UNROUTABLE`, see [Troubleshooting](#troubleshooting)
 - Reaching for the `{ title, body }` sugar in a stored template. That form is inline-only, see [Elemental Content for Inbox](#elemental-content-for-inbox)
 
@@ -49,7 +43,7 @@ curl -X POST https://api.courier.com/providers \
 | `jwt_enabled` | Lets browser and mobile clients authenticate with a short-lived JWT, which the v8 inbox SDKs require. See [inbox/auth.md](../inbox/auth.md) |
 | `simple_profile_req` | Without it, the provider expects a `courier.channel` value inside each user's profile and sends fail with "Information required by the provider was not included." |
 
-When you add it yourself, check `simple_profile_req`: it's the setting that affects sending, and without it sends fail `UNROUTABLE`. `jwt_enabled` affects client authentication, not delivery. See [Troubleshooting](#troubleshooting), and [providers.md](../guides/providers.md) for the provider API in general.
+See [Troubleshooting](#troubleshooting), and [providers.md](../guides/providers.md) for the provider API in general.
 
 ## Sending to Inbox
 
@@ -112,69 +106,16 @@ await client.send.message({
 });
 ```
 
-### Inbox + Push (Multi-Channel)
-
-```typescript
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    data: {
-      orderNumber: "12345",
-      trackingUrl: "https://acme.co/track/12345"
-    },
-    routing: {
-      method: "all",
-      channels: ["inbox", "push"]
-    }
-  }
-});
-```
-
 ## Read State
 
-Read and unread state is set from the client through the Inbox SDK, and Courier stores and syncs it. From the server you archive, which removes the message from the user's inbox.
-
-Archive an inbox message from the server with `client.requests.archive(requestId)`:
-
-```typescript
-await client.requests.archive(requestId);
-```
-
-Archive from the backend to remove a message from the inbox when the user engages via another channel.
-
-### Batching and Digests
-
-Don't send individual notifications for each event:
-
-```typescript
-// Instead of 10 separate notifications, send one batched:
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    content: {
-      title: "Your post is getting attention!",
-      body: "Jane, Bob, and 8 others liked your post"
-    }
-  }
-});
-```
-
-See [Batching](../guides/batching.md) for comprehensive batching strategies.
+Read and unread are set from the client through the Inbox SDK, see [rendering.md](../inbox/rendering.md#read-state-and-unread-counts). From the server you can only archive, which removes the message from the user's inbox: `client.requests.archive(requestId)`.
 
 ## Cross-Channel Sync
 
-Courier marks the inbox copy read when the user opens the email, as long as email open tracking is on (Settings → Tracking). Nothing to build. To remove the inbox copy after the user acts on another channel, archive it from a click or in-app event:
+Courier marks the inbox copy read when the user opens the email, as long as email open tracking is on (Settings → Tracking). Nothing to build. To remove the inbox copy after the user acts on another channel, archive it from the click webhook or in-app event:
 
 ```typescript
-// Email click webhook
-app.post('/email-clicked', async (req, res) => {
-  const { requestId } = req.body;
-
-  // Archive the inbox message since the user engaged via email
-  await client.requests.archive(requestId);
-  res.sendStatus(200);
-});
+await client.requests.archive(requestId);
 ```
 
 ## Elemental Content for Inbox

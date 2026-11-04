@@ -9,15 +9,9 @@ plan tier, an activity cohort); use a **list** when you want an explicit, manage
 ## Quick Reference
 
 ### Rules
-- An audience is a filter whose membership Courier stores and keeps current. Create or update it with an upsert by the id you choose.
-- Send to it with `to: { audience_id: "..." }`; Courier fans out to every current member.
-- Preferences still apply: a marketing audience only reaches opted-in users.
-- A filter `path` is relative to the profile root: `plan` for a top-level field, `custom.plan` for one under `custom`. A `profile.` prefix matches nothing.
-
-### Common Mistakes
-- Treating an audience like a static list. Membership changes as user data changes.
-- Expecting an audience send to bypass preferences.
-- Prefixing a filter `path` with `profile.`. The audience silently matches no one.
+- Create or update an audience with an upsert by the id you choose. Membership is stored and changes as user data changes, so it isn't a static list.
+- Send with `to: { audience_id: "..." }`; Courier fans out to every current member. Preferences still apply: a marketing audience only reaches opted-in users.
+- A filter `path` is relative to the profile root: `plan` for a top-level field, `custom.plan` for one under `custom`. A `profile.` prefix silently matches no one.
 
 ## Create or update (upsert)
 
@@ -38,21 +32,9 @@ await client.audiences.update("trial-users-no-integration", {
 });
 ```
 
-```python
-# Python
-client.audiences.update(
-    "trial-users-no-integration",
-    name="Trial users without an integration",
-    filter={"operator": "AND", "filters": [
-        {"operator": "EQ", "path": "plan", "value": "trial"},
-    ]},
-)
-```
+Python: `client.audiences.update(audience_id, name=..., filter={"operator": "AND", "filters": [...]})`.
 
-`filter.filters` is an array of rules; each rule is a single condition (a comparison `operator` with
-a `path` + `value`) or a nested group (`operator` `AND`/`OR` with its own `filters`). `path` is relative to
-the profile root: `plan` for a top-level field, `custom.plan` for one under `custom`, never
-`profile.plan`. The comparison operators:
+`filter.filters` is an array of rules; each rule is a single condition (a comparison `operator` with a `path` + `value`) or a nested group (`operator` `AND`/`OR` with its own `filters`). The comparison operators:
 
 | `operator` | Meaning |
 |---|---|
@@ -90,17 +72,7 @@ await client.send.message({
 });
 ```
 
-One send, Courier fans out to every current member, with no cap on how many that is. A recipient's
-[preferences](./preferences.md) still apply, so marketing audiences only reach opted-in users. The
-`requestId` returned is a job id; resolve per-recipient message ids via
-`courier messages list --trace-id "<requestId>"` (see [cli.md](./cli.md)).
+One send, Courier fans out to every current member, with no cap on how many that is.
 
 `context.tenant_id` on an audience send sets branding, preferences, and template variables only.
 Every member still receives the message.
-
-Audience vs list: an **audience** is a filter whose stored membership Courier updates as profiles
-change; a **list** is an explicit subscriber set you add/remove from. See [patterns.md](./patterns.md) for list sends.
-
-If the recipient set isn't modeled as an audience or a list, reach for the
-[Bulk API](./bulk.md) rather than a multi-recipient send. A plain `to` array is capped
-at 500 recipients.

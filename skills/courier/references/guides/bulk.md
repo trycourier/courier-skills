@@ -8,31 +8,12 @@ that isn't already a list or audience.
 ## Quick Reference
 
 ### Rules
-- **`message.event` is required on create.** A notification ID works as the value, but the key must be `event`. `template` and `content` are optional overrides on top of it, never substitutes.
-- **Ingest is `POST /bulk/{jobId}`** with no `/users` suffix. Only the read is `GET /bulk/{jobId}/users`.
-- **Batch ingest at 1000 users or fewer per call.** Call it as many times as you need before running.
-- **Email jobs need `profile.email` on every user.** `to.email` alone does not route, and the failure is silent.
-- **A job runs once.** After `runJob` the job is closed; more users need a new job.
-- **Poll `retrieveJob` for progress**, not `messages.retrieve`. The job id is not a message id.
-
-### When to reach for what
-
-| Approach | Use when | Ceiling |
-|---|---|---|
-| `to: { list_id }` / `to: { audience_id }` | The set is already a list or audience | None; Courier fans out server-side |
-| `to: [ ... ]` (multi-recipient send) | A handful of ad-hoc recipients | **500**, hard cap |
-| **Bulk API** | A large ad-hoc set, per-recipient data, or you want job-level progress | ≤1000 per ingest call, unlimited calls |
-
-If the set is already modeled in Courier, send to it directly ([patterns.md](./patterns.md#lists-and-audience-sends),
-[audiences.md](./audiences.md)). Bulk exists for the case where it isn't.
-
-### Common Mistakes
-- Omitting `event` and passing only `template` (returns `400 The 'event' parameter is required.`)
-- `POST /bulk/{jobId}/users` to ingest (404; that path is the read)
-- Putting the email on `to.email` instead of `profile.email` for an email job
-- Ingesting more than ~1000 users in a single call (502)
-- Expecting `runJob` to pick up users added afterwards
-- Passing the job id to `messages.retrieve` (404; it is a job id, not a message id)
+- **`message.event` is required on create.** A notification ID works as the value, but the key must be `event`. `template` and `content` are optional overrides on top of it, never substitutes. `template` alone returns `400 The 'event' parameter is required.`
+- **Ingest is `POST /bulk/{jobId}`** with no `/users` suffix. Only the read is `GET /bulk/{jobId}/users`; a `POST` there returns `404`.
+- **Batch ingest at 1000 users or fewer per call** (5000 and above return `502`). Call it as many times as you need before running.
+- **Contact info goes on `profile`, not `to`.** Email jobs need `profile.email` on every user; `to.email` alone does not route, and the failure is silent. Same for SMS and push. This is the most common bulk failure.
+- **A job runs once.** After `runJob` the job is closed; users ingested afterwards are ignored, so create a new job.
+- **Poll `retrieveJob` for progress**, not `messages.retrieve`. The job id is not a message id (`404`); per-recipient message ids come from `listUsers`.
 
 ## The Flow
 
@@ -72,27 +53,7 @@ const { items, paging } = await client.bulk.listUsers(jobId);
 // items[].messageId is the same id a single send would return
 ```
 
-**Python:**
-```python
-job = client.bulk.create_job(
-    message={
-        "event": "monthly-digest",
-        "data": {"month": "August"},
-    }
-)
-
-client.bulk.add_users(
-    job.job_id,
-    users=[
-        {"profile": {"email": "jane@example.com"}, "to": {"user_id": "user-1"}, "data": {"highlights": 12}},
-    ],
-)
-
-client.bulk.run_job(job.job_id)
-
-status = client.bulk.retrieve_job(job.job_id)
-users = client.bulk.list_users(job.job_id)
-```
+Python uses snake_case (`create_job`, `add_users`, `run_job`, `retrieve_job`, `list_users`), with the id at `job.job_id`.
 
 **curl** (useful when the installed SDK predates the bulk restore, see [Version note](#version-note)):
 ```bash
@@ -127,27 +88,16 @@ retrieve-job / list-users`.
 
 ## Gotchas
 
-Worth knowing up front, since several of these fail quietly or with a generic error.
+The [Rules](#rules) cover the failures that are silent or return a generic error. Two more:
 
-- **`message.event` is required.** Passing `message.template` alone returns
-  `400 {"message":"The 'event' parameter is required."}`. The value can be a notification ID, so
-  `{ event: "<notification-id>" }` works, but the key must be `event`.
-- **Ingest is `POST /bulk/{jobId}`, with no `/users` suffix.** `POST /bulk/{jobId}/users` returns
-  404. Only the *read* is `GET /bulk/{jobId}/users`. Easy to get backwards.
-- **Batch at 1000 users or fewer per ingest call.** 1000 returns `200 {"errors":[],"total":1000}`;
-  5000 and above return `502`. Ingest as many batches as you like before running.
-- **Email jobs need `profile.email` on each user.** `to.email` alone is not enough for provider
-  routing and the message will not deliver, with no error at ingest time. Same shape for SMS and
-  push: contact info goes on `profile`, not `to`. This is the single most common bulk failure.
-- **A job runs once.** After `runJob`, ingesting more users into it does nothing. Create a new job.
 - **Ingest reports partial failures rather than failing the call.** The response is
   `{"errors":[...],"total":N}` with a 200. Duplicates land in `errors` while the rest succeed, so
   check it instead of relying on the status code. Python's `add_users` returns `None` and Node types
   `addUsers` as `void`, so read the raw response:
   `const res = await client.bulk.addUsers(jobId, body).asResponse(); const { errors } = await res.json();`
   or `client.bulk.with_raw_response.add_users(job_id, users=[...]).json()`.
-- **Global `message.data` merges into every recipient. Put per-recipient values in `user.data`,
-  which merges into it.**
+- **Global `message.data` merges into every recipient.** Put per-recipient values in `user.data`,
+  which merges into it.
 
 ## Monitoring a Job
 
@@ -169,9 +119,6 @@ message-level question, so follow `items[].messageId` into
 [`messages.retrieve`](./reliability.md#message-status-glossary), or watch for
 [`message:updated` webhooks](./webhooks.md#event-types).
 
-Job-level aggregates live on `retrieveJob`, never on `client.messages.retrieve`. Per-recipient
-message IDs come from `listUsers` (`items[].messageId`). The `jobId` is not a message ID.
-
 <a id="version-note"></a>
 
 ## Version note
@@ -183,10 +130,6 @@ If `client.bulk` is `undefined`, that is a version problem, not a missing featur
 the REST endpoints directly with the curl above. Verify method shapes against the installed
 package's own types rather than this file, per
 [Verifying Against Live Sources](../../SKILL.md#verifying-against-live-sources).
-
-> One claim worth checking before relying on it: the tutorial states that all bulk endpoints accept
-> an `Idempotency-Key` header, but the API spec does not declare that header on any of the five bulk
-> operations. Treat it as unverified.
 
 ## Related
 

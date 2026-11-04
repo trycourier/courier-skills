@@ -1,8 +1,8 @@
 # Reliability
 
-> **Reading order:** This file covers **concepts and failure modes** (idempotency semantics, retry strategy, delivery statuses, provider failover). For **copy-paste code** implementing these patterns in TypeScript, Python, CLI, and curl, see [Patterns](./patterns.md). For webhooks in either direction, see [Webhooks](./webhooks.md).
+> **Reading order:** This file covers **concepts and failure modes** (idempotency semantics, retry strategy, delivery statuses, provider failover). For short recipes, see [Patterns](./patterns.md). For webhooks in either direction, see [Webhooks](./webhooks.md).
 
-**Contents:** [Quick Reference](#quick-reference) · [Idempotency](#idempotency) · [Retry Logic](#retry-logic) · [Error Handling](#error-handling) · [Webhooks](#webhooks) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [Idempotency](#idempotency) · [Retry Logic](#retry-logic) · [Webhooks](#webhooks) · [Related](#related)
 
 ## Quick Reference
 
@@ -11,9 +11,6 @@
 - Courier keeps idempotency keys for 25 hours by default. Send `x-idempotency-expiration` (ISO 8601) to keep one up to a year
 - The SDK client already retries `408`, `409`, `429`, `5xx`, and connection errors (`maxRetries` defaults to 2). Tune it rather than wrapping calls in your own loop
 - Other `4xx` are not retried by anyone. Fix the request instead
-- Respond to webhooks with 200 immediately, process async
-- Handle webhook duplicates (they can be delivered multiple times)
-- Configure multiple providers per channel for failover
 
 ### Idempotency Key Patterns
 | Notification | Key Pattern |
@@ -28,17 +25,8 @@
 Use a **request id** (the unique id of the OTP/reset attempt from your own system) rather than a timestamp. It's deterministic on retry, so the second attempt of the *same* OTP request gets deduped while a legitimate *new* OTP request gets a fresh key.
 
 ### Common Mistakes
-- Missing idempotency keys (causes duplicate notifications)
-- Static idempotency keys for notifications that should repeat (OTP needs a unique per-request ID, not a fixed key)
-- Adding a retry loop around an SDK call, which multiplies attempts (the SDK already retries transient failures)
-- Blocking on webhook processing (should be async)
-- Not handling webhook duplicates
-- No fallback providers configured
-- No alerting on high failure rates
-
-### Templates
-
-See [Patterns](./patterns.md) for full copy-paste implementations: [Idempotency Keys](./patterns.md#idempotency-keys) and [Webhook Handler](./patterns.md#webhook-handler).
+- A static idempotency key on a send that should repeat (an OTP needs a per-request key, `otp-{userId}-{otpRequestId}`)
+- Wrapping an SDK call in your own retry loop, which multiplies attempts (the SDK already retries transient failures)
 
 ### Message Status Glossary
 
@@ -50,9 +38,9 @@ The value returned as `message.status` from `client.messages.retrieve` (and the 
 | `ROUTED` | Routing decision made; message is ready to hand to a provider. | Transient. |
 | `SENT` | At least one provider accepted the payload for delivery. For email this means the provider returned 2xx; for Inbox it means the message is visible in the feed. | Transient on the way to `DELIVERED`, but terminal for Inbox and for any provider without delivery tracking set up. Slack, Teams and webhook sends go straight to `DELIVERED`. |
 | `DELIVERED` | Provider confirmed the message reached the recipient (e.g. email DSN, SMS carrier report). | Terminal success. |
-| `OPENED` / `CLICKED` | Engagement signals for email (requires open/click tracking). **`OPENED` is not a reliable signal of human engagement**, Apple Mail Privacy Protection and Gmail image proxying prefetch the tracking pixel, so it fires without the recipient reading anything. Build logic on `CLICKED` or in-app read state. | Terminal success with engagement. |
+| `OPENED` / `CLICKED` | Engagement signals for email (requires open/click tracking). **`OPENED` is not a reliable signal of human engagement**: privacy proxies prefetch the tracking pixel. Build logic on `CLICKED` or in-app read state. | Terminal success with engagement. |
 | `UNMAPPED` | The `event` on the send didn't map to any notification/template in this workspace. Common for bulk sends with a typo'd `event` value. | Fix the event ID or create an event mapping in Settings. |
-| `UNROUTABLE` | Routing failed, no channel/provider combination could accept the send. Check `reason` and `error` for detail (e.g. `reason: "PROVIDER_ERROR"` with an `error` like `"None of provider(s) twilio,slack is configured for channel email."` means the channel's routing list references providers that aren't installed). Read `error` rather than matching its exact wording, which varies by release. **An `UNROUTABLE` with no `reason` and no `error` at all** is its own case: for inbox sends it means the `courier` provider is missing (a custom environment, or it was deleted), and a `PROVIDER_ERROR` naming `courier` with `: undefined` means the template has no routing strategy. See [inbox.md](../channels/inbox.md#troubleshooting). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
+| `UNROUTABLE` | Routing failed, no channel/provider combination could accept the send. Check `reason` and `error`, and read `error` rather than matching its wording, which varies by release. `reason: "PROVIDER_ERROR"` usually means the channel's routing list names a provider that isn't installed. An inbox send with no `reason` and no `error` at all, or a `PROVIDER_ERROR` naming `courier` with `: undefined`, has its own causes: see [inbox.md](../channels/inbox.md#troubleshooting). | Fix provider configuration in [Integrations](https://app.courier.com/integrations), adjust `routing.channels`, or populate the user's contact info. |
 | `UNDELIVERABLE` | All providers attempted returned a terminal failure (bounce, invalid number, suppressed). | Verify the recipient's contact info; inspect `providers[].providerResponse` for the specific error. |
 | `CANCELED` | The send was canceled before delivery, via `client.messages.cancel`, a journey Cancel node, or a canceled journey run. | Expected when you cancel; otherwise check what issued the cancel. |
 | `THROTTLED` | Blocked by a [send limit](https://www.courier.com/docs/send/statuses#send-limits) (per user, topic, or tenant) or by the Developer plan's cap of 10,000 sends per period. It is not queued and won't send later. | If you set no limit, it is usually the plan cap. Otherwise raise the limit or widen its window. |
@@ -67,31 +55,9 @@ Statuses are returned verbatim on webhooks and on `GET /messages/{id}`. For list
 
 ---
 
-Ensure notifications are delivered reliably with idempotency, retry logic, and error handling.
-
 ## Idempotency
 
-### Why It Matters
-
-Without idempotency, you might send duplicate notifications if:
-- Network timeout occurs but request succeeded
-- Your application retries a failed request
-- Webhook is delivered multiple times
-
-### Courier Idempotency Keys
-
-Add the `Idempotency-Key` header to your API requests. Courier keeps keys for 25 hours by default and returns the stored response for a repeat. To keep a key longer, up to a year, send `x-idempotency-expiration` as an ISO 8601 datetime. A key is scoped to the endpoint it was sent to. The stored response includes errors: a key whose first request got a `400` keeps returning it, so use a new key after fixing the request. See [Patterns > Idempotency Keys](./patterns.md#idempotency-keys) for TypeScript, Python, CLI, and curl examples.
-
-### Key Patterns
-
-See [Idempotency Key Patterns](#idempotency-key-patterns) in the Quick Reference above for the canonical table.
-
-### Don't Over-Dedupe
-
-Some notifications should be sent multiple times:
-
-- **OTP / password reset:** User might request multiple. Key off the unique request id (e.g. `otp-{userId}-{otpRequestId}`) so a legitimate new request gets a fresh key while a retry of the same request is deduped.
-- **Welcome messages:** Only send once. Use a static key like `welcome-{userId}`.
+Send the `Idempotency-Key` header (retention is in the Rules above). A key is scoped to the endpoint it was sent to, and the stored response includes errors: a key whose first request got a `400` keeps returning it, so use a new key after fixing the request. Code in every language: [Patterns > Idempotency Keys](./patterns.md#idempotency-keys).
 
 ## Retry Logic
 
@@ -131,50 +97,9 @@ The layer that is genuinely yours. If a send is part of a larger unit of work th
 process crash, that belongs in your queue or job runner, not in a wrapper around the SDK. Pair it
 with an [idempotency key](#idempotency) so a replay doesn't double-send.
 
-
-## Error Handling
-
-### Error Categories
-
-| Category | Example | Action |
-|----------|---------|--------|
-| Client error (4xx) | Invalid template | Don't retry, fix issue |
-| Server error (5xx) | Service unavailable | The SDK retries it. Tune `maxRetries` |
-| Network error | Timeout | The SDK retries it. Tune `maxRetries` |
-| Rate limit (429) | Too many requests | The SDK retries it. Tune `maxRetries` |
-
-### Handling Different Errors
-
-- **400 Bad Request:** Log, alert engineering, don't retry
-- **429 / 5xx / network:** The SDK already retries with backoff. Don't add your own loop
-- **Unknown Error:** Log, alert, don't retry
-
 ## Webhooks
 
-Courier `POST`s workspace events to your endpoint: message status changes, template publishes,
-audience membership changes. Setup, the full event-type list, payload shapes, signature
-verification in TypeScript and Python, and **inbound** webhooks all live in
-[webhooks.md](./webhooks.md).
-
-The parts that matter for reliability:
-
-- **Acknowledge with a 2xx inside 10 seconds**, then process asynchronously. A slow handler becomes
-  a delivery failure.
-- **Retries** cover network errors, timeouts, `408`, `429`, and any `5xx`, for roughly a day. Any
-  other `4xx` is not retried.
-- **Redelivery is expected**, so handlers must be idempotent. `data.id` identifies the *resource*, not
-  the event, so a single message emits several events sharing it. Dedupe on `data.id` **plus**
-  status, never `data.id` alone.
-- **Verify the `courier-signature` HMAC against the raw request bytes**, in constant time, with a
-  timestamp tolerance. See [Verifying Signatures](./webhooks.md#verify-webhook-signatures).
-- **Webhooks only fire in the environment they were created in.** A test-environment destination
-  never sees production events.
-- Engagement statuses (`OPENED`, `CLICKED`) can arrive **before** `DELIVERED`, or without it ever
-  arriving. Don't assume ordering.
-
-Bounces and spam complaints have no dedicated event type. They arrive as `message:updated` with
-`data.status` of `UNDELIVERABLE`, the aggregate cause in `data.reason`, and the provider's message
-in `data.providers[].error`.
+Courier `POST`s workspace events to your endpoint. Everything about handling them is in [webhooks.md](./webhooks.md): the 10-second ack, retries for about a day, deduping on `data.id` **plus** status, verifying `courier-signature` against the raw bytes ([Verifying Signatures](./webhooks.md#verify-webhook-signatures)), per-environment destinations, engagement events arriving before `DELIVERED`, and bounces arriving as `message:updated` with `UNDELIVERABLE`.
 
 ## Related
 
@@ -183,4 +108,3 @@ in `data.providers[].error`.
 - [Throttling](./throttling.md) - Rate limiting and frequency control
 - [Batching](./batching.md) - Combining notifications
 - [Transactional](../transactional.md) - Critical notification patterns
-- [Billing](../transactional.md) - Dunning retry strategies

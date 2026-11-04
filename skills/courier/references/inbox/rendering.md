@@ -8,13 +8,13 @@ Sending a message *to* the inbox is server-side. See [inbox.md](../channels/inbo
 
 ## Quick Reference
 
-### Common Mistakes
+### Rules
 
-- Working the auth ladder before ruling out CSP. Every auth symptom has a quieter CSP twin, see [Debugging](#debugging).
-- Skipping `listenForUpdates()` in a custom UI built on `useCourier()` or `CourierInboxDatastore`. The built-in components call it themselves.
-- Shipping an API key to the client instead of a JWT.
-- Using US hosts for an EU workspace, or expecting a `region` option that doesn't exist, see [EU and regional hosts](#eu-and-regional-hosts).
-- Writing new v7 code because the project already has some, see [legacy-v7.md](./legacy-v7.md).
+- **v8 only.** Check the version first ([Version Check](#version-check-before-you-write-code)); don't write new v7 code because the project already has some.
+- **Auth is a server-minted JWT**, never an API key in client code, with `user_id:{id} inbox:read:messages inbox:write:events`, plus `read:preferences write:preferences` if you also mount preferences. Refresh before expiry, and sign out on user switch. See [auth.md](./auth.md).
+- **Built-in components need only `signIn()`.** A custom UI also makes the three calls in [The Model](#the-model), or messages arrive but the UI never changes until reload.
+- **Rule out CSP before working the auth ladder.** A blocked host or a blocked inline style looks exactly like an auth failure, see [Content Security Policy](#content-security-policy).
+- **EU workspaces need different hosts.** There is no `region` option; pass `apiUrls`, see [EU and regional hosts](#eu-and-regional-hosts).
 
 ## The Model
 
@@ -64,20 +64,6 @@ This documents **v8**, the `@trycourier/courier-react` 8.x and 9.x releases. Che
 
 Do not write new v7 code. If the project is on v7, propose migrating before adding features, the [migration guide](https://www.courier.com/docs/sdk-libraries/courier-react-v8-migration-guide) is step-by-step.
 
-<a id="universal-rules"></a>
-
-### Rules
-
-- **JWT only.** v8 requires it. Generate it server-side from your API key, an API key in client code grants full workspace access to anyone who opens devtools.
-- **Scopes:** `user_id:{id} inbox:read:messages inbox:write:events`, plus `read:preferences write:preferences` if you also mount preferences. See [auth.md](./auth.md)
-- **JWTs expire.** Refresh before expiry rather than letting the socket drop. See [auth.md](./auth.md).
-- **Built-in components need only `signIn()`.** A custom UI also calls `listenForUpdates()`, or nothing updates in real time.
-- **Never call `signIn` with a JWT minted for a different user.** Sign out on user switch.
-- **Allow the Courier hosts in your CSP** before you debug anything else. A blocked host or a blocked
-  inline style looks exactly like an auth failure. See [Content Security Policy](#content-security-policy).
-- **EU workspaces need different hosts.** There is no `region` option; pass `apiUrls`. See
-  [EU and regional hosts](#eu-and-regional-hosts).
-
 ## Read State and Unread Counts
 
 Courier stores read state. The SDK changes it from the client, and Courier syncs it to every device where the user is signed in.
@@ -101,7 +87,7 @@ function NotificationBell() {
 
 With no `tenantId`, the unread count can include tenant-scoped messages the list doesn't show.
 
-From your backend you can only **archive** (`client.requests.archive(requestId)`), useful for clearing the inbox copy once the user acts on the email or push version of the same notification. There's no REST or server SDK call to mark a message read: read, unread and opened change only from a client signed in as that user, and Courier pushes the change to the user's other devices.
+There's no REST or server SDK call to mark a message read: read, unread, and opened change only from a client signed in as that user. From the backend you can only archive, see [inbox.md](../channels/inbox.md#cross-channel-sync).
 
 ## Organizing the Feed
 
@@ -128,11 +114,11 @@ A filter can't add a tag later. See [Feeds and Tabs](./react.md#feeds-and-tabs-v
 | Works, then silently stops | JWT expired; no refresh in place |
 | Empty inbox or `401`s on an EU workspace | Region mismatch. Mint at `https://api.eu.courier.com/auth/issue-token` (Node: `new Courier({ baseURL: "https://api.eu.courier.com" })`) and pass `apiUrls: getCourierApiUrlsForRegion("eu")` to `signIn`, see [EU and regional hosts](#eu-and-regional-hosts) |
 | Message sent but never arrives | Server-side, the send never reached the `inbox` channel. Work the [delivery-failure ladder](../../SKILL.md#debugging-a-delivery-failure); check the [inbox channel](../channels/inbox.md) and preferences |
-| Send succeeded, message invisible in a multi-tenant app | The send carried a `tenant_id` and the client signed in without one, or with another. Signed in without a `tenantId`, the inbox shows only messages sent without a tenant. Sign in with the send's `tenantId`. See [tenants.md](../guides/tenants.md#auto-infer-and-other-send-gotchas) |
+| Send succeeded, message invisible in a multi-tenant app | The send carried a `tenant_id` and the client signed in without one, or with another. Signed in without a `tenantId`, the inbox shows only messages sent without a tenant. Sign in with the send's `tenantId`. See [tenants.md](../guides/tenants.md#quick-reference) |
 
 ## Content Security Policy
 
-If the app sets a CSP, the inbox needs these directives. A missing one fails quietly, so check this before working the auth ladder.
+If the app sets a CSP, the inbox needs these directives.
 
 ### connect-src
 
@@ -151,7 +137,7 @@ Needs `'unsafe-inline'`. The components inject `<style>` elements at runtime, bo
 
 Nothing extra for a bundled npm install. There is no `eval`, no `Worker`, and no injected `<script>`. Two exceptions:
 
-- **`'unsafe-eval'` is required only if you use the HTML string attributes** `message-click`, `message-action-click`, or `message-long-press` on `<courier-inbox>` or `<courier-inbox-popup-menu>`. Those are compiled with `new Function()`, and under a normal CSP the throw is caught and logged, so the handler simply never fires. Prefer the element methods (`inbox.onMessageClick(fn)`) or the dispatched `CustomEvent`s of the same names, which need no `'unsafe-eval'`. Vue's `@message-click` already uses the event path.
+- **`'unsafe-eval'` only if you use the HTML string attributes** `message-click`, `message-action-click`, or `message-long-press`, which otherwise never fire, with no error. The element methods and `CustomEvent`s need nothing extra, see [web-components.md](./web-components.md#event-handling).
 - **Loading the components from a CDN** instead of bundling needs that CDN host, e.g. `script-src https://unpkg.com`, plus an import map for the packages' bare imports. See [web-components.md](./web-components.md#installation).
 
 ### img-src
@@ -174,19 +160,14 @@ Import `getCourierApiUrlsForRegion` (or the `EU_COURIER_API_URLS` / `DEFAULT_COU
 
 Mint the JWT in the same region. A US-minted token won't authenticate against EU hosts.
 
-React reaches `signIn` via `useCourier()` (`courier.shared.signIn`); web components use the exported `Courier` class (`Courier.shared.signIn`). See [react.md](./react.md), [web-components.md](./web-components.md).
-
-Getting the region wrong looks like an empty inbox. Update the CSP to the EU hosts at the same time.
+Update the CSP to the EU hosts at the same time.
 
 ## Where to Look
+
+Per-SDK files are in [Which SDK](#which-sdk). Also:
 
 | Task | File |
 |---|---|
 | Generating and refreshing JWTs | [auth.md](./auth.md) |
-| React: setup, popup, feeds, tabs, theming, custom components, toasts, hooks, SSR | [react.md](./react.md) |
-| Vue | [SDK docs](https://www.courier.com/docs/sdk-libraries/courier-vue-web) |
-| Angular | [SDK docs](https://www.courier.com/docs/sdk-libraries/courier-angular-web) |
-| Svelte, vanilla JS | [web-components.md](./web-components.md) |
-| React Native | [react-native.md](./react-native.md) |
 | Recognizing and migrating v7 | [legacy-v7.md](./legacy-v7.md) |
 | Sending *to* the inbox | [inbox.md](../channels/inbox.md) |

@@ -127,18 +127,7 @@ await client.notifications.putLocale("es", {
 });
 ```
 
-**Python:**
-```python
-client.notifications.put_locale(
-    "es",
-    id="nt_01abc123",
-    elements=[
-        {"id": "elem_01kx4h2jdafq8bk9b0a8x3rt5n", "title": "Pedido confirmado"},
-        {"id": "elem_01kx4h2jdafq8bk9b0d2c6yv9p", "content": "El pedido {{order_number}} está confirmado."},
-        {"id": "elem_01kx4h2jdafq8bk9b0g5k7hs1e", "content": "Ver pedido", "href": "https://acme.com/es/orders"},
-    ],
-)
-```
+Python: `client.notifications.put_locale("es", id="nt_01abc123", elements=[...])` with the same entries as dicts.
 
 **CLI:** `courier notifications put-locale --id nt_01abc123 --locale-id es --element '{id: elem_01kx4h2jdafq8bk9b0a8x3rt5n, title: Pedido confirmado}'`. **MCP:** `put_notification_locale`.
 
@@ -161,19 +150,6 @@ await client.send.message({
     data: { order_number: "1042" },
   },
 });
-```
-
-**Python:**
-```python
-client.notifications.publish("nt_01abc123")
-
-client.send.message(
-    message={
-        "to": {"user_id": "user_123", "locale": "es"},
-        "template": "nt_01abc123",
-        "data": {"order_number": "1042"},
-    }
-)
 ```
 
 Or store `locale` on the profile so every send picks it up. Check what was sent with `client.messages.content(messageId)` (see [Verify the Rendered Output](./templates.md#verify-the-rendered-output)).
@@ -217,15 +193,7 @@ A text element can hold its copy as a `content` string or as an `elements` array
 - remove the `_`-prefixed keys Design Studio adds inside `locales`
 - keep every element's `id` and `locales`
 
-[Edit a Template in Place](./templates.md#edit-a-template-in-place) has Node and Python code. For files, this jq filter does the same:
-
-```bash
-jq 'walk(if type == "object"
-         then with_entries(select(.key != "checksum" and (.key | startswith("_") | not)))
-         else . end)'
-```
-
-[templates-as-code.md](./templates-as-code.md) builds its repo-sync filter from it.
+[Edit a Template in Place](./templates.md#edit-a-template-in-place) has Node and Python code; for files, use the `$NORMALIZE` jq filter in [templates-as-code.md](./templates-as-code.md#1-local-files-are-the-source-of-truth).
 
 ### Remove a locale
 
@@ -237,9 +205,7 @@ A template that belongs to a journey takes the same `elements` body under the jo
 
 ## Design Studio AI Translation
 
-In Design Studio, open the template, click the globe icon, and add a language. With **Translate with AI** checked (the default), Courier translates every string: subject, headings, body, buttons. Review it side by side with the default and edit any string. When the default changes, Courier flags translations that may be out of date, and you re-translate them one at a time or all together. Publish to send them.
-
-AI Translation uses AI credits, available on the Business and Enterprise plans. Each translation request costs credits ([per-request cost](https://www.courier.com/docs/design/elemental/locales#translate-in-design-studio)), and a long template can take more than one request per locale. Reach for the API path when templates live in code, when translations come from a translation tool, or when the agent is doing the translating.
+In Design Studio the globe icon adds a language; **Translate with AI** (on by default) translates every string, flags translations that go stale when the default changes, and needs a publish to send. It uses AI credits (Business and Enterprise plans, [cost per request](https://www.courier.com/docs/design/elemental/locales#translate-in-design-studio)). Use the API path when templates live in code, translations come from a tool, or the agent translates.
 
 ## Workspace translation strings
 
