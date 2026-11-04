@@ -4,6 +4,8 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 
 **Rendering the inbox in your app is a separate concern**, JWT auth, the React / Vue / Angular / Web Component / React Native / iOS / Android / Flutter SDKs, read state, and real-time updates all live in [inbox/rendering.md](../inbox/rendering.md).
 
+**Contents:** [Quick Reference](#quick-reference) · [Setup](#setup) · [Sending to Inbox](#sending-to-inbox) · [Read State](#read-state) · [Cross-Channel Sync](#cross-channel-sync) · [Elemental Content for Inbox](#elemental-content-for-inbox) · [Troubleshooting](#troubleshooting) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

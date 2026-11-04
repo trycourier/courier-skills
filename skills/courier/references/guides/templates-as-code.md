@@ -9,6 +9,8 @@ page composes them into one repeatable workflow.
 local files → validate → diff → push → publish → verify → (rollback if needed)
 ```
 
+**Contents:** [Quick Reference](#quick-reference) · [1. Local files are the source of truth](#1-local-files-are-the-source-of-truth) · [2. Validate before pushing](#2-validate-before-pushing) · [3. Diff against the draft before pushing](#3-diff-against-the-draft-before-pushing) · [4. Push](#4-push) · [5. Publish deliberately](#5-publish-deliberately) · [6. Verify the release](#6-verify-the-release) · [7. Know your rollback](#7-know-your-rollback) · [Template aliases](#template-aliases) · [Promotion between workspaces](#promotion-between-workspaces) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

@@ -4,6 +4,8 @@ Notifications triggered by a user action, expected by the recipient, and require
 
 **Courier does all of these.** This file maps each use case to the Courier primitive that implements it. It deliberately does **not** prescribe cadence, copy, or subject lines, those are product decisions, not integration ones.
 
+**Contents:** [Quick Reference](#quick-reference) · [Sending an OTP](#sending-an-otp) · [A security alert with masked values](#a-security-alert-with-masked-values) · [A dunning sequence](#a-dunning-sequence) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

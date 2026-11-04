@@ -5,6 +5,8 @@ schedule the recipient picks. Instead of five emails about five comments, a reci
 one email at 9:00 listing all five. The topic owns everything: the digest template, the schedules,
 and the categories.
 
+**Contents:** [Quick Reference](#quick-reference) · [How it works](#how-it-works) · [Configure a topic's digest](#configure-a-topics-digest) · [Send events](#send-events) · [What the template receives](#what-the-template-receives) · [Per-recipient schedule](#per-recipient-schedule) · [Inspect and release](#inspect-and-release) · [Troubleshooting](#troubleshooting) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

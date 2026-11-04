@@ -1,5 +1,7 @@
 # WhatsApp Channel
 
+**Contents:** [Quick Reference](#quick-reference) · [WhatsApp Overview](#whatsapp-overview) · [Message Types](#message-types) · [Template Setup](#template-setup) · [Courier Integration](#courier-integration) · [Interactive Messages and Media](#interactive-messages-and-media) · [Template Best Practices](#template-best-practices) · [Pricing](#pricing) · [Troubleshooting](#troubleshooting) · [Multi-Channel with WhatsApp](#multi-channel-with-whatsapp) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

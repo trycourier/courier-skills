@@ -3,6 +3,8 @@
 Build a job, ingest recipients into it in batches, run it once. Use it for a large recipient set
 that isn't already a list or audience.
 
+**Contents:** [Quick Reference](#quick-reference) · [The Flow](#the-flow) · [Gotchas](#gotchas) · [Monitoring a Job](#monitoring-a-job) · [Version note](#version-note) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

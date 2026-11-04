@@ -1,5 +1,7 @@
 # Courier MCP Servers
 
+**Contents:** [Two servers. Pick by what you need](#two-servers-pick-by-what-you-need) · [API MCP Server](#api-mcp-server) · [Quick Reference](#quick-reference) · [Installation](#installation) · [Available Tools](#available-tools) · [Error Handling](#error-handling) · [Known gaps](#known-gaps) · [Related](#related)
+
 ## Two servers. Pick by what you need
 
 | | **API MCP** | **Docs MCP** |

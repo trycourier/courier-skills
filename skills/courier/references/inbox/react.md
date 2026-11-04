@@ -1,5 +1,7 @@
 # Courier Inbox for React
 
+**Contents:** [Quick Reference](#quick-reference) · [Installation](#installation) · [Basic Setup (v8)](#basic-setup-v8) · [Popup Menu (v8)](#popup-menu-v8) · [Feeds and Tabs (v8)](#feeds-and-tabs-v8) · [Customized Inbox (v8)](#customized-inbox-v8) · [Custom Components (v8)](#custom-components-v8) · [Click Handlers (v8)](#click-handlers-v8) · [Toast Notifications (v8)](#toast-notifications-v8) · [useCourier Hook (v8)](#usecourier-hook-v8) · [Next.js / SSR (v8)](#nextjs--ssr-v8)
+
 ## Quick Reference
 
 ### Rules

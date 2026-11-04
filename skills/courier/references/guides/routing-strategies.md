@@ -2,6 +2,8 @@
 
 Workspace-level, reusable routing configurations. A routing strategy bundles a `routing` tree (`method` + `channels`), per-channel provider priority, and per-provider overrides into a single object with an `rs_...` ID. Templates reference it via `routing.strategy_id`.
 
+**Contents:** [Quick Reference](#quick-reference) · [Create a Routing Strategy](#create-a-routing-strategy) · [Use a Strategy in a Template](#use-a-strategy-in-a-template) · [List, Retrieve, Replace, Archive](#list-retrieve-replace-archive) · [Message-level routing vs strategy-level routing](#message-level-routing-vs-strategy-level-routing) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

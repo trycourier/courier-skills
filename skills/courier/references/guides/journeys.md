@@ -4,6 +4,8 @@ Build multi-step notification workflows as code using directed acyclic graphs (D
 
 > **Journeys is Courier's orchestration product. Use it for every multi-step flow.** If you have existing Automations, see [Coming from Automations](#coming-from-automations).
 
+**Contents:** [Quick Reference](#quick-reference) · [Concepts](#concepts) · [Standard Workflow](#standard-workflow) · [Node Types Reference](#node-types-reference) · [Conditions](#conditions) · [Variable Interpolation](#variable-interpolation) · [Merge Strategies (Fetch Nodes)](#merge-strategies-fetch-nodes) · [Examples](#examples) · [Errors & Status Codes](#errors--status-codes) · [Cancelling Runs](#cancelling-runs) · [Debugging Runs](#debugging-runs) · [Coming from Automations](#coming-from-automations) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules
@@ -127,7 +129,7 @@ Webhook and audience triggers take no `schema`.
 
 Publishing the journey never publishes its templates. Publish each one yourself: create it with `"state": "PUBLISHED"`, or call `POST /journeys/{id}/templates/{templateId}/publish` after an edit. A run sends each template's published version.
 
-**Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the previously published version with nothing in the journey to indicate an edit is pending. Publish the template to make the edit live. `GET .../versions` shows the mismatch while it lasts:
+**Editing content does not change what the journey sends.** A journey-scoped template versions independently, so `PUT .../content` alone leaves the journey delivering the last published version with nothing in the journey to indicate an edit is pending. Publish the template to make the edit live. `GET .../versions` shows the mismatch while it lasts:
 
 ```json
 {
@@ -922,7 +924,7 @@ A **Cancel** node stops in-flight runs from within a journey. Its one setting is
 
 This is the pattern for "the newest run wins": a re-engagement journey whose first node cancels any earlier run for the same user, so a returning user doesn't receive two overlapping sequences.
 
-The Cancel node is configured in the journey builder. It is **not currently part of the API journey definition**, there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead. It has the same token semantics.
+The Cancel node is configured in the journey builder. It is **not part of the API journey definition**, there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead. It has the same token semantics.
 
 ## Debugging Runs
 

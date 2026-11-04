@@ -1,5 +1,7 @@
 # Slack Channel
 
+**Contents:** [Quick Reference](#quick-reference) · [Slack App Setup](#slack-app-setup) · [Message Types](#message-types) · [Block Kit Formatting](#block-kit-formatting) · [Handling Interactive Actions](#handling-interactive-actions) · [Courier Integration](#courier-integration) · [Formatting Reference](#formatting-reference) · [Threading](#threading) · [Scheduled Messages](#scheduled-messages) · [Common Use Cases](#common-use-cases) · [Troubleshooting](#troubleshooting) · [Slack in Journeys](#slack-in-journeys) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules
@@ -20,7 +22,7 @@
 - Using user token instead of bot token
 - Missing `chat:write.public` scope (can't post to channels bot isn't in)
 - Exceeding Slack's rate limits. Set a [send rate limit](../guides/providers.md#send-rate-limits) on the Slack provider config and Courier queues the excess. It covers the whole config, not one channel
-- Using deprecated attachments instead of Block Kit
+- Using legacy attachments instead of Block Kit
 - Not handling "channel_not_found" or "not_in_channel" errors
 - Sending walls of text instead of scannable Block Kit layouts
 

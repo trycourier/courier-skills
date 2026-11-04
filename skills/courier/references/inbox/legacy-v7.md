@@ -2,6 +2,8 @@
 
 > **For new projects: use v8.** See [rendering.md](./rendering.md). Only read this file when you are confirming that existing code is on v7 **and** the user has an explicit blocker preventing upgrade (e.g., Pins, or adding and removing tags from the client, neither of which v8 supports yet).
 
+**Contents:** [Quick Reference](#quick-reference) · [Version Detection](#version-detection) · [v7 Shape (for recognition only)](#v7-shape-for-recognition-only) · [Key v7 → v8 Differences](#key-v7--v8-differences) · [Migration Path](#migration-path) · [Related](#related)
+
 ## Quick Reference
 
 ### When to use this file

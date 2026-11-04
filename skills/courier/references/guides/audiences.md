@@ -4,6 +4,8 @@ An audience is a **filter whose membership Courier stores and keeps current**. S
 and Courier fans out to the stored members. Use it for dynamic segments (trial users, a
 plan tier, an activity cohort); use a **list** when you want an explicit, managed set of subscribers.
 
+**Contents:** [Quick Reference](#quick-reference) · [Create or update (upsert)](#create-or-update-upsert) · [Read, list, members, delete](#read-list-members-delete) · [Send to an audience](#send-to-an-audience)
+
 ## Quick Reference
 
 ### Rules
