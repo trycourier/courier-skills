@@ -33,3 +33,9 @@ Agents only learn what the skill routes them to. For every new public endpoint o
 - a row in `references/guides/cli.md` if the CLI has a command
 
 Don't state that MCP lacks a tool as a fact anywhere in the skill. The one place for lagging coverage is `mcp.md` **Known gaps**, phrased as "check `tools/list` first, then fall back to the SDK or CLI", and remove a row as soon as the tool ships.
+
+## With every change
+
+- A reference file over 100 lines opens with a one-line `**Contents:**` list of its sections. When you add, rename or remove a section, update that line.
+- Bump `version` in `.claude-plugin/marketplace.json` in every PR that changes `skills/courier/`: a patch for corrections, a minor version for new coverage. There's no changelog file; the commit subject says what changed.
+- Keep PR descriptions short: what changed and why, in a few lines.
