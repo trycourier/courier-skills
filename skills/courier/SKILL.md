@@ -39,7 +39,7 @@ If the project already has `@trycourier/courier` or `trycourier` installed, skip
 Above 500 ad-hoc recipients, a `to` array returns `400 message.to has N recipients. Max is 500`.
 Use a list, an audience, or a [Bulk API job](./references/guides/bulk.md) instead.
 
-Multi-tenant sends carry the tenant as `tenant_id`, either on the recipient (`to.tenant_id`) or in `message.context.tenant_id`. Both load that tenant's brand and preference defaults; pick one and use it consistently.
+Multi-tenant sends carry the tenant in a `context`, either on the recipient (`to: { user_id, context: { tenant_id } }`) or on the message (`message.context.tenant_id`). Both load that tenant's brand and preference defaults; pick one and use it consistently. Never put `tenant_id` directly in `to` beside `user_id`: the SDK types allow it, but the API returns `400 'message.to' cannot contain both 'tenant_id' and 'user_id'`. A `to` with only `tenant_id` sends to every member of the tenant.
 
 ## Canonical SDK Shape
 

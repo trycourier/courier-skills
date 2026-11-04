@@ -84,7 +84,7 @@ Brand resolution follows the send type, giving you precise control over branding
 2. **Template sends:** set the template's `brand` on create (`brand: {id: "brand_abc"}`) or
    in the dashboard.
 3. **Tenant sends:** set `brand_id` on the tenant; the send carries the tenant via
-   `to.tenant_id` or `message.context.tenant_id` — one template, per-customer branding. See
+   `to.context.tenant_id` or `message.context.tenant_id`, so one template gives per-customer branding. See
    [patterns.md](./patterns.md).
 
 ## Sending unbranded email

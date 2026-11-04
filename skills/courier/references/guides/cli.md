@@ -212,7 +212,7 @@ courier tenants update \
 courier users:tenants add-single --user-id "user-123" --tenant-id "acme-corp"
 
 courier send message \
-  --message.to '{"user_id":"user-123","tenant_id":"acme-corp"}' \
+  --message.to '{"user_id":"user-123","context":{"tenant_id":"acme-corp"}}' \
   --message.template "welcome-email"
 ```
 

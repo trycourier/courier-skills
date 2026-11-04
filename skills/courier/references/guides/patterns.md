@@ -245,7 +245,7 @@ These nodes go in the `PUT /journeys/{id}` body once the journey and its templat
   "id": "check-activated",
   "type": "fetch",
   "method": "get",
-  "url": "https://api.yourapp.com/users/{{user_id}}/status",
+  "url": "https://api.yourapp.com/users/{{recipient}}/status",
   "merge_strategy": "overwrite"
 },
 {
@@ -386,7 +386,7 @@ await client.users.tenants.addSingle("acme-corp", { user_id: "user-123" });
 
 await client.send.message({
   message: {
-    to: { user_id: "user-123", tenant_id: "acme-corp" },
+    to: { user_id: "user-123", context: { tenant_id: "acme-corp" } },
     template: "nt_01kmrbw4q7x1v5d8c2n6w9hj",
     data: { name: "Jane" },
   },
@@ -407,7 +407,7 @@ client.users.tenants.add_single("acme-corp", user_id="user-123")
 
 client.send.message(
     message={
-        "to": {"user_id": "user-123", "tenant_id": "acme-corp"},
+        "to": {"user_id": "user-123", "context": {"tenant_id": "acme-corp"}},
         "template": "nt_01kmrbw4q7x1v5d8c2n6w9hj",
         "data": {"name": "Jane"},
     }

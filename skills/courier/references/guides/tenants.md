@@ -20,7 +20,7 @@ What lives where on a tenant:
 Two things tenants are **not**: a way to group recipients (use a list or audience for "send this to
 these people" — tenants isolate customers, they don't gather people), and a permissions system
 (authorization stays in your application). A user can belong to many tenants, with independent
-preferences, branding, and Inbox feeds in each; a send names both `user_id` and `tenant_id` — the
+preferences, branding, and Inbox feeds in each; a send names both the `user_id` and a `context.tenant_id`. The
 user determines who receives, the tenant determines which context builds the message.
 
 To segment delivery data by customer afterwards, filter the message log by tenant:
@@ -33,9 +33,9 @@ provider records there is the *Microsoft* tenant, not yours.
 ### Rules
 - `tenants.update` creates or replaces by the id you choose; `name` is required. It replaces the whole tenant: `properties`, `brand_id`, `user_profile`, and `default_preferences` you leave out are cleared, so send every field you want to keep.
 - `brand_id: null` returns `400`, even though the SDK types allow `null`. To remove a brand, omit `brand_id`.
-- Four layers load per send, as a sliding window; merging is parent first, child overwrites per key.
+- Four layers load per send, as a sliding window; merging is parent first, child overwrites per key. `default_preferences` is the exception: a child with any items replaces the parent's whole list, see [Hierarchy and merging](#hierarchy-and-merging).
 - An inbox client signed in with a `tenantId` shows only that tenant's messages. Signed in without one, it shows only messages sent without a tenant. Sign in with the `tenantId` the send carried.
-- Pass the tenant on the recipient (`to.tenant_id`) or in `message.context.tenant_id`, and use one form consistently.
+- Pass the tenant on the recipient (`to.context.tenant_id`) or in `message.context.tenant_id`, and use one form consistently. `to: { user_id, tenant_id }` returns `400`, even though the SDK types allow it. `to: { tenant_id }` alone sends to every member of the tenant.
 
 ### Common Mistakes
 - Signing the inbox client in without a `tenantId`, or with a different one, after a tenant-scoped send. The message never shows and nothing fails.
@@ -71,6 +71,9 @@ A tenant carries `name`, `brand_id`, `default_preferences`, `properties`, `paren
   as `{{profile.key}}`; `{{key}}` renders empty
 - **Merging is parent first, child overwrites per key.** `brand_id` and `user_profile` keys from a
   child win over the parent's
+- **`default_preferences` inherits as one list, not per topic.** A child with no items uses its
+  parent's list. A child with any items replaces it, and topics missing from the child's list fall
+  back to their workspace default, not the parent's
 - **Profile precedence at send time:** tenant-hierarchy `user_profile` merge, then the user's stored
   Courier profile, then the send call's own `profile`, which wins
 
@@ -113,7 +116,7 @@ await client.users.tenants.addSingle("acme-corp", { user_id: "user-123" });
 
 await client.send.message({
   message: {
-    to: { user_id: "user-123", tenant_id: "acme-corp" },   // or message.context.tenant_id
+    to: { user_id: "user-123", context: { tenant_id: "acme-corp" } },   // or message.context.tenant_id
     template: "invoice-ready",
     data: { amount: "$1,200" },
   },
@@ -121,7 +124,7 @@ await client.send.message({
 ```
 
 When the send carries `tenant_id`, Courier applies that tenant's `brand_id` and preference defaults to
-the rendered template automatically. `tenant_id` is valid on the recipient (`to.tenant_id`) or in
+the rendered template automatically. `tenant_id` is valid in the recipient's context (`to.context.tenant_id`) or in
 `message.context.tenant_id`. Pick one and use it consistently.
 
 ## Per-tenant preference overrides
@@ -137,6 +140,11 @@ await client.tenants.preferences.items.update("topic-abc", {
 });
 await client.tenants.preferences.items.delete("topic-abc", { tenant_id: "acme-corp" });
 ```
+
+On a child tenant, the first `items.update` starts the child's own list, so every topic the parent
+set and the child doesn't falls back to its workspace default. To change one topic and keep the
+rest, write the parent's other items to the child too, and update the child when the parent's list
+changes.
 
 ## Tenant-scoped templates
 
