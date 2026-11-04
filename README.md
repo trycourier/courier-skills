@@ -35,14 +35,14 @@ One `send` call does the whole job. You address a user (or a list, audience, or 
 npx skills add trycourier/courier-skills
 ```
 
-**Claude Code** (plugin; self-updates and ships the Courier docs MCP):
+**Claude Code** (plugin; ships the Courier docs MCP):
 
 ```bash
 /plugin marketplace add trycourier/courier-skills
 /plugin install courier@courier-skills
 ```
 
-Run `/plugin update courier@courier-skills` to pick up changes. The plugin ships the [Courier docs MCP server](https://www.courier.com/docs/mcp) (`.mcp.json`), so the agent can look things up with no extra setup.
+To pick up changes, run `claude plugin update courier@courier-skills` in your shell, or select **Update now** for the plugin on the **Installed** tab in `/plugin`. Auto-update is off by default for this marketplace. The plugin ships the [Courier docs MCP server](https://www.courier.com/docs/mcp) (`.mcp.json`), so the agent can look things up with no extra setup.
 
 **Manual clone** (any tool that reads a skills directory):
 
@@ -73,11 +73,11 @@ The same shape sends email, SMS, push, Slack, Teams, WhatsApp, or in-app. The ch
 
 ## What the skill covers
 
-**Channels.** Email (deliverability, SPF/DKIM/DMARC), SMS (10DLC registration, segment math, deliverability), push (APNs and FCM, device tokens), in-app inbox (JWT auth, plus React, Web Components, React Native, iOS, Android, and Flutter rendering), Slack (Block Kit, OAuth), Microsoft Teams (Adaptive Cards), and WhatsApp (approved templates, the 24-hour window).
+**Channels.** Email (deliverability, SPF/DKIM/DMARC), SMS (10DLC registration, segment math, deliverability), push (APNs and FCM, device tokens), in-app inbox (JWT auth, plus React, Web Components, React Native, iOS, Android, and Flutter rendering), Slack (Block Kit, OAuth), Microsoft Teams (Adaptive Cards), and WhatsApp through Twilio (Content SIDs, the 24-hour window).
 
 **Notification types.** [Transactional](./skills/courier/references/transactional.md) (password reset, OTP, orders, receipts, dunning, security alerts) and [lifecycle marketing](./skills/courier/references/lifecycle-marketing.md) (onboarding, adoption, digests, win-back, campaigns). Each is mapped to the Courier primitive that implements it.
 
-**Core platform.** Quickstart, journeys (delays, branches, batching, throttling, A/B experiments, cancellation), templates and Elemental, template translations (the API workflow and Design Studio AI Translation), Device Preview (screenshots of an email on real clients), multi-channel routing, preferences and preference sections (including tracking preference changes by API and webhook), digests (topic schedules, categories, and early release), template delivery metrics, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses), webhooks in both directions (outbound events and signature verification, inbound webhooks and journey triggers), sending to many recipients (list and audience fan-out, the Bulk API), routing strategies, and provider configuration.
+**Core platform.** Quickstart, journeys (delays, branches, batching, throttling, A/B experiments, cancellation), templates and Elemental, template translations (the API workflow and Design Studio AI Translation), Device Preview (screenshots of an email on real clients), multi-channel routing, preferences and preference sections (including tracking preference changes by API and webhook), digests (topic schedules, categories, and early release), template delivery metrics, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses), webhooks in both directions (outbound events and signature verification, inbound webhooks and journey triggers), sending to many recipients (list and audience fan-out, the Bulk API), routing strategies, and provider configuration (including send rate limits).
 
 **Tooling.** The CLI for ad-hoc operations and delivery debugging, and MCP: the [API server](https://mcp.courier.com) to operate a workspace and the [docs server](https://www.courier.com/docs/mcp) to look things up.
 
@@ -143,7 +143,7 @@ Courier is provider-agnostic. You write one `send` call and Courier delivers thr
 | SMS | Twilio, Vonage, Telnyx, Sinch, Plivo, MessageBird, MessageMedia, Azure SMS, TextUs, Africa's Talking, SMSCentral |
 | Push | Firebase Cloud Messaging (FCM), Apple Push Notification service (APNs), Expo, OneSignal, Airship |
 | Chat | Slack, Microsoft Teams |
-| Messaging | WhatsApp Business API |
+| Messaging | WhatsApp (through Twilio) |
 | In-app | Courier Inbox |
 
 Courier supports 50+ providers in total. For the complete, current list see the [Courier integrations docs](https://www.courier.com/docs/integrations/overview), or call `client.providers.catalog.list()` for the live catalog in your workspace.
