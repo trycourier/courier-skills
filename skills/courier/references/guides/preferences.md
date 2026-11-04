@@ -3,6 +3,8 @@
 Subscription topics let users control which notifications they get and on which channels. Courier
 checks them on every send, so the enforcement lives in Courier rather than in your code.
 
+**Contents:** [Quick Reference](#quick-reference) · [The Model](#the-model) · [Setting It Up](#setting-it-up) · [User Preferences API](#user-preferences-api) · [Channel Selection](#channel-selection) · [Tenant Preferences (Multi-Tenant)](#tenant-preferences-multi-tenant) · [Hosted Preference Center](#hosted-preference-center) · [Digest Schedules](#digest-schedules) · [Embedded Preferences](#embedded-preferences) · [Tracking Preference Changes](#tracking-preference-changes) · [Workspace Sections and Topics API](#workspace-sections-and-topics-api) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

@@ -1,5 +1,7 @@
 # SMS Channel
 
+**Contents:** [Quick Reference](#quick-reference) · [Setup Requirements](#setup-requirements) · [Message Design](#message-design) · [Courier Integration](#courier-integration) · [Phone Number Management](#phone-number-management) · [Opt-Out Handling](#opt-out-handling) · [Number Types](#number-types) · [Deliverability](#deliverability) · [Timing Considerations](#timing-considerations) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules
@@ -81,7 +83,7 @@ Best practices for sending SMS that delivers and engages users.
 
 ### 10DLC Registration (US)
 
-**Required** for A2P (Application-to-Person) SMS in the US since 2023.
+**Required** for A2P (Application-to-Person) SMS in the US.
 
 | Step | Timeline |
 |------|----------|

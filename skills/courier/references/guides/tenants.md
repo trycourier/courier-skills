@@ -28,6 +28,8 @@ To segment delivery data by customer afterwards, filter the message log by tenan
 `providers[].reference` for this — its contents are provider-specific, and the `tenantId` the MS Teams
 provider records there is the *Microsoft* tenant, not yours.
 
+**Contents:** [Quick Reference](#quick-reference) · [Create or replace a tenant](#create-or-replace-a-tenant) · [Associate users, then send](#associate-users-then-send) · [Per-tenant preference overrides](#per-tenant-preference-overrides) · [Tenant-scoped templates](#tenant-scoped-templates)
+
 ## Quick Reference
 
 ### Rules

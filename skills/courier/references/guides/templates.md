@@ -1,5 +1,7 @@
 # Templates & Elemental
 
+**Contents:** [Quick Reference](#quick-reference) · [Inline vs Templated Sending](#inline-vs-templated-sending) · [Template Aliases](#template-aliases) · [Template CRUD, the Notifications API](#template-crud-the-notifications-api) · [Elemental Content Format](#elemental-content-format) · [Element Types (reference moved)](#element-types-reference-moved) · [Control Flow (reference moved)](#control-flow-reference-moved) · [Localization (reference moved)](#localization-reference-moved) · [Full Lifecycle Example](#full-lifecycle-example) · [Workspace vs Tenant Templates](#workspace-vs-tenant-templates) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

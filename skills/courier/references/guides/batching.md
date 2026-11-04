@@ -1,5 +1,7 @@
 # Notification Batching
 
+**Contents:** [Quick Reference](#quick-reference) · [Server-Side Batching](#server-side-batching) · [The batch node](#the-batch-node) · [App-side aggregation (only when the nodes don't fit)](#app-side-aggregation-only-when-the-nodes-dont-fit) · [Batch Data in Templates](#batch-data-in-templates) · [Batch Cancellation](#batch-cancellation) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

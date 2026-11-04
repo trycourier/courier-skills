@@ -4,6 +4,8 @@ The in-app notification center. Unlike every other Courier channel, the inbox re
 
 Sending a message *to* the inbox is server-side. See [inbox.md](../channels/inbox.md).
 
+**Contents:** [Quick Reference](#quick-reference) · [The Model](#the-model) · [Which SDK](#which-sdk) · [Version Check Before You Write Code](#version-check-before-you-write-code) · [Read State and Unread Counts](#read-state-and-unread-counts) · [Organizing the Feed](#organizing-the-feed) · [Debugging](#debugging) · [Content Security Policy](#content-security-policy) · [EU and regional hosts](#eu-and-regional-hosts) · [Where to Look](#where-to-look)
+
 ## Quick Reference
 
 ### Common Mistakes

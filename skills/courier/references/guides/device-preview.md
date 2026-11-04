@@ -4,6 +4,8 @@ Device Preview renders a template's email on real email clients (Outlook, Gmail,
 
 Examples assume an initialized `client`. Install and API key setup are in [quickstart.md](./quickstart.md).
 
+**Contents:** [Quick Reference](#quick-reference) · [Device Preview or rendered output?](#device-preview-or-rendered-output) · [Run a preview](#run-a-preview) · [Review loop for agents](#review-loop-for-agents) · [Localized previews](#localized-previews) · [Choose devices](#choose-devices) · [Preview HTML from another platform](#preview-html-from-another-platform) · [Errors](#errors) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

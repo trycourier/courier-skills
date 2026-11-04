@@ -1,5 +1,7 @@
 # Multi-Channel Routing
 
+**Contents:** [Quick Reference](#quick-reference) · [Routing Methods](#routing-methods) · [Channel Selection Examples](#channel-selection-examples) · [Escalation Patterns](#escalation-patterns) · [Channel-Specific Formatting](#channel-specific-formatting) · [User Preferences Integration](#user-preferences-integration) · [Cross-Channel Coordination](#cross-channel-coordination) · [Provider Failover](#provider-failover) · [Monitoring & Analytics](#monitoring--analytics) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

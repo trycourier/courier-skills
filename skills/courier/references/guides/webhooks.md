@@ -14,6 +14,8 @@ Neither is a send path. To *send* a notification over an HTTP callback, that's t
 
 <a id="outbound-webhooks"></a>
 
+**Contents:** [Quick Reference](#quick-reference) · [Outbound Webhooks](#outbound-webhooks) · [Inbound Webhooks](#inbound-webhooks) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules
@@ -377,7 +379,7 @@ Two reserved fields:
 
 | Field | Purpose |
 |---|---|
-| `event` | Event name, used to pick which events start a journey. Must be a string. Absent → the event is named `custom`. |
+| `event` | Event name. It picks which events start a journey. Must be a string. Absent → the event is named `custom`. |
 | `userId` | Identifies the recipient. Courier resolves the user and loads their profile. String or number, coerced to string. |
 
 Every other field passes through as data.

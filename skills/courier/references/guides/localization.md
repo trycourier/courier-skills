@@ -4,6 +4,8 @@ A template holds its content once, in the default language, and each element car
 
 Examples assume an initialized `client`. Install and API key setup are in [quickstart.md](./quickstart.md).
 
+**Contents:** [Quick Reference](#quick-reference) · [How it works](#how-it-works) · [Translate a template with the API](#translate-a-template-with-the-api) · [Which fields a locale can override](#which-fields-a-locale-can-override) · [Other write paths](#other-write-paths) · [Design Studio AI Translation](#design-studio-ai-translation) · [Workspace translation strings](#workspace-translation-strings) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

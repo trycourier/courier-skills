@@ -2,10 +2,12 @@
 
 > **Reading order:** This file covers **concepts and failure modes** (idempotency semantics, retry strategy, delivery statuses, provider failover). For **copy-paste code** implementing these patterns in TypeScript, Python, CLI, and curl, see [Patterns](./patterns.md). For webhooks in either direction, see [Webhooks](./webhooks.md).
 
+**Contents:** [Quick Reference](#quick-reference) · [Idempotency](#idempotency) · [Retry Logic](#retry-logic) · [Error Handling](#error-handling) · [Webhooks](#webhooks) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules
-- ALWAYS use idempotency keys for transactional notifications
+- ALWAYS use idempotency keys for transactional notifications, so a retried request returns the first response instead of sending the message twice
 - Courier keeps idempotency keys for 25 hours by default. Send `x-idempotency-expiration` (ISO 8601) to keep one up to a year
 - The SDK client already retries `408`, `409`, `429`, `5xx`, and connection errors (`maxRetries` defaults to 2). Tune it rather than wrapping calls in your own loop
 - Other `4xx` are not retried by anyone. Fix the request instead

@@ -12,7 +12,7 @@ package stubs. When they disagree with this file, they win. See
 (`npm ls @trycourier/courier`, `pip show trycourier`) and verify shapes against its types.
 If it trails the latest release, recommend upgrading (`npm install @trycourier/courier@latest`);
 a major-version jump is a breaking migration rather than a silent bump, so flag it as one and
-check the SDK changelog.
+check the SDK's release notes.
 
 Minor versions have moved whole namespaces before now. If a namespace in this table is
 `undefined` on the installed client, check the installed version and upgrade before concluding

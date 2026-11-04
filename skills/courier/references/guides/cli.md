@@ -1,5 +1,7 @@
 # Courier CLI
 
+**Contents:** [Quick Reference](#quick-reference) · [Installation](#installation) · [Authentication](#authentication) · [Inline Sends](#inline-sends) · [User Profiles](#user-profiles) · [Lists and Bulk](#lists-and-bulk) · [Tenants, Journeys, and Preferences](#tenants-journeys-and-preferences) · [Debugging Workflow](#debugging-workflow) · [Template Metrics](#template-metrics) · [Machine-Readable Output](#machine-readable-output) · [Zero-Config Agent Pattern](#zero-config-agent-pattern) · [CI/CD Integration](#cicd-integration) · [Global Flags](#global-flags) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

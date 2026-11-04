@@ -1,5 +1,7 @@
 # Email Channel
 
+**Contents:** [Quick Reference](#quick-reference) · [Email Authentication](#email-authentication) · [Sender Configuration](#sender-configuration) · [Sender Reputation](#sender-reputation) · [Courier Integration](#courier-integration) · [Link Tracking](#link-tracking) · [Bounce Handling](#bounce-handling) · [Troubleshooting](#troubleshooting) · [Testing](#testing) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

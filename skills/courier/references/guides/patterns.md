@@ -4,6 +4,8 @@ Copy-paste implementations for cross-cutting concerns that apply across notifica
 
 > **Reading order:** This file is the copy-paste companion. The **concepts** behind idempotency, webhooks, retries, and failover (when to use which pattern, and the failure modes) live in [Reliability](./reliability.md). Read that first, then come back here for code.
 
+**Contents:** [Quick Reference](#quick-reference) · [Idempotency Keys](#idempotency-keys) · [Multi-Channel Fallback](#multi-channel-fallback) · [Webhook Handler](#webhook-handler) · [Retries (the SDK already does this)](#retries-the-sdk-already-does-this) · [Sequence Cancellation](#sequence-cancellation) · [Lists and Audience Sends](#lists-and-audience-sends) · [Tenants (Multi-Tenant / B2B)](#tenants-multi-tenant--b2b) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

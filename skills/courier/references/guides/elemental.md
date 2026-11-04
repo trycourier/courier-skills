@@ -4,6 +4,8 @@ Elemental is Courier's JSON-based templating language. It defines the `content` 
 
 > **Where to read what:** This file is the element-by-element reference. For the **template lifecycle** (create, publish, version, archive via `/notifications`) and inline-vs-templated decision, see [Templates](./templates.md). For a full end-to-end example combining both, see the "Full Lifecycle Example" section in [Templates](./templates.md).
 
+**Contents:** [Quick Reference](#quick-reference) · [Structure](#structure) · [Element Types](#element-types) · [Control Flow](#control-flow) · [Localization](#localization) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

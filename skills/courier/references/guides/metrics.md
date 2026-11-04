@@ -4,6 +4,8 @@
 
 These are aggregates for one template. For one message's timeline, use [cli.md](./cli.md) and Message Logs instead.
 
+**Contents:** [Quick Reference](#quick-reference) · [Pick a window and granularity](#pick-a-window-and-granularity) · [Read the response](#read-the-response) · [Fetch and roll up](#fetch-and-roll-up) · [Break out by channel](#break-out-by-channel) · [Plan limits and rate limits](#plan-limits-and-rate-limits) · [Errors](#errors) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

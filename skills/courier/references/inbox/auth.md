@@ -2,6 +2,8 @@
 
 The inbox is the only Courier channel that runs client-side, so it is the only one that needs a per-user credential. Generate it server-side; never ship an API key to a browser.
 
+**Contents:** [Quick Reference](#quick-reference) · [Authentication](#authentication) · [Minting a JWT](#minting-a-jwt) · [JWT Refresh Strategy](#jwt-refresh-strategy)
+
 ## Quick Reference
 
 ### Rules
@@ -24,7 +26,7 @@ Courier uses three types of credentials in different contexts:
 | Credential | Where used | Exposure |
 |------------|-----------|----------|
 | **API Key** | Server-side SDK, CLI, raw HTTP (`COURIER_API_KEY` env var) | Never expose to client |
-| **Client Key** | Deprecated v7 setups only | Safe for client-side, limited scope |
+| **Client Key** | Legacy v7 setups only | Safe for client-side, limited scope |
 | **JWT** | Inbox, Preferences, Toast components | Generated server-side, passed to client |
 
 The API Key is the same key regardless of which env var you store it in. The SDK and CLI just look for different variable names by convention.

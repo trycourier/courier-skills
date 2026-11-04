@@ -1,5 +1,7 @@
 # Courier Inbox Web Components
 
+**Contents:** [Quick Reference](#quick-reference) · [Installation](#installation) · [Basic Setup](#basic-setup) · [Popup Menu](#popup-menu) · [Toast Notifications](#toast-notifications) · [Feeds, Tabs, and Theming](#feeds-tabs-and-theming) · [Event Handling](#event-handling) · [Unread Badge (Vanilla JS)](#unread-badge-vanilla-js) · [Web Components API Reference](#web-components-api-reference)
+
 ## Quick Reference
 
 ### Rules

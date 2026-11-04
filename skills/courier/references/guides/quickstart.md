@@ -2,6 +2,8 @@
 
 Send your first notification with Courier using the SDK, CLI, or curl.
 
+**Contents:** [Quick Reference](#quick-reference) · [1. Get an API Key](#1-get-an-api-key) · [2. Install and Authenticate](#2-install-and-authenticate) · [3. Send a Message](#3-send-a-message) · [4. Check Delivery Status](#4-check-delivery-status) · [5. Send with a Template](#5-send-with-a-template) · [Common First-Run Errors](#common-first-run-errors) · [What's Next](#whats-next) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

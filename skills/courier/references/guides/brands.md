@@ -4,6 +4,8 @@ A brand is reusable visual styling (colors, logo, email header/footer, in-app wi
 that Courier applies when rendering a template. Define it once, attach it, and every send
 picks it up without touching message content.
 
+**Contents:** [Quick Reference](#quick-reference) · [The Brand object](#the-brand-object) · [SDK methods](#sdk-methods) · [Brand resolution by send type](#brand-resolution-by-send-type) · [Sending unbranded email](#sending-unbranded-email)
+
 ## Quick Reference
 
 ### Rules

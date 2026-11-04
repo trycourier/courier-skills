@@ -2,6 +2,8 @@
 
 Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `/providers` API. A "provider" here is an instance of a Courier integration in your workspace, i.e. the thing that holds the API key, `from_address`, `messaging_service_sid`, and so on, that Courier uses when delivering a message through that channel.
 
+**Contents:** [Quick Reference](#quick-reference) · [Discover Required Settings (/providers/catalog)](#discover-required-settings-providerscatalog) · [Create a Provider](#create-a-provider) · [List, Retrieve, Update, Replace, Delete](#list-retrieve-update-replace-delete) · [Send rate limits](#send-rate-limits) · [Per-send provider overrides (recap)](#per-send-provider-overrides-recap) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules

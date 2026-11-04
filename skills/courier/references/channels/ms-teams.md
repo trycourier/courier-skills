@@ -1,5 +1,7 @@
 # Microsoft Teams Channel
 
+**Contents:** [Quick Reference](#quick-reference) · [Setup](#setup) · [Azure AD App Registration](#azure-ad-app-registration) · [Adaptive Cards](#adaptive-cards) · [Courier Integration](#courier-integration) · [Message Formatting](#message-formatting) · [Common Use Cases](#common-use-cases) · [Handling Action.Execute Responses](#handling-actionexecute-responses) · [Proactive Messaging](#proactive-messaging) · [Adaptive Card Designer](#adaptive-card-designer) · [Troubleshooting](#troubleshooting) · [Teams in Journeys](#teams-in-journeys) · [Related](#related)
+
 ## Quick Reference
 
 ### Rules
@@ -75,7 +77,7 @@ Setup creates two app registrations. The first (multitenant) only links the Team
 2. App registrations → New registration
 3. Name: "Acme Notifications"
 4. Supported account types: "Accounts in any organizational directory"
-5. Redirect URI: Leave blank for now
+5. Redirect URI: leave it blank
 
 ### Add API Permissions (only for `email` or `channel_name`)
 
