@@ -4,7 +4,7 @@
 
 These are aggregates for one template. For one message's timeline, use [cli.md](./cli.md) and Message Logs instead.
 
-**Contents:** [Quick Reference](#quick-reference) · [Pick a window and granularity](#pick-a-window-and-granularity) · [Read the response](#read-the-response) · [Fetch and roll up](#fetch-and-roll-up) · [Break out by channel](#break-out-by-channel) · [Plan limits and rate limits](#plan-limits-and-rate-limits) · [Errors](#errors) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [Pick a window and granularity](#pick-a-window-and-granularity) · [Read the response](#read-the-response) · [Fetch and roll up](#fetch-and-roll-up) · [Break out by channel](#break-out-by-channel) · [Plan limits and rate limits](#plan-limits-and-rate-limits) · [Errors](#errors) · [Observability exports](#observability-exports) · [Related](#related)
 
 ## Quick Reference
 
@@ -179,6 +179,10 @@ See [templates.md](./templates.md#list-templates) for the list call itself.
 | 402 | `payment_required` | The window reaches further back than the plan's cap. Not a truncated series |
 | 429 | `rate_limit_exceeded` | Too many requests per second. Wait the seconds in `Retry-After` |
 | 503 | `service_unavailable` | Temporary. Retry after the seconds in `Retry-After` |
+
+## Observability exports
+
+To chart and alert on delivery health in the monitoring tool you already use, send Courier's metrics and logs there instead of polling this API. Courier exports to **Datadog** (API key and site, with a ready-made dashboard), **New Relic** (license key in the API Key field; set the metrics and logs endpoints for an EU account) and any **OpenTelemetry** endpoint. Metrics are aggregated over 10-second windows and tagged with the environment (`production` or `test`); Datadog gets per-channel `courier.<channel>.error` and `.undeliverable` counts. These integrations need the Enterprise plan. Use [outbound webhooks](./webhooks.md) instead when your own code must act on each event.
 
 ## Related
 

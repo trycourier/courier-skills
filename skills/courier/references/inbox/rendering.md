@@ -101,7 +101,7 @@ function NotificationBell() {
 
 With no `tenantId`, the unread count can include tenant-scoped messages the list doesn't show.
 
-From your backend you can only **archive** (`client.requests.archive(requestId)`), useful for clearing the inbox copy once the user acts on the email or push version of the same notification.
+From your backend you can only **archive** (`client.requests.archive(requestId)`), useful for clearing the inbox copy once the user acts on the email or push version of the same notification. There's no REST or server SDK call to mark a message read: read, unread and opened change only from a client signed in as that user, and Courier pushes the change to the user's other devices.
 
 ## Organizing the Feed
 
@@ -128,7 +128,7 @@ A filter can't add a tag later. See [Feeds and Tabs](./react.md#feeds-and-tabs-v
 | Works, then silently stops | JWT expired; no refresh in place |
 | Empty inbox or `401`s on an EU workspace | Region mismatch. Mint at `https://api.eu.courier.com/auth/issue-token` (Node: `new Courier({ baseURL: "https://api.eu.courier.com" })`) and pass `apiUrls: getCourierApiUrlsForRegion("eu")` to `signIn`, see [EU and regional hosts](#eu-and-regional-hosts) |
 | Message sent but never arrives | Server-side, the send never reached the `inbox` channel. Work the [delivery-failure ladder](../../SKILL.md#debugging-a-delivery-failure); check the [inbox channel](../channels/inbox.md) and preferences |
-| Send succeeded, message invisible in a multi-tenant app | The send carried a `tenant_id` and the client signed in without one, or with another. Signed in without a `tenantId`, the inbox shows only messages sent without a tenant. Sign in with the send's `tenantId`. See [tenants.md](../guides/tenants.md#auto-infer-and-two-silent-gotchas) |
+| Send succeeded, message invisible in a multi-tenant app | The send carried a `tenant_id` and the client signed in without one, or with another. Signed in without a `tenantId`, the inbox shows only messages sent without a tenant. Sign in with the send's `tenantId`. See [tenants.md](../guides/tenants.md#auto-infer-and-other-send-gotchas) |
 
 ## Content Security Policy
 

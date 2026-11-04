@@ -583,6 +583,28 @@ await client.send.message({
 });
 ```
 
+### Reply in a thread
+
+Every Teams send records an `activityId` and a `conversationId` on its `provider:sent` event (in the message's history, the message log, and webhooks). You don't need to wait for `DELIVERED`. Pass them back to reply under that message:
+
+```json
+{
+  "message": {
+    "template": "nt_01kmrbtw1v4q8x2c6d9n5j7h",
+    "to": {
+      "ms_teams": {
+        "reply_to_activity_id": "1756945821955",
+        "conversation_id": "19:a52e21710de34c65b9f2e09ededaad2a@thread.skype",
+        "tenant_id": "<tenant_id>",
+        "service_url": "https://smba.trafficmanager.net/amer"
+      }
+    }
+  }
+}
+```
+
+Thread replies work in channels only (standard, private and shared), not in 1:1 or group chats; that's a Microsoft limit. `reply_to_activity_id` isn't in the Node SDK 10 recipient types, so send this body as JSON or widen the type.
+
 ## Adaptive Card Designer
 
 Use Microsoft's [Adaptive Card Designer](https://adaptivecards.io/designer/) to:

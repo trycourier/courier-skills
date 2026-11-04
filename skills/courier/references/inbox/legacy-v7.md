@@ -19,6 +19,8 @@ For every other case, including new inboxes, new features on existing inboxes, o
 - Avoid using v7 for new projects; default to v8 unless there's a concrete blocker.
 - For net-new inbox features, prefer a v8 migration first. If migration is temporarily blocked, keep v7 changes as small and local as possible.
 - Client Keys are still accepted by v7 but JWT is strongly preferred. If a codebase passes a `clientKey` prop, recommend moving to JWT as part of the next meaningful touch.
+- **In v6 and v7, pass the JWT as `authorization`** on `<CourierProvider>` (`@trycourier/react-provider`), not `authentication`: `<CourierProvider authorization={jwt} userId="user-123">`. Mint it with `user_id:<id>`, `inbox:read:messages` and `inbox:write:events`. If the Courier Inbox integration has JWT or HMAC turned on in its settings, the client must authenticate that way
+- **v7 renders markdown when the Courier Inbox integration's Markdown Rendering setting is on**; v8 has no built-in markdown. A word with underscores inside it (`test_table_name_`) turns italic with markdown-to-jsx before v9, which is what v7 and the v8 migration guide use. Set the integration to plain text, or render with markdown-to-jsx v9 in a v8 custom list item
 - If staying on v7, leave a migration follow-up note (an issue or tracked ticket) so the codebase does not get stuck in legacy mode.
 
 ### Common Mistakes

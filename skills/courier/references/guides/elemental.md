@@ -215,6 +215,12 @@ They don't override one another because they answer different questions. Routing
 
 **Elemental blocks or raw HTML.** For email, a channel element carries either `elements` (Elemental blocks) or `raw` (your own HTML or MJML). Both render and both show in Design Studio, but only Elemental blocks are editable there with the drag-and-drop editor. Raw HTML has to be edited as HTML. Default to Elemental blocks unless the design needs markup the block set cannot express, and treat `raw` as a deliberate choice to give up in-app editing.
 
+**Declare the Handlebars transformer on `raw.html`.** `{{variables}}` in `raw.html` resolve only when the channel's `raw` carries `"transformers": ["handlebars"]` (`["handlebars", "mjml"]` for MJML). A `meta` element still sets the subject:
+
+```json
+{ "type": "channel", "channel": "email", "raw": { "html": "<p>Hi {{profile.first_name}}</p>", "transformers": ["handlebars"] } }
+```
+
 **Multi-channel example:**
 ```json
 {

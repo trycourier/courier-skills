@@ -1,11 +1,12 @@
 # Templates & Elemental
 
-**Contents:** [Quick Reference](#quick-reference) · [Inline vs Templated Sending](#inline-vs-templated-sending) · [Template Aliases](#template-aliases) · [Template CRUD, the Notifications API](#template-crud-the-notifications-api) · [Elemental Content Format](#elemental-content-format) · [Element Types (reference moved)](#element-types-reference-moved) · [Control Flow (reference moved)](#control-flow-reference-moved) · [Localization (reference moved)](#localization-reference-moved) · [Full Lifecycle Example](#full-lifecycle-example) · [Workspace vs Tenant Templates](#workspace-vs-tenant-templates) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [Inline vs Templated Sending](#inline-vs-templated-sending) · [Template Aliases](#template-aliases) · [Variables](#variables) · [Send conditions](#send-conditions) · [Legacy templates](#legacy-templates) · [Template CRUD, the Notifications API](#template-crud-the-notifications-api) · [Elemental Content Format](#elemental-content-format) · [Element Types (reference moved)](#element-types-reference-moved) · [Control Flow (reference moved)](#control-flow-reference-moved) · [Localization (reference moved)](#localization-reference-moved) · [Full Lifecycle Example](#full-lifecycle-example) · [Workspace vs Tenant Templates](#workspace-vs-tenant-templates) · [Related](#related)
 
 ## Quick Reference
 
 ### Rules
-- Template IDs use the `nt_` prefix (e.g., `nt_01kmrbq6ypf25tsge12qek41r0`)
+- Template IDs use the `nt_` prefix (e.g., `nt_01kmrbq6ypf25tsge12qek41r0`). Older templates may have other formats, and the prefix doesn't tell you which editor built a template (see [Legacy templates](#legacy-templates))
+- Prefix every template variable with its root: `{{data.order_id}}`, `{{profile.email}}`, `{{tenant.name}}`. In Design Studio a bare `{{order_id}}` resolves to nothing (see [Variables](#variables))
 - Send by the `nt_...` ID or by a template alias passed as `template`. Set an alias with `notification.alias` on create or replace, or in Design Studio. See [Templates as Code](./templates-as-code.md#template-aliases)
 - Treat template IDs as opaque, workspace-specific values (they vary by environment and should not encode business meaning)
 - Templates are created in **DRAFT** state by default. They must be published before sends will use them
@@ -150,6 +151,59 @@ Inline sends support both ElementalContentSugar (`title`/`body`) and the full El
 ## Template Aliases
 
 A template alias is a name you choose that stands in for the `nt_...` ID on a send. Set it with `notification.alias` on create or replace, or in Design Studio, then pass it as `template`. Rules, the `409` on a taken alias, and examples are in [Templates as Code](./templates-as-code.md#template-aliases).
+
+---
+
+## Variables
+
+Every variable names its root. Write `{{data.order_id}}`, never `{{order_id}}`:
+
+```handlebars
+Hi {{profile.first_name}}, your order {{data.order_id}} shipped to {{profile.email}}.
+```
+
+| Root | Comes from | Example |
+|---|---|---|
+| `data` | The `data` object on the send | `{{data.order.total}}` |
+| `profile` | The recipient's profile (sent inline or stored) | `{{profile.email}}` |
+| `tenant` | The tenant on the send's `context` | `{{tenant.name}}` |
+| `brand` | The brand applied to the send | `{{brand.colors.primary}}` |
+| `$.item` | The current item inside a List block loop | `{{$.item.sku}}` |
+
+- **Design Studio templates are strictly scoped.** A bare `{{order_id}}` resolves to nothing, and a bare name that matches a helper (`{{path}}`) calls the helper. Older-designer templates and inline `content` sends spread `data` onto the root, so bare names work there, but prefixing works everywhere.
+- **Read the tenant through `{{tenant.id}}`.** `{{context.tenant_id}}` resolves to an empty string.
+- **Profile values aren't copied into `data`.** If the email is on the profile, write `{{profile.email}}`; `{{data.email}}` only works when you send it in `data`.
+- **A missing variable doesn't fail the send.** A missing double-brace variable (`{{data.coupon}}`) renders as an empty string; supply a fallback with `{{default data.value "fallback"}}`. A missing single-brace variable (`{order.total}`, the older designer's syntax) stays in the output as literal text.
+- **The designer's preview substitutes variables but doesn't run helpers.** `{{datetime-format}}` or `{{truncate}}` can look wrong in preview and render correctly on send, so check helper output in a test send's [rendered output](#verify-the-rendered-output).
+
+---
+
+## Send conditions
+
+A template condition (Design Studio, template settings, **Conditions**) enables or disables the whole template at send time, on every channel. To skip one channel and still deliver the rest, put the condition on that channel instead, in the channel's **Conditions** tab or on the send:
+
+```typescript
+await client.send.message({
+  message: {
+    to: { user_id: "user_123" },
+    template: "order-shipped",
+    data: { priority: "low" },
+    channels: { sms: { if: "data.priority === 'high'" } }, // SMS only for high priority
+  },
+});
+```
+
+Condition changes in a template take effect after you publish it.
+
+---
+
+## Legacy templates
+
+Templates built in the older designer (labeled **Design Studio Classic** in the console) keep sending with the same ID and alias, with no deadline and no migration step. The ID doesn't tell you which editor built a template: both produce `nt_` IDs, and older ones may have other formats.
+
+- **Reads work.** `GET /notifications/{id}` and `GET /notifications/{id}/content` return legacy templates. Their content comes back as blocks and channels, not Elemental `elements`.
+- **Writes and version history don't.** `PUT .../content`, `PUT .../elements/{id}` and `GET .../versions` return `422` with "created in the Legacy Designer and is not supported by this endpoint". `PUT .../locales/{locale}` returns `204` but writes nothing, so check with a `GET` after any locale write.
+- **There's no converter.** To move a legacy template to Design Studio, create a new template (it gets a new ID), carry over its subscription topic, then point your sends at the new ID or alias. `GET /notifications` lists legacy templates with a `topic_id`; set it as `notification.subscription.topic_id` on the new template.
 
 ---
 

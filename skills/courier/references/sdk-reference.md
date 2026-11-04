@@ -39,7 +39,7 @@ the method doesn't exist.
 | Bulk job status and counts | `client.bulk.retrieveJob(jobId)` → `{ job }` | `client.bulk.retrieve_job(job_id)` |
 | Per-recipient bulk outcomes | `client.bulk.listUsers(jobId)` → `{ items, paging }` | `client.bulk.list_users(job_id)` |
 | Archive a sent message | `client.requests.archive(requestId)` | `client.requests.archive(request_id)` |
-| Resend a message | `client.messages.resend(messageId)` | `client.messages.resend(message_id)` |
+| Resend a message (creates a **new** message with a new message ID; limited to 1 request per 2 seconds per message) | `client.messages.resend(messageId)` | `client.messages.resend(message_id)` |
 | Rendered content of a sent message | `client.messages.content(messageId)` | `client.messages.content(message_id)` |
 | Delivery event history | `client.messages.history(messageId)` | `client.messages.history(message_id)` |
 | List preference changes | `client.workspacePreferences.listLogs({ user_id, since, limit, cursor })` → `{ items, paging }` | `client.workspace_preferences.list_logs(user_id=..., since=...)` |
@@ -68,7 +68,7 @@ the method doesn't exist.
 | Change part of a provider config (PATCH, JSON Patch operations) | `client.providers.patch(id, { patch: [{ op, path, value? }] })` | `client.providers.patch(id, patch=[{"op": ..., "path": ..., "value": ...}])` |
 | Replace a provider config (full PUT) | `client.providers.update(id, { provider, settings, ... })` | `client.providers.update(id, provider=..., settings=..., ...)` |
 | List provider catalog (required `settings` schema) | `client.providers.catalog.list({ keys?, name?, channel? })` | `client.providers.catalog.list(keys=..., channel=...)` |
-| Cancel a message | `client.messages.cancel(messageId)` | `client.messages.cancel(message_id)` |
+| Cancel a message (only while it's still in flight; an unknown ID returns `404`) | `client.messages.cancel(messageId)` | `client.messages.cancel(message_id)` |
 | Retrieve a template | `client.notifications.retrieve(templateId)` | `client.notifications.retrieve(template_id)` |
 | List templates | `client.notifications.list()` | `client.notifications.list()` |
 | Replace a template (full PUT) | `client.notifications.replace(templateId, { notification, state })` | `client.notifications.replace(template_id, notification=..., state=...)` |

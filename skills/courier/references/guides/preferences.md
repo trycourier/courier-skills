@@ -15,6 +15,8 @@ checks them on every send, so the enforcement lives in Courier rather than in yo
 - **Channel selection is enabled per section**, not per topic
 - **Editor changes are a draft until you publish.** Preview Page opens the draft; Publish makes it live
 - **Preference and unsubscribe URLs need `to.user_id` on the send**, or they render empty
+- **Preferences are keyed by `user_id`** (and by tenant when you pass `tenant_id`), never by email address. Two user IDs that share an email keep separate opt-outs, so opting one out doesn't stop sends to the other. Read a tenant-scoped opt-out with `tenant_id` on the read, or you get the user's workspace-level preference
+- **Topic IDs are generated and can't be chosen.** Topic create has no `id` field, and `PUT` on an unknown topic ID returns `404`. Topics are per environment: **Migrate assets** on a template carries its topic with it, and topics you recreate by API get new IDs, so update templates that reference the old ones. A send whose template references a topic missing from that environment fails there
 
 ### Common Mistakes
 - Leaving a template unmapped from any topic, then wondering why preferences aren't applied
@@ -433,7 +435,7 @@ channels), `allowed_preferences` (`snooze`, `channel_preferences`), `include_uns
 
 ## Related
 
-- [Multi-Channel](./multi-channel.md) - channel routing, and how `custom_routing` narrows it
+- [Multi-Channel](./multi-channel.md) - channel routing, and how `custom_routing` replaces it when channel selection is on
 - [Brands](./brands.md) - what drives the hosted page's appearance
 - [Tenants](./tenants.md) - tenant defaults that override workspace defaults
 - [Digests](./digests.md) - digest schedules, the digest template, and the Send to Digest node

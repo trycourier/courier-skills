@@ -491,7 +491,7 @@ app.post('/webhooks/courier', async (req, res) => {
   if (type === 'message:updated' && data.status === 'UNDELIVERABLE') {
     const { tokens } = await client.users.tokens.list(data.recipient);
     for (const { token } of tokens ?? []) {
-      // status is on the single-token read, not on the list rows
+      // The SDK types status (and status_reason, the cause) only on the single-token read
       const { status } = await client.users.tokens.retrieve(token, { user_id: data.recipient });
       if (status === 'failed' || status === 'revoked') {
         await client.users.tokens.delete(token, { user_id: data.recipient });
@@ -526,6 +526,9 @@ Token `status` is one of `active`, `unknown`, `failed`, `revoked`, with a free-t
 | Not shown (Android) | Channel disabled | Guide user to notification settings |
 | Duplicates | Multiple token registrations | Dedupe tokens by device ID |
 | No sound | Silent mode or channel settings | Respect user preference |
+| One provider never tried (APNs reached, FCM not) | The push channel routes providers as `single` by default, so Courier stops at the first one that delivers. A provider the user has no token for is skipped | Send with `channels: { push: { routing_method: "all" } }` to reach every device |
+| OneSignal send fails for some users | No OneSignal ID on the profile, or the payload is over OneSignal's size cap | Store `oneSignalExternalUserId` (or `oneSignalPlayerID`) on the profile; turn on data mapping on the push channel to send only the fields the app needs. Confirm the OneSignal App ID in Courier matches the app the device registered with |
+| AWS SNS shows up under SMS | One AWS SNS integration serves both SMS and push | Add it once and pick it as a provider on either channel. Its Topic ARN field applies to push only |
 
 ### Debug Checklist
 

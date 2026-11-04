@@ -117,6 +117,14 @@ Every journey starts with a trigger node. The API accepts four `trigger_type` va
 
 Webhook and audience triggers take no `schema`.
 
+### Run data is a snapshot
+
+On invoke, Courier loads the recipient's profile once and stores the run's `{ data, profile }`. Every node reads that snapshot. A delay doesn't refresh it: if you update the user's profile or your own database while the run waits, a later branch still sees the values from invoke time. Only a `fetch` node (or an update-profile step) changes the run's context mid-flight. So branch on data you pass at invoke or fetch during the run:
+
+```json
+{ "type": "fetch", "method": "get", "url": "https://api.example.com/users/{{recipient}}/plan", "merge_strategy": "soft-merge" }
+```
+
 ### Journey-Scoped vs Workspace Templates
 
 | | Journey-scoped | Workspace |
@@ -952,7 +960,12 @@ A run that is `PROCESSED` can still have failed sends. Follow each send step's `
 
 **Journeys is Courier's orchestration product and where the investment goes.** If you're building multi-step flows on Automations today, build new ones as Journeys, existing Automations keep running, so there's no forced cutover.
 
-The models are near-identical: a flow a user enters, moves through step by step, and exits. Every Automations step has a direct node equivalent, delay, if/switch, send, batch, digest, throttle, fetch, and cancellation by token. What Journeys adds is that the definition is code: a JSON DAG you create, version, publish, and invoke over REST, with immutable published versions, journey-scoped templates, A/B experiments on send nodes, a typed trigger contract, and run logs that show you exactly which branch a run took and why.
+The models are near-identical: a flow a user enters, moves through step by step, and exits. Most Automations steps have a direct node equivalent: delay, if/switch, send, batch, digest, throttle, fetch, and cancellation by token. Two don't:
+
+- **Send to a list.** A journey `send` node addresses the run's one recipient (overrides: `email_override`, `phone_number_override`, `user_id_override`, `slack`, `ms_teams`). To reach a list, invoke the journey once per member, or keep that step on a list send.
+- **Get Profile.** A journey loads the profile once at invoke (see [Run data is a snapshot](#run-data-is-a-snapshot)). To read fresher data mid-run, use a `fetch` node against your API or Courier's `GET /profiles/{user_id}`.
+
+Journeys interpolate with `{{data.field}}`, not the `${...}` form some Automations use. What Journeys adds is that the definition is code: a JSON DAG you create, version, publish, and invoke over REST, with immutable published versions, journey-scoped templates, A/B experiments on send nodes, a typed trigger contract, and run logs that show you exactly which branch a run took and why.
 
 ## Related
 

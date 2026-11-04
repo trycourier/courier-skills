@@ -10,7 +10,7 @@
 - Phone numbers need E.164 format: +15551234567
 - US A2P messaging needs 10DLC registration (allow 2-4 weeks)
 - Your SMS provider handles STOP, not Courier. Twilio blocks later sends to that number with error 21610, so the message ends UNDELIVERABLE. Mirror opt-outs into preferences (see [Opt-Out Handling](#opt-out-handling))
-- SMS requires a configured provider. Add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not)
+- SMS requires a configured provider. Add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not). One AWS SNS integration serves both SMS and push, so it appears as a provider on both channels; its Topic ARN field applies to push only, and a `phone_number` on the profile always wins for SMS
 
 ### Common Mistakes
 - Using emojis without accounting for 70-char Unicode limit

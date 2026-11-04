@@ -285,10 +285,7 @@ await client.send.message({
 });
 ```
 
-**Failure reasons that trigger fallback:**
-- Missing contact info (no email address, no phone, no push token)
-- Provider error (temporary or permanent)
-- Invalid recipient (bounced email, invalid phone)
+**What triggers fallback:** a channel fails, and `single` moves to the next one, when the recipient has no address for it (no email, no phone, no push token) or every provider on it has failed. Courier retries transient provider errors before moving on. A bounce or other recipient-level failure reported after the provider accepted the message doesn't trigger fallback (see [When Failover Triggers](#when-failover-triggers)).
 
 ## Channel-Specific Formatting
 
@@ -391,13 +388,13 @@ await client.send.message({
     template: "nt_01kmrbu5x8q2v6d1c4n7w9hj",
     routing: {
       method: "single",
-      channels: ["email", "inbox"] // Courier filters by user preference
+      channels: ["email", "inbox"] // the user's preferences are applied at send time
     }
   }
 });
 ```
 
-Courier automatically checks user preferences and filters channels.
+Courier checks the user's preferences on every send. An opt-out of the template's topic stops the send. A user's per-topic channel choice (`custom_routing`) **replaces** the template's routing when `has_custom_routing` is true and the topic has channel selection enabled; without both, the template's routing applies.
 
 ### Set Up Preference Topics
 

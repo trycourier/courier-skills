@@ -2,7 +2,7 @@
 
 Send your first notification with Courier using the SDK, CLI, or curl.
 
-**Contents:** [Quick Reference](#quick-reference) · [1. Get an API Key](#1-get-an-api-key) · [2. Install and Authenticate](#2-install-and-authenticate) · [3. Send a Message](#3-send-a-message) · [4. Check Delivery Status](#4-check-delivery-status) · [5. Send with a Template](#5-send-with-a-template) · [Common First-Run Errors](#common-first-run-errors) · [What's Next](#whats-next) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [1. Get an API Key](#1-get-an-api-key) · [2. Install and Authenticate](#2-install-and-authenticate) · [3. Send a Message](#3-send-a-message) · [4. Check Delivery Status](#4-check-delivery-status) · [5. Send with a Template](#5-send-with-a-template) · [Common First-Run Errors](#common-first-run-errors) · [Environments](#environments) · [What's Next](#whats-next) · [Related](#related)
 
 ## Quick Reference
 
@@ -234,6 +234,15 @@ courier send message \
 | `status: UNROUTABLE` with **no `reason` and no `error` field at all** | For an inbox send, the `courier` provider is missing: a custom environment, or it was deleted. The empty failure is the tell, there is nothing to search for. | Add it back, see [inbox.md](../channels/inbox.md#setup). |
 | `status: UNROUTABLE` / `PROVIDER_ERROR`, `"No provider(s) courier ... : undefined"` | The template has no routing strategy attached, so nothing names `courier` as the inbox provider. `GET /notifications/{id}` shows `routing: null`. | Attach a strategy via `PUT /notifications/{id}`, see [inbox.md](../channels/inbox.md#troubleshooting). |
 | `404` from `messages.retrieve` for a list/bulk send | You passed the job-level `requestId`, which isn't the per-recipient message ID | For list/bulk sends, look up per-recipient message IDs via `courier messages list --trace-id "<requestId>"`. See [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id). |
+
+## Environments
+
+A workspace holds several environments (Production, Test, and custom ones such as Staging), and the API key on each request picks the environment. Each one has its own templates, brands, tags, journeys, subscription topics, provider integrations, API keys, logs and metrics. Team members, their roles, tracking settings and billing are shared.
+
+- **Promote a template with Migrate assets.** In the templates page, open the template's menu and choose **Migrate assets**. Courier copies the template with its brands, tags, subscription topics, test events and event maps. Provider integrations aren't copied, so set them up in the destination before you send. To do the same from code, see [templates-as-code.md](./templates-as-code.md).
+- **Set up dependencies in Production first.** A send whose template references a brand, tag or topic missing from that environment fails there, even though it worked in Test.
+- **Roles decide access per environment.** The Developer role is read-only in Production and full in Test. Administrator and Manager have full read and write; Designer has full read and write for templates and brands but no logs. Any role other than Administrator needs the Enterprise plan; on other plans every teammate is an Administrator.
+- For staging, use a custom environment in the same workspace. Separate workspaces are for separate billing.
 
 ## What's Next
 

@@ -92,11 +92,19 @@ This is also how one [journey](./journeys.md) serves every customer: a send node
 `message.context.tenant_id` and its Slack/Teams sends pick up that tenant's stored credentials —
 see [Slack and Teams sends](./journeys.md#slack-and-teams-sends) for the reference forms and rules.
 
-### Auto-infer, and two silent gotchas
+### Auto-infer and other send gotchas
 
 - **Auto-infer tenant context:** when a user belongs to exactly one tenant and the send names none,
   Courier loads that tenant's context automatically (toggle in workspace settings). Useful for
   Studio, list, and audience sends; surprising when you didn't expect tenant branding to apply
+- **A user in two or more tenants needs `context.tenant_id` on every send.** Without it the send
+  fails with `Tenant Context Not Found`
+- **Membership isn't required to send in a tenant's context.** A user who isn't a member still gets
+  the tenant's brand and credentials when the send names the tenant
+- **A tenant fan-out uses the named tenant's preferences.** Sending to `{ tenant_id, include_children: true }`
+  checks every member, including members of child tenants, against the `default_preferences` of the
+  tenant you sent to, not their own tenant's. When child tenants keep their own preferences, send to
+  each child tenant directly
 - **Sign the inbox in with the `tenantId` the send carried.** A send with `tenant_id: "acme"` shows
   only for a client signed in with `tenantId: "acme"`. A client signed in without a `tenantId` shows
   only messages sent without a tenant. Signed in without one or with another, the tenant-scoped

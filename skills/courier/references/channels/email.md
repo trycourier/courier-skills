@@ -272,6 +272,37 @@ await client.send.message({
 
 The **override nesting is provider-specific**. It mirrors that provider's own send API. SendGrid nests `attachments` under `body` (above); Mailgun takes `attachments` directly under `override`. Match the provider you've configured; check its [integration doc](https://www.courier.com/docs/integrations/email/overview) for the exact field. Attachments aren't part of the template. They're per-send data you supply at call time.
 
+A request body caps at **6 MB**, and base64 adds about a third, so one send holds about 4.5 MB of attachments. A bigger body returns `413 Payload Too Large`. Host larger files and link to them.
+
+### SMTP Transport Per Send
+
+The stored SMTP integration holds a host, username, password and from address. To change the transport for one message (other credentials, another host), set `message.providers.smtp.override.config`. Courier sends SMTP through [Nodemailer](https://nodemailer.com/smtp), and these values replace the stored ones for that message:
+
+```typescript
+await client.send.message({
+  message: {
+    to: { email: "jane@example.com" },
+    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
+    providers: {
+      smtp: {
+        override: {
+          config: {
+            host: "smtp.office365.com", port: 587, secure: false, // Office 365 and Gmail: 587 with STARTTLS
+            auth: { user: "alerts@acme.com", pass: process.env.SMTP_APP_PASSWORD },
+          },
+        },
+      },
+    },
+  },
+});
+```
+
+Use an app password for Office 365 and Gmail, not the account password.
+
+### Importing SendGrid Templates
+
+Courier can import SendGrid Dynamic Templates from the SendGrid integration's page. Import needs a SendGrid key with **Full Access to Template Engine**. A Mail Send key is enough to send and to receive delivery events, but it can't list templates, so the import shows none.
+
 ### Provider Failover
 
 Configure multiple email providers in Courier dashboard. If SendGrid fails, automatically try Mailgun:
@@ -349,6 +380,21 @@ app.post('/webhooks/courier', async (req, res) => {
 | Wrong send time | Test different times, use send-time optimization |
 | Low relevance | Segment by interest, personalize |
 | Deliverability issues | Check spam folder placement |
+
+### AWS SES Messages Stay at SENT
+
+SES reports delivery through Amazon SNS, so until SNS is wired up every SES message stays at `SENT`:
+
+1. In Courier, open the SES integration and copy its **Message Events Webhook URL**.
+2. In SES, create a configuration set, and add an SNS event destination for `Bounce`, `Delivery` and `Reject`.
+3. In SNS, subscribe that topic to the Courier URL over HTTPS, with **raw message delivery off**. Courier confirms the subscription itself.
+4. Make the configuration set the default for your sending identity, and add its ARN to the IAM policy Courier sends with, or every send fails with `not authorized to perform ses:SendRawEmail`.
+
+Errors SES returns at send time show in Courier without this; the setup adds delivery, bounce and reject events that arrive later.
+
+### Gmail Clips the Email
+
+Gmail truncates a message whose HTML is over about 102 KB and shows "[Message clipped]", hiding the rest, including the footer and unsubscribe link. Images don't count toward it, but inline CSS and repeated markup do. Check the size of the HTML in the message's [rendered output](../guides/templates.md#verify-the-rendered-output) and trim it.
 
 ### Gmail Tabs
 
