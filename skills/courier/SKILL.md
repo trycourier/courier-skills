@@ -1,6 +1,6 @@
 ---
 name: courier
-description: "Use when building notifications with Courier across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp: sends, templates, translations, email client previews, Elemental, journeys, preferences, routing, CLI and MCP."
+description: "Builds and debugs notifications with Courier. Use when sending through Courier on email, SMS, push, in-app inbox, Slack, Teams or WhatsApp: templates, translations, journeys, preferences, routing."
 license: MIT
 ---
 
@@ -120,6 +120,7 @@ Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `
 ## Universal Rules
 
 - Use idempotency keys for sends where duplicates would be harmful (payments, security alerts, OTPs)
+- Send one-time codes (OTPs) immediately, never through a batch, digest or delay, even when asked to. A late code has expired and locks the user out, so say so and send it on its own
 - Use E.164 format for phone numbers
 - Only send to channels the user has asked for or that make sense for the use case. Don't blast every channel by default
 - For template sends, pass the Courier-generated `nt_...` ID or a template alias as `template`; treat IDs as opaque, workspace-specific values
