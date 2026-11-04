@@ -20,7 +20,7 @@ Notifications Courier sends proactively rather than in response to a user action
 | Feature announcement | Send to an [audience](./guides/patterns.md) (`to: { audience_id }`) so targeting is a filter, not a query you maintain |
 | Activity notification | Single send, mapped to a topic with a [digest](./guides/digests.md) so users who prefer a summary get one |
 | Activity digest (daily / weekly) | A [topic digest](./guides/digests.md): send once per event, the recipient's chosen schedule drives delivery |
-| Aggregated activity ("Jane and 5 others") | [`batch`](./guides/batching.md) node. To group by target, invoke a separate journey per target, since `category_key` doesn't split batches |
+| Aggregated activity ("Jane and 5 others") | [`batch`](./guides/batching.md) node. Count by type ("3 likes and 2 comments") with `category_key`. To cover several posts in one message, key the categories by post title. One notification per post needs [app-side aggregation](./guides/batching.md#app-side-aggregation-only-when-the-nodes-dont-fit) |
 | Re-engagement / win-back | [Journey](./guides/journeys.md) with `delay` + `branch` on returned?, cancelled the moment they come back |
 | Referral invite and reward | Single sends triggered by your referral service; reward send on qualification |
 | Promotional campaign | Send to a [list or audience](./guides/patterns.md), gated on a subscription topic |

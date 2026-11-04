@@ -398,7 +398,7 @@ curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
 | Branch | `type: "branch"` | `paths[]` (each with `conditions` and `nodes[]`), `default` (with `nodes[]`). Optional: `paths[].label`, `default.label`. |
 | Throttle (static) | `type: "throttle"`, `scope: "user"` or `"global"` | `max_allowed`, `period`. Optional: `conditions`. |
 | Throttle (dynamic) | `type: "throttle"`, `scope: "dynamic"` | `max_allowed`, `period`, `throttle_key`. Optional: `conditions`. |
-| Batch | `type: "batch"`, `scope: "user"` | `wait_period` (ISO 8601 quiet window, at least `PT1M`), `max_wait_period` (ISO 8601 hard ceiling; must be > `wait_period`), `retain` (`{ type: "first"\|"last"\|"highest"\|"lowest", count: 0–25, sort_key }`; `sort_key` required for `highest`/`lowest`). Optional: `max_items` (1–1000, default 100), `category_key` (≤256 chars, avoid for now, see [batching.md](./batching.md#batch-data-in-templates)), `conditions`. |
+| Batch | `type: "batch"`, `scope: "user"` | `wait_period` (ISO 8601 quiet window, at least `PT1M`), `max_wait_period` (ISO 8601 hard ceiling; must be > `wait_period`), `retain` (`{ type: "first"\|"last"\|"highest"\|"lowest", count: 0–25, sort_key }`; `sort_key` required for `highest`/`lowest`). Optional: `max_items` (1–1000, default 100), `category_key` (≤256 chars, one whole reference such as `"{{data.event_type}}"`, see [batching.md](./batching.md#batch-data-in-templates)), `conditions`. |
 | Send to Digest | `type: "add-to-digest"` | `subscription_topic_id`. Optional: `conditions`. |
 | AI | `type: "ai"` | `output_schema` (JSON Schema for the structured result). Optional: `model`, `user_prompt`, `web_search`, `conditions`. |
 | Exit | `type: "exit"` | None. Optional: `id`. |
@@ -757,12 +757,12 @@ Collect multiple invocations for the same user into one aggregated payload, then
   "wait_period": "PT10M",
   "max_wait_period": "PT1H",
   "max_items": 50,
-  "retain": { "type": "highest", "count": 5, "sort_key": "data.priority" }
+  "retain": { "type": "first", "count": 5 }
 }
 ```
 
-- `retain.type`, which collected events to keep: `first`, `last`, `highest`, or `lowest` (the latter two require `sort_key`). `count` is 0–25.
-- `category_key` doesn't split events into separate batches by value, and its payload doesn't follow the documented shape. Avoid it for now, see [batching.md](./batching.md#batch-data-in-templates).
+- `retain.type`, which collected events to keep: `first`, `last`, `highest`, or `lowest` (the latter two require `sort_key`). `count` is 0–25. What each type actually keeps differs from its name, and `sort_key` has no effect today, see [batching.md](./batching.md#batch-data-in-templates).
+- `category_key` is one whole reference such as `"{{data.event_type}}"`; a plain path returns 400. It groups events under `batch.categories.<value>` inside one batch and doesn't split the batch, see [batching.md](./batching.md#batch-data-in-templates).
 - `wait_period` is at least `PT1M`. Only one run per batch carries the downstream send.
 
 ### Send to Digest Node
