@@ -8,9 +8,9 @@ Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `
 - The `provider` field on create must be a **catalog key** (e.g. `"sendgrid"`, `"twilio"`, `"apn"`, `"firebase-fcm"`, `"slack"`). Fetch `/providers/catalog` for the canonical list. Do not guess
 - `settings` keys are **snake_case on the wire** (e.g. `api_key`, `from_address`, `ip_pool_name`). Each provider's required `settings` schema comes from `/providers/catalog`
 - `settings` holds **secrets**. Read them from environment variables; never hardcode in committed code
-- To change part of a config (one setting, the `title`, or the `alias`), use **`PATCH /providers/{id}`** (`client.providers.patch`). Fields you leave out keep their stored values, so there's nothing to read back first. See [Update part of a config](#update-part-of-a-config-patch)
+- To change part of a config (one setting, the `title`, or the `alias`), use **`PATCH /providers/{id}`** (`client.providers.patch`). It takes JSON Patch (RFC 6902) operations in `patch`, such as `{ op: "replace", path: "/settings/api_key", value }`, and keeps every field they don't touch. See [Update part of a config](#update-part-of-a-config-patch)
 - `PUT /providers/{id}` (`client.providers.update`) is a **full replacement**. Use it only when you intend to replace the whole config
-- To cap how fast Courier sends through a provider config, set `settings.rate_limit` with `PATCH`. See [Send rate limits](#send-rate-limits)
+- To cap how fast Courier sends through a provider config, `add` `/settings/rate_limit` with `PATCH`. See [Send rate limits](#send-rate-limits)
 - Provider IDs are opaque workspace-scoped values returned on create (distinct from the catalog `provider` key)
 - `title` defaults to `"Default Configuration"` when omitted. For multiple configs of the same provider (e.g. two SendGrid sub-accounts), set a unique `title` and `alias`
 - In the test environment, a stored `title` gets a `test - ` prefix
@@ -32,6 +32,7 @@ Prefer the dashboard for:
 - Guessing `settings` keys instead of reading them from `/providers/catalog`. A misspelled or unknown `settings` key is saved silently and does nothing. Read the catalog and compare the stored config with `GET /providers/{id}`. Only a missing required key is rejected: `400`, with the field named in camelCase (e.g. `authToken`)
 - Using `provider` values from documentation prose that don't match the catalog (e.g. `"aws_ses"` vs the real `"aws-ses"`, or `"fcm"` vs `"firebase-fcm"`)
 - Using `PUT` to change one setting. It's a full replacement, so any omitted `settings` are wiped, including `rate_limit`. Use `PATCH` instead
+- Sending the fields to change as the `PATCH` body (`{ settings: { … } }`). The body is `{ patch: [operations] }`; a plain object returns `400 patch: must be an array of JSON Patch operations`
 - Committing an `api_key` directly in a `providers.create` call instead of reading `process.env.SENDGRID_API_KEY`
 - Creating a provider config via API for a catalog entry that requires OAuth, those need to be initiated from the dashboard
 
@@ -42,7 +43,7 @@ Prefer the dashboard for:
 | Create | `client.providers.create({ provider, settings?, title?, alias? })` | `client.providers.create(provider=..., settings=..., ...)` |
 | List | `client.providers.list({ cursor? })` | `client.providers.list(cursor=...)` |
 | Retrieve | `client.providers.retrieve(id)` | `client.providers.retrieve(id)` |
-| Update part (PATCH) | `client.providers.patch(id, { settings?, title?, alias? })` | `client.providers.patch(id=..., settings=..., ...)` |
+| Update part (PATCH) | `client.providers.patch(id, { patch: [{ op, path, value? }] })` | `client.providers.patch(id, patch=[{"op": ..., "path": ..., "value": ...}])` |
 | Replace (full PUT) | `client.providers.update(id, { provider, settings, ... })` | `client.providers.update(id, provider=..., settings=..., ...)` |
 | Delete | `client.providers.delete(id)` | `client.providers.delete(id)` |
 | Catalog list | `client.providers.catalog.list({ keys?, name?, channel? })` | `client.providers.catalog.list(keys=..., name=..., channel=...)` |
@@ -217,14 +218,14 @@ provider = client.providers.retrieve("provider_01abc123")
 
 ### Update part of a config (PATCH)
 
-`PATCH /providers/{id}` merges the body into the stored config using JSON Merge Patch (RFC 7396):
+`PATCH /providers/{id}` applies JSON Patch (RFC 6902) operations, sent as `{ "patch": [...] }`, and keeps every field the operations don't touch:
 
-- Fields you leave out keep their stored values
-- A setting sent as `null` is removed
-- Nested objects merge, and arrays replace the stored value
-- `alias: null` clears the alias
-- The body must include at least one of `title`, `alias`, or `settings`. An empty body returns a `400`
-- `provider` is optional. If you send it, it must match the stored provider, otherwise the request returns a `400`
+- Paths address the provider as it's returned: `/title`, `/alias`, `/provider`, and `/settings/<key>` with the snake_case setting keys. Nested paths such as `/settings/rate_limit/rate` work
+- `op` is `add`, `remove`, `replace`, `move`, `copy` or `test`. `add` sets a value whether or not it exists
+- Operations apply in order. If one fails, for example a `test`, nothing is saved and the request returns a `400`
+- An empty `patch` array returns a `400`
+- The result can't change `provider`, remove `title`, or add other top-level fields. Each returns a `400`
+- Removing `/alias` clears the alias
 - A missing or deleted id returns a `404`
 
 Rotate an API key and leave everything else as it is:
@@ -232,15 +233,15 @@ Rotate an API key and leave everything else as it is:
 **TypeScript:**
 ```typescript
 await client.providers.patch("provider_01abc123", {
-  settings: { api_key: process.env.SENDGRID_API_KEY_NEW! }
+  patch: [{ op: "replace", path: "/settings/api_key", value: process.env.SENDGRID_API_KEY_NEW! }],
 });
 ```
 
 **Python:**
 ```python
 client.providers.patch(
-    id="provider_01abc123",
-    settings={"api_key": os.environ["SENDGRID_API_KEY_NEW"]},
+    "provider_01abc123",
+    patch=[{"op": "replace", "path": "/settings/api_key", "value": os.environ["SENDGRID_API_KEY_NEW"]}],
 )
 ```
 
@@ -249,13 +250,29 @@ client.providers.patch(
 curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"settings\": {\"api_key\": \"$SENDGRID_API_KEY_NEW\"}}"
+  -d "{\"patch\": [{\"op\": \"replace\", \"path\": \"/settings/api_key\", \"value\": \"$SENDGRID_API_KEY_NEW\"}]}"
 ```
 
 Rename a config and clear its alias:
 
 ```typescript
-await client.providers.patch("provider_01abc123", { title: "SendGrid Marketing", alias: null });
+await client.providers.patch("provider_01abc123", {
+  patch: [
+    { op: "replace", path: "/title", value: "SendGrid Marketing" },
+    { op: "remove", path: "/alias" },
+  ],
+});
+```
+
+To apply a change only if the stored config is what you expect, put a `test` operation first. If it fails, the request returns `400` and nothing changes:
+
+```typescript
+await client.providers.patch("provider_01abc123", {
+  patch: [
+    { op: "test", path: "/settings/from_address", value: "notifications@acme.co" },
+    { op: "replace", path: "/settings/from_address", value: "alerts@acme.co" },
+  ],
+});
 ```
 
 ### Replace the whole config (PUT)
@@ -328,20 +345,20 @@ Cap how fast Courier sends through one provider configuration with `settings.rat
 - With no limit set, Courier sends as fast as it can
 - The Courier Inbox (`courier`) provider has no rate limit field in the console. Don't suggest setting one there
 
-Set or change it with `PATCH`, so the rest of the config stays as it is:
+Set or change it with an `add` operation on `PATCH`, so the rest of the config stays as it is. `add` works whether or not a limit exists:
 
 **TypeScript:**
 ```typescript
 await client.providers.patch("provider_01abc123", {
-  settings: { rate_limit: { rate: 10, period: "second" } }
+  patch: [{ op: "add", path: "/settings/rate_limit", value: { rate: 10, period: "second" } }],
 });
 ```
 
 **Python:**
 ```python
 client.providers.patch(
-    id="provider_01abc123",
-    settings={"rate_limit": {"rate": 10, "period": "second"}},
+    "provider_01abc123",
+    patch=[{"op": "add", "path": "/settings/rate_limit", "value": {"rate": 10, "period": "second"}}],
 )
 ```
 
@@ -350,19 +367,29 @@ client.providers.patch(
 curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "settings": { "rate_limit": { "rate": 10, "period": "second" } } }'
+  -d '{ "patch": [{ "op": "add", "path": "/settings/rate_limit", "value": { "rate": 10, "period": "second" } }] }'
 ```
 
-Remove it by sending `null`:
+To change only the rate, `replace` `/settings/rate_limit/rate`:
+
+```typescript
+await client.providers.patch("provider_01abc123", {
+  patch: [{ op: "replace", path: "/settings/rate_limit/rate", value: 5 }],
+});
+```
+
+Remove the limit with a `remove` operation:
 
 **TypeScript:**
 ```typescript
-await client.providers.patch("provider_01abc123", { settings: { rate_limit: null } });
+await client.providers.patch("provider_01abc123", {
+  patch: [{ op: "remove", path: "/settings/rate_limit" }],
+});
 ```
 
 **Python:**
 ```python
-client.providers.patch(id="provider_01abc123", settings={"rate_limit": None})
+client.providers.patch("provider_01abc123", patch=[{"op": "remove", "path": "/settings/rate_limit"}])
 ```
 
 **curl:**
@@ -370,8 +397,10 @@ client.providers.patch(id="provider_01abc123", settings={"rate_limit": None})
 curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
   -H "Authorization: Bearer $COURIER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "settings": { "rate_limit": null } }'
+  -d '{ "patch": [{ "op": "remove", "path": "/settings/rate_limit" }] }'
 ```
+
+To start a new config with a limit, include `rate_limit` in `settings` on `providers.create`.
 
 ---
 

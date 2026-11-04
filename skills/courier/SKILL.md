@@ -103,7 +103,7 @@ Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `
 |---|---|
 | Archive a sent message | `client.requests.archive(requestId)` |
 | Delete a provider | `client.providers.delete(id)` |
-| Change one provider setting, the title, or the alias | `client.providers.patch(id, { settings: { … } })` |
+| Change one provider setting, the title, or the alias | `client.providers.patch(id, { patch: [{ op: "replace", path: "/settings/…", value }] })` (JSON Patch) |
 | Replace a provider's whole config (full PUT) | `client.providers.update(id, …)` |
 | Subscribe a user to a list | `client.lists.subscriptions.subscribeUser(userId, { list_id })` |
 | Set a user's topic preference | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic })` |

@@ -81,7 +81,7 @@ Respect provider-specific limits:
 | **FCM** | 500 msg/sec | Per project |
 | **Slack** | 1 msg/sec per channel | 30-50 burst |
 
-To cap how fast Courier sends through one provider config, set a [send rate limit](./providers.md#send-rate-limits) (`settings.rate_limit`) on it with `PATCH /providers/{id}`. The limit covers the whole config, per environment. Sends above the rate are queued, not dropped.
+To cap how fast Courier sends through one provider config, set a [send rate limit](./providers.md#send-rate-limits) (`settings.rate_limit`) on it with an `add` operation on `PATCH /providers/{id}`. The limit covers the whole config, per environment. Sends above the rate are queued, not dropped.
 
 ### Handling Rate Limit Responses
 
