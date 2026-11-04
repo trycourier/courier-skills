@@ -101,6 +101,35 @@ await client.send.message({
 });
 ```
 
+**Keep JSON out of inline content.** Courier reads `{path}` in inline `content` as a variable, so the innermost `{…}` of a JSON string fails to resolve and renders as `[Error]`. Send the payload as an object in `data` instead:
+
+```typescript
+const event = {
+  userId: "user-123",
+  notification: { id: "n_456", domain: "posts", kind: "comment" },
+  eventTimestamp: 1793601748,
+};
+
+// Before: the body renders as {"userId":"user-123","notification":[Error],"eventTimestamp":1793601748}
+await client.send.message({
+  message: {
+    to: { user_id: "user-123" },
+    content: { title: "New notification", body: JSON.stringify(event) },
+  },
+});
+
+// After: readable text in content, the payload in data
+await client.send.message({
+  message: {
+    to: { user_id: "user-123" },
+    content: { title: "New comment", body: "Jane replied to your post." },
+    data: event,
+  },
+});
+```
+
+The Inbox feed returns `data` as a parsed object with its nesting intact, so your client reads `message.data.notification.id` directly.
+
 **Templated send (reference stored template):**
 ```typescript
 await client.send.message({

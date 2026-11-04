@@ -11,6 +11,7 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 - Title under 50 characters; body under 150
 - 1–2 actions maximum
 - Always include deep-link data in `data`, a click with nowhere to go is a dead end
+- Send structured payloads as an object in `data`, never as JSON in `content`, where the innermost `{…}` renders as `[Error]`. See [Keep JSON out of inline content](../guides/templates.md#inline-vs-templated-sending)
 - Batch similar events rather than sending ten "liked your post" messages
 - No OS permission needed, so the inbox reaches every user. It is the safe default channel: the `courier` provider is already configured in production and test
 

@@ -191,6 +191,8 @@ import { CourierInbox, type CourierInboxListItemFactoryProps } from "@trycourier
 />
 ```
 
+`message.data` is the `data` object from the send, nesting intact. Put structured fields there, not as JSON in `content`, see [the inline content rule](../../SKILL.md#universal-rules).
+
 ### Toast Notifications (v8)
 
 Toasts are short-lived notifications connected to the Inbox message feed:

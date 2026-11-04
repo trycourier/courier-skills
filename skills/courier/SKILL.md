@@ -123,6 +123,7 @@ Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `
 - Use E.164 format for phone numbers
 - Only send to channels the user has asked for or that make sense for the use case. Don't blast every channel by default
 - For template sends, pass the Courier-generated `nt_...` ID or a template alias as `template`; treat IDs as opaque, workspace-specific values
+- Never put JSON or literal curly braces in inline `message.content`. Courier reads `{path}` in inline content as a variable, so the innermost `{…}` of a JSON string renders as `[Error]`. Put structured payloads in `message.data` as an object and keep `title` and `body` readable text, see the [before and after](./references/guides/templates.md#inline-vs-templated-sending)
 
 ### See also (not duplicated here)
 
