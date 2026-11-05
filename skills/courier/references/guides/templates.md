@@ -6,7 +6,7 @@
 
 ### Rules
 - Template IDs use the `nt_` prefix (e.g., `nt_01kmrbq6ypf25tsge12qek41r0`). Older templates may have other formats, and the prefix doesn't tell you which editor built a template (see [Legacy templates](#legacy-templates))
-- Prefix every template variable with its root: `{{data.order_id}}`, `{{profile.email}}`, `{{tenant.name}}`. In Design Studio a bare `{{order_id}}` resolves to nothing (see [Variables](#variables))
+- Create templates with `content.scope: "strict"` and prefix every variable: `{{data.order_id}}`, `{{profile.email}}`. Without it `{{data.order_id}}` renders empty (see [Variables](#variables))
 - Send by the `nt_...` ID or by a template alias passed as `template`. Set an alias with `notification.alias` on create or replace, or in Design Studio. See [Templates as Code](./templates-as-code.md#template-aliases)
 - Treat template IDs as opaque, workspace-specific values (they vary by environment and should not encode business meaning)
 - Templates are created in **DRAFT** by default, and sends use only the published version. Publish with `publish(id)`, or pass `state: "PUBLISHED"` on create to do both in one call
@@ -16,11 +16,11 @@
 - ElementalContentSugar (`title`/`body`) only works for inline sends. Use the full Elemental format (`version` + `elements`) when creating templates via the API
 - **Wrap template content in `channel` elements** (`{ type: "channel", channel: "email", elements: [...] }`), one per channel. Create rejects flat top-level elements (`400 Template content must place its elements inside a channel block`); `replace` and `putContent` still store them, but Design Studio can't open the result, so wrap on every write. Inline sends accept flat elements. SDK type gaps (`group`, `columns`, styled `text`) and Elemental blocks vs raw HTML: [elemental.md](./elemental.md#channel).
 - A template needs a `routing.strategy_id` from your workspace to route through channels: create one with `client.routingStrategies.create(...)` ([routing-strategies.md](./routing-strategies.md)), reuse one from `client.routingStrategies.list()`, or pass `routing: null` on create and attach one later with `notifications.replace`.
-- **Check what `routing` actually came back as.** The create body accepts `routing` in exactly one shape, `{ "strategy_id": "rs_..." }`. Anything else is rejected, and a strategy id that doesn't exist is a `400` (`Routing strategy rs_... not found`). Templates nonetheless turn up with `routing: null` in practice, including ones built in Design Studio, and a template with `routing: null` **is not sendable by id** on channels that need a provider named by a strategy. Read it back with `GET /notifications/{id}` rather than trusting the create response, and attach one with `PUT /notifications/{id}` (`notifications.replace`) if it's null. On the inbox this surfaces as `UNROUTABLE` / `PROVIDER_ERROR` "No provider(s) courier ... : undefined", see [inbox.md](../channels/inbox.md#troubleshooting).
+- **Check what `routing` actually came back as.** The create body accepts `routing` in exactly one shape, `{ "strategy_id": "rs_..." }`. Anything else is rejected, and a strategy id that doesn't exist is a `400` (`Routing strategy rs_... not found`). Templates nonetheless turn up with `routing: null` in practice, including ones built in Design Studio, and a template with `routing: null` goes `UNROUTABLE` when sent by id unless the send carries `routing`. Read it back with `GET /notifications/{id}` rather than trusting the create response, and attach one with `PUT /notifications/{id}` (`notifications.replace`) if it's null. On the inbox this surfaces as `UNROUTABLE` / `PROVIDER_ERROR` "No provider(s) courier ... : undefined", see [inbox.md](../channels/inbox.md#troubleshooting).
 - Archive a template with `DELETE /notifications/{id}` (or `client.notifications.archive(id)` in the SDK). Note: `POST /notifications/{id}/archive` does **not** exist and returns 404, the archive operation uses the `DELETE` method.
 - Confirm final visuals from a rendered test send — `GET /messages/{id}/output` returns the exact email recipients receive (see [Verify the Rendered Output](#verify-the-rendered-output))
 - To see the email on real clients (Outlook, Gmail, Apple Mail, dark mode) before sending, run a [Device Preview](./device-preview.md) on the draft
-- Keep element `id`s and `locales` when you write content back. A `putContent` without `locales` deletes the template's translations; see [localization.md](./localization.md)
+- Keep `scope`, element `id`s and `locales` when you write content back: a `putContent` without them resets scope and deletes translations ([localization.md](./localization.md))
 - Managing templates from a repo (CI, drift detection, promotion): see [Templates as Code](./templates-as-code.md)
 
 ---
@@ -38,7 +38,7 @@ There are two ways to define notification content when calling the Send API:
 | Approval workflows | No | Yes (submission checks) |
 | Best for | Prototyping, ad-hoc sends, AI agent workflows, simple notifications | Production notifications, team-managed content, multi-channel templates |
 
-**Keep JSON out of inline content.** Courier reads `{path}` in inline `content` as a variable, so the innermost `{…}` of a JSON string fails to resolve and renders as `[Error]`. Send the payload as an object in `data` instead:
+**Keep JSON out of inline content.** Courier reads `{…}` in inline `content` as a variable, so a JSON string can render as `[Error]` (a nested object did in testing). Send the payload as an object in `data` instead:
 
 ```typescript
 const event = {
@@ -93,7 +93,7 @@ Hi {{profile.first_name}}, your order {{data.order_id}} shipped to {{profile.ema
 | `brand` | The brand applied to the send | `{{brand.colors.primary}}` |
 | `$.item` | The current item inside a List block loop | `{{$.item.sku}}` |
 
-- **Design Studio templates are strictly scoped.** A bare `{{order_id}}` resolves to nothing, and a bare name that matches a helper (`{{path}}`) calls the helper. Older-designer templates and inline `content` sends spread `data` onto the root, so bare names work there, but prefixing works everywhere.
+- **Design Studio templates are `scope: "strict"`.** A bare `{{order_id}}` resolves to nothing, and a bare helper name (`{{path}}`) calls the helper. Default scope (API-created without `scope`, older designer, inline sends) spreads `data` onto the root: bare names work, `{{data.order_id}}` renders empty.
 - **Read the tenant through `{{tenant.id}}`.** `{{context.tenant_id}}` resolves to an empty string.
 - **Profile values aren't copied into `data`.** If the email is on the profile, write `{{profile.email}}`; `{{data.email}}` only works when you send it in `data`.
 - **A missing variable doesn't fail the send.** A missing double-brace variable (`{{data.coupon}}`) renders as an empty string; supply a fallback with `{{default data.value "fallback"}}`. A missing single-brace variable (`{order.total}`, the older designer's syntax) stays in the output as literal text.
@@ -169,6 +169,8 @@ const response = await client.notifications.create({
     routing: { strategy_id: "rs_..." },
     content: {
       version: "2022-01-01",
+      // @ts-expect-error accepted by the API, missing from the SDK type
+      scope: "strict",
       elements: [
         {
           type: "channel",
@@ -237,7 +239,7 @@ const edit = (els: any[]): void => els.forEach((el) => {
 
 strip(draft.elements);
 edit(draft.elements);
-await client.notifications.putContent("nt_01abc123", { content: { version: draft.version, elements: draft.elements as any } });
+await client.notifications.putContent("nt_01abc123", { content: { version: draft.version, scope: (draft as any).scope, elements: draft.elements } as any });
 ```
 
 **Python:** the same calls are `retrieve_content(id, version="draft")` (a plain dict) and `put_content(id, content={"version": ..., "elements": ...})`; strip and edit the dict the same way.
@@ -261,7 +263,7 @@ Returns `204 No Content` on success.
 
 `GET /messages/{id}/output` (SDK `client.messages.content(messageId)`, CLI `courier messages content --message-id`) returns exactly what Courier handed the provider, with variables resolved and brand chrome applied. Each `results[]` entry has `channel` and `content`: `subject`, `html` and `text` for email; `title`/`body` (plus `blocks` on chat channels) elsewhere. Template sends render the *published* version, so publish, send a test to yourself, and assert on this before real recipients see it.
 
-For a single-recipient send the `requestId` is the message id; list and audience sends fan out, so resolve ids with `courier messages list --trace-id "<requestId>"` (see [CLI](./cli.md)). A `404` or empty `results` right after sending means it hasn't rendered yet (`ENQUEUED`); re-check after a few seconds.
+For a single-recipient send the `requestId` is the message id; list and audience sends fan out to `<requestId>:<user_id>` ids (see [CLI](./cli.md)). A `404` or empty `results` right after sending means it hasn't rendered yet (`ENQUEUED`); re-check after a few seconds.
 
 A stored template's plain-text part is delivered as stored, with Handlebars variables unrendered, so write it as final copy and keep `{{variables}}` in the Elemental/HTML content.
 
@@ -311,7 +313,7 @@ const copy = await client.notifications.create({
     brand: source.brand,
     subscription: source.subscription,
     routing: source.routing,
-    content: { version: content.version, elements },
+    content: { version: content.version, scope: (content as any).scope, elements } as any,
   },
 });
 ```
@@ -355,6 +357,8 @@ const template = await client.notifications.create({
     routing: { strategy_id: "rs_..." },
     content: {
       version: "2022-01-01",
+      // @ts-expect-error accepted by the API, missing from the SDK type
+      scope: "strict",
       elements: [
         {
           type: "channel",

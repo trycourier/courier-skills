@@ -51,7 +51,7 @@ Other statuses you may see on list rows, `FILTERED` (suppressed by a preference 
 - **A provider's `UNDELIVERABLE` isn't the message's.** In a send with several providers or channels, the message history records an `UNDELIVERABLE` event per provider before the message reaches its final status. Act on the message-level status, not on one provider's event.
 - **Render errors aren't retried.** A template error such as `Missing helper: "json"` fails the message without retries. Fix the template, publish, and make a new send.
 
-Statuses are returned verbatim on webhooks and on `GET /messages/{id}`. For list/bulk sends, a single `requestId` can fan out to many per-recipient `message_id`s, each with its own status, look them up via `courier messages list --trace-id "<requestId>"` (see [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id)).
+Statuses are returned verbatim on webhooks and on `GET /messages/{id}`. For list/bulk sends, a single `requestId` can fan out to many per-recipient `message_id`s, each with its own status, each id is `<requestId>:<user_id>` (see [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id)).
 
 ---
 

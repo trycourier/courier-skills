@@ -5,7 +5,7 @@
 ## Quick Reference
 
 ### Rules
-- US A2P messaging needs 10DLC registration (allow 2-4 weeks). Unregistered traffic is filtered or blocked by carriers
+- US A2P messaging needs 10DLC registration (it can take a week or more). Unregistered traffic is filtered or blocked by carriers
 - Your SMS provider handles STOP, not Courier. Twilio blocks later sends to that number with error 21610, so the message ends UNDELIVERABLE. Mirror opt-outs into preferences (see [Opt-Out Handling](#opt-out-handling))
 - SMS requires a configured provider. Add one in [Integrations](https://app.courier.com/integrations) before sending (email works in test mode without this, SMS does not). One AWS SNS integration serves both SMS and push, so it appears as a provider on both channels; its Topic ARN field applies to push only, and a `phone_number` on the profile always wins for SMS
 
@@ -32,7 +32,7 @@ A `user_id` send reaches SMS through `profile.phone_number`, stored in E.164. Fo
 
 ## Opt-Out Handling
 
-Your SMS provider answers STOP, START and HELP itself, and Courier isn't told about the opt-out. Take the provider's inbound webhook and write the user's preference, which Courier applies on every send.
+Your SMS provider answers STOP, START and HELP itself. Take the provider's inbound webhook and write the user's preference, which Courier applies on every send.
 
 ### Handle in Your App
 

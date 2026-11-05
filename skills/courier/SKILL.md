@@ -19,7 +19,7 @@ Multi-step flows (anything with a delay, a branch, or aggregation) are **journey
 1. **Route first.** [Where to Look](#where-to-look) picks the 1–2 files for the task. Don't read the tree.
 2. **Ask when the request is ambiguous.** Channel? Transactional or lifecycle? New code or existing? Which language? Skip the questions when the request is already specific.
 3. **Verify shapes against a [live source](#verifying-against-live-sources)** rather than memory. The installed SDK's own types are ground truth.
-4. **Apply the rules.** [Universal Rules](#universal-rules) and each file's Quick Reference are constraints, not suggestions. (`sdk-reference.md` is a lookup table and has none.)
+4. **Apply the rules.** [Universal Rules](#universal-rules) and each file's Quick Reference are constraints, not suggestions.
 
 If the project already has `@trycourier/courier` or `trycourier` installed, skip quickstart's install steps and assume `client` exists.
 
@@ -53,7 +53,7 @@ await client.send.message({
 
 **Ruby, Java, Go, PHP and C#** have official SDKs with the same resources; use them instead of hand-rolled HTTP. Ruby (`gem "trycourier"`): `Courier::Client.new`, then `.send_.message(message: {...})` on it, since `send` is reserved. Java (`com.courier:courier-java`): `CourierOkHttpClient.fromEnv()`, then `client.send().message(params)` with `SendMessageParams.builder()`. The rest: [SDK libraries](https://www.courier.com/docs/sdk-libraries/sdks-overview).
 
-Method names for both SDKs, and the complete list of the 23 SDK namespaces and their sub-namespaces: **[sdk-reference.md](./references/sdk-reference.md)**. If an operation isn't in that namespace list, it isn't in the SDK; use MCP, the CLI, or REST.
+Method names and the complete list of the 23 SDK namespaces: **[sdk-reference.md](./references/sdk-reference.md)**. If an operation isn't in that namespace list, it isn't in the SDK; use MCP, the CLI, or REST.
 
 To write a profile, `client.profiles.create(id, { profile })` deep-merges; `profiles.update` is JSON Patch and `profiles.replace` wipes every field you omit ([sdk-reference.md](./references/sdk-reference.md)).
 
@@ -62,19 +62,22 @@ To write a profile, `client.profiles.create(id, { profile })` deep-merges; `prof
 - Use idempotency keys for sends where duplicates would be harmful (payments, security alerts, OTPs)
 - Send one-time codes (OTPs) immediately, never through a batch, digest or delay, even when asked to. A late code has expired and locks the user out, so say so and send it on its own
 - Use E.164 format for phone numbers
+- Before a delete, archive or bulk send, name the environment the API key points to and confirm with the user that the data lives there
 - Only send to channels the user has asked for or that make sense for the use case. Don't blast every channel by default
 - For template sends, pass the Courier-generated `nt_...` ID or a template alias as `template`; treat IDs as opaque, workspace-specific values
-- In templates, every variable names its root: `{{data.order_id}}`, `{{profile.email}}`. A bare `{{order_id}}` renders as nothing in Design Studio, with no error ([templates.md](./references/guides/templates.md#variables))
-- Never put JSON or literal curly braces in inline `message.content`. Courier reads `{path}` in inline content as a variable, so the innermost `{…}` of a JSON string renders as `[Error]`. Put structured payloads in `message.data` as an object and keep `title` and `body` readable text, see the [before and after](./references/guides/templates.md#inline-vs-templated-sending)
+- Create templates with `scope: "strict"` and write `{{data.order_id}}`. Without it, and in inline sends, `{{data.order_id}}` renders empty and only `{{order_id}}` works ([templates.md](./references/guides/templates.md#variables))
+- Never put JSON or literal curly braces in inline `message.content`. Courier reads `{…}` in inline content as a variable, so a JSON string can render as `[Error]`. Put structured payloads in `message.data` as an object and keep `title` and `body` readable text, see the [before and after](./references/guides/templates.md#inline-vs-templated-sending)
 
 ## Debugging a Delivery Failure
 
-This ladder is for **one message**. A template whose delivery rate is falling, or whose delivered count is low while sent looks healthy (usually the provider isn't reporting delivery back), is [metrics.md](./references/guides/metrics.md).
+This ladder is for **one message**. A template's falling delivery rate, or a low delivered count while sent looks healthy, is [metrics.md](./references/guides/metrics.md).
 
 1. **No `requestId` from `send`** means the call failed, not the delivery.
-2. `courier messages list --trace-id "<requestId>"`. For a single-recipient send the `requestId` is the message id. A list or audience send fans out to one message per recipient, so its `requestId` is the job.
+2. `courier messages retrieve --message-id "<requestId>"` for a single-recipient send. A list or audience send fans out; each recipient's message id is `<requestId>:<user_id>`.
 3. `courier messages history --message-id "<id>"` for where it stopped, then `courier messages content --message-id "<id>"` for what rendered.
 4. **Only then look at the channel:** [email.md](./references/channels/email.md) for sender auth and provider traps, [sms.md](./references/channels/sms.md) for 10DLC, [reliability.md](./references/guides/reliability.md) for retries and webhooks.
+
+Don't blame the payload or the developer's code before the logs show it, and don't state how a provider or third-party app behaves unless a source says so; say it's unverified.
 
 Status meanings (`THROTTLED` never sends later, `OPENED` isn't proof of a read, `FILTERED` is a preference or condition): [reliability.md](./references/guides/reliability.md#message-status-glossary). Commands and flags: [cli.md](./references/guides/cli.md#debugging-workflow).
 

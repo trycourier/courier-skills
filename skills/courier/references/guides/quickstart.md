@@ -98,7 +98,7 @@ Templates are designed in [Design Studio](https://app.courier.com/designer). Sen
 | `status: UNROUTABLE`, `reason: PROVIDER_ERROR` | The routing list references a provider that isn't installed. `error` names it, e.g. `"None of provider(s) twilio,slack is configured for channel email."` The wording varies by release, so branch on `reason` and read `error` | Install the provider, or remove it from the channel's routing list |
 | `status: UNROUTABLE`, no provider error | No channel in `routing.channels` can reach the user (no contact info, no installed provider, or opted out) | Check `to`, `routing.channels`, installed providers, and preferences; create the profile with `email`/`phone_number`, or send to `{ email }` directly |
 | `UNROUTABLE` on an inbox send with no `reason` and no `error`, or `"No provider(s) courier ... : undefined"` | The `courier` provider is missing, or the template has no routing strategy | See [inbox.md](../channels/inbox.md#troubleshooting) |
-| `404` from `messages.retrieve` after a list/bulk send | The `requestId` is the job, not a message ID | `courier messages list --trace-id "<requestId>"`, see [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id) |
+| `404` from `messages.retrieve` after a list/audience send | The `requestId` is the job, not a message ID | Retrieve `<requestId>:<user_id>`, see [CLI debugging](./cli.md#debugging-list-bulk-sends-requestid-vs-message-id) |
 
 ## Environments
 

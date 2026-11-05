@@ -14,12 +14,12 @@ A journey is a JSON graph of nodes that Courier runs asynchronously when you inv
 - `POST /journeys/{id}/invoke` returns `202` with a `runId`; the run is asynchronous
 - Journey-scoped templates use Elemental `version` `"2022-01-01"`. Delay durations are ISO 8601 (`"PT30M"`, `"P1D"`)
 - Conditions are **string** tuples, `[path, operator, value]` or `[path, operator]`: a bare tuple for one condition (never `[[...]]`, which returns `400 nodes.N.paths.M.conditions: Invalid input`), an `{ "AND": [...] }` / `{ "OR": [...] }` object for several. Values are strings (`"true"`, `"50"`). Every path starts with `data.`, `profile.`, `tenant.` or `send_status.<nodeId>`, trigger conditions included, or create and replace return `400`. See [Conditions](#conditions)
-- Interpolation differs by context: templates use `{{data.field}}` (a bare `{{field}}` resolves only in default scope); fetch URLs, headers, query params and bodies need a root on every variable (`{{data.field}}`, `{{profile.field}}`, `{{tenant.field}}`, or `{{recipient}}` for the user ID), and a bare `{{field}}` there is a `400`; conditions use `data.field`. See [Variable Interpolation](#variable-interpolation)
+- Interpolation differs by context: templates use `{{data.field}}` under `scope: "strict"`, bare `{{field}}` in default scope; fetch URLs, headers, query params and bodies need a root on every variable (`{{data.field}}`, `{{profile.field}}`, `{{tenant.field}}`, or `{{recipient}}` for the user ID), and a bare `{{field}}` there is a `400`; conditions use `data.field`. See [Variable Interpolation](#variable-interpolation)
 - A send node's `to` override takes **exactly one** of `email_override`, `phone_number_override`, `user_id_override`, `slack`, or `ms_teams`. A Slack `access_token` must be a runtime reference (`{{data.slack_token}}`), never a literal token. See [Slack and Teams sends](#slack-and-teams-sends)
 - `message.context.tenant_id` on a send node delivers as one of your customers: a literal id or a whole-string mustache reference only. See [Send Node Options](#send-node-options)
 
 ### Common Mistakes
-- Publishing the journey and expecting its templates to go live. A send whose template has no published version fails at delivery (`UNDELIVERABLE`, "Notification template not found") while the run and the send step still show `PROCESSED`. Check the message, not the run
+- Publishing the journey and expecting its templates to go live. A send whose template has no published version fails at delivery (`UNDELIVERABLE`, "... has no published version") while the run and the send step still show `PROCESSED`. Check the message, not the run
 - Assuming the trigger `schema` rejects bad payloads. It isn't enforced at invoke: a payload that breaks it gets `202` and the run completes. Validate in your app, or gate with trigger `conditions` (a failed one returns `422`)
 - Treating a fetch as best-effort. A failed fetch stops the run with `ERROR`, and no later node runs. See [When a fetch fails](#when-a-fetch-fails)
 - Addressing Teams by `channel_name`, `user_id`, or `email` without `service_url` or `tenant_id`. See [Slack and Teams sends](#slack-and-teams-sends)
@@ -369,7 +369,7 @@ How you reference a context value depends on **where** you use it. Getting this 
 
 | Context | Syntax | Example |
 |---------|--------|---------|
-| Template content (Elemental) | `{{data.field}}` works in both scopes. A bare `{{field}}` resolves only in default-scope templates (API-created with no `scope`). Design Studio templates are `scope: "strict"`, so read `content.scope` before editing one. Digest totals are the exception, see [digests.md](./digests.md) | `"Welcome, {{data.first_name}}!"` |
+| Template content (Elemental) | `{{data.field}}` resolves only under `scope: "strict"`, a bare `{{field}}` only in default scope (API-created with no `scope`). Design Studio templates are `scope: "strict"`, so read `content.scope` before editing one. Digest totals are the exception, see [digests.md](./digests.md) | `"Welcome, {{data.first_name}}!"` |
 | Fetch node `url`, query params, body | `{{data.field}}`, `{{profile.field}}`, `{{tenant.field}}`, or `{{recipient}}` (the user ID). A bare `{{field}}` is a `400` on create or replace | `"https://api.app.com/users/{{recipient}}/status"` |
 | Branch / trigger `conditions` | `data.field`, `profile.field`, `tenant.field` (string tuples) | `["data.completed", "is equal", "true"]` |
 | Fetch **header values** | A rooted variable inside a plain string | `{ "Authorization": "Bearer {{data.api_token}}" }` |

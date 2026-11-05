@@ -231,7 +231,6 @@ For a fully custom UI, read and write through `useCourier().preferences`:
 | `getUserPreferenceTopic({ topicId })` | One topic's preference |
 | `putUserPreferenceTopic({ topicId, status, hasCustomRouting, customRouting, digestSchedule? })` | Updates status, routing, or digest schedule |
 | `getDigestSchedules({ topicId })` | The digest schedule options configured for a topic |
-| `getNotificationCenterUrl({ clientKey })` | The hosted preference center URL |
 
 Note these are camelCase (`topicId`, `hasCustomRouting`) while the server API is snake_case
 (`topic_id`, `has_custom_routing`). Tenant scope comes from `signIn`; none of these take a
