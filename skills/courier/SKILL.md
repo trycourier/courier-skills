@@ -1,6 +1,6 @@
 ---
 name: courier
-description: "Builds and debugs notifications with Courier. Use whenever code or a task involves Courier or its API, SDKs, CLI or MCP: sends on email, SMS, push, inbox, Slack, Teams or WhatsApp; templates, journeys, digests, preferences, providers, webhooks, tenants."
+description: "Builds and debugs notifications with Courier. Load it first whenever a task involves Courier or its API, SDKs, CLI or MCP, before searching the docs: it holds the rules and traps the docs search won't surface. Covers sends on email, SMS, push, inbox, Slack, Teams or WhatsApp; templates, journeys, digests, preferences, providers, webhooks, tenants."
 license: MIT
 ---
 
