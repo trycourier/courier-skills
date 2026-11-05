@@ -173,7 +173,7 @@ Token `status` is one of `active`, `unknown`, `failed`, `revoked`, with a free-t
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | APNs devices get it, FCM devices don't (or the reverse) | Push tries providers as `single` by default and stops at the first that delivers | See [Multi-Device Support](#multi-device-support) |
-| OneSignal send fails for some users | No OneSignal ID on the profile, or the payload is over OneSignal's size cap | Store `oneSignalExternalUserId` (or `oneSignalPlayerID`) on the profile and use data mapping. See [OneSignal](https://www.courier.com/docs/integrations/push/onesignal-push) |
+| OneSignal send fails for some users | No OneSignal ID on the profile, or the payload is over OneSignal's size cap. A `400` for a user whose other sends succeed points to their state in OneSignal at send time (no subscribed device for that ID), so check the user in OneSignal before the payload | Store `oneSignalExternalUserId` (or `oneSignalPlayerID`) on the profile and use data mapping. See [OneSignal](https://www.courier.com/docs/integrations/push/onesignal-push) |
 | AWS SNS shows up under SMS | One AWS SNS integration serves both SMS and push | Pick it as a provider on either channel. Its Topic ARN applies to push only |
 
 ## Related
