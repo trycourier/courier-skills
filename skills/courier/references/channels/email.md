@@ -125,6 +125,10 @@ app.post('/webhooks/courier', async (req, res) => {
 
 ## Troubleshooting
 
+### SendGrid Messages Stay at SENT
+
+Delivery tracking is off until SendGrid reports back. Add the Webhook URL from Courier's SendGrid integration page as an Event Webhook in SendGrid (Settings → Mail Settings → Event Webhooks); until then every message stays at `SENT`. Steps: [SendGrid](https://www.courier.com/docs/integrations/email/sendgrid#delivery-tracking).
+
 ### AWS SES Messages Stay at SENT
 
 SES reports delivery through SNS, so every SES message stays at `SENT` until an SES configuration set publishes `Bounce`, `Delivery` and `Reject` to an SNS topic subscribed to the SES integration's **Message Events Webhook URL** (raw message delivery off). Add the configuration set's ARN to the IAM policy Courier sends with, or every send fails with `not authorized to perform ses:SendRawEmail`. Steps: [AWS SES](https://www.courier.com/docs/integrations/email/aws-ses).
