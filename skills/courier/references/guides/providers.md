@@ -16,26 +16,13 @@ Configure provider integrations (SendGrid, Twilio, APNS, Slack, etc.) over the `
 - Provider IDs are opaque workspace-scoped values returned on create (distinct from the catalog `provider` key)
 - `title` defaults to `"Default Configuration"` when omitted. For multiple configs of the same provider (e.g. two SendGrid sub-accounts), set a unique `title` and `alias`
 - In the test environment, a stored `title` gets a `test - ` prefix
-- Routing strategies reference providers by their **catalog key** (e.g. `"sendgrid"`) in `channels.{channel}.providers`. If you need multiple configs for the same provider key (two SendGrid sub-accounts, etc.), set distinct `title`/`alias` values and disambiguate in the dashboard, the docs don't yet spec an API-only way to target a specific configuration from a routing strategy
-
-### API vs Dashboard
-Prefer the API for:
-- Infrastructure-as-code / Terraform-style workspace provisioning
-- Multi-workspace rollouts (dev → staging → prod with the same scripted setup)
-- AI-agent workflows where the agent already has env-var access to provider credentials
-- Programmatic rotation of `api_key`/`auth_token` values
-
-Prefer the dashboard for:
-- Day-to-day human credential management (encrypted at rest, team-audited, OAuth flows where available)
-- First-time setup of a provider you haven't configured before, the dashboard surfaces required fields interactively
-- Providers that use OAuth-based setup (Slack, Gmail, MS Teams, Discord), these generally still require dashboard-initiated auth
+- Routing strategies reference providers by their **catalog key** (e.g. `"sendgrid"`) in `channels.{channel}.providers`. There's no documented API way to target one of several configs of the same provider from a strategy; tell them apart by `title`/`alias` in the dashboard
 
 ### Common Mistakes
 - Guessing `settings` keys instead of reading them from `/providers/catalog`. A misspelled or unknown `settings` key is saved silently and does nothing. Read the catalog and compare the stored config with `GET /providers/{id}`. Only a missing required key is rejected: `400`, with the field named in camelCase (e.g. `authToken`)
 - Using `provider` values from documentation prose that don't match the catalog (e.g. `"aws_ses"` vs the real `"aws-ses"`, or `"fcm"` vs `"firebase-fcm"`)
 - Using `PUT` to change one setting. It's a full replacement, so any omitted `settings` are wiped, including `rate_limit`. Use `PATCH` instead
 - Sending the fields to change as the `PATCH` body (`{ settings: { … } }`). The body is `{ patch: [operations] }`; a plain object returns `400 patch: must be an array of JSON Patch operations`
-- Committing an `api_key` directly in a `providers.create` call instead of reading `process.env.SENDGRID_API_KEY`
 - Creating a provider config via API for a catalog entry that requires OAuth, those need to be initiated from the dashboard
 
 ### SDK shape
@@ -70,34 +57,7 @@ for (const entry of catalog.results) {
 }
 ```
 
-**Python:**
-```python
-from courier import Courier
-
-client = Courier()
-
-catalog = client.providers.catalog.list(keys="sendgrid")
-
-for entry in catalog.results:
-    print(entry.provider, entry.channel, entry.settings)
-```
-
-**curl:**
-```bash
-# Single provider
-curl -s "https://api.courier.com/providers/catalog?keys=sendgrid" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
-
-# All email providers
-curl -s "https://api.courier.com/providers/catalog?channel=email" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
-
-# Substring search on display name
-curl -s "https://api.courier.com/providers/catalog?name=grid" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
-```
-
-Use the returned `settings` map to build your `providers.create` payload. Any field with `required: true` must be present.
+Filter with `keys` (exact catalog keys), `channel` (e.g. `email`), or `name` (substring of the display name), in the SDK or as query params on `GET /providers/catalog`. Every field with `required: true` must be in your `providers.create` payload.
 
 ---
 
@@ -122,39 +82,6 @@ const provider = await client.providers.create({
 const providerId = provider.id;
 ```
 
-**Python:**
-```python
-import os
-
-provider = client.providers.create(
-    provider="sendgrid",
-    title="SendGrid — Production",
-    alias="sendgrid-prod",
-    settings={
-        "api_key": os.environ["SENDGRID_API_KEY"],
-        "from_address": "notifications@acme.co",
-    },
-)
-
-provider_id = provider.id
-```
-
-**curl:**
-```bash
-curl -X POST "https://api.courier.com/providers" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"provider\": \"sendgrid\",
-    \"title\": \"SendGrid — Production\",
-    \"alias\": \"sendgrid-prod\",
-    \"settings\": {
-      \"api_key\": \"$SENDGRID_API_KEY\",
-      \"from_address\": \"notifications@acme.co\"
-    }
-  }"
-```
-
 ### Twilio
 
 ```typescript
@@ -168,55 +95,15 @@ await client.providers.create({
 });
 ```
 
-After creating the provider, reference it by catalog key in a routing strategy. See [routing-strategies.md](./routing-strategies.md):
-
-```typescript
-await client.routingStrategies.create({
-  name: "Transactional",
-  routing: { method: "single", channels: ["email", "sms"] },
-  channels: {
-    email: { providers: ["sendgrid"] },
-    sms: { providers: ["twilio"] }
-  }
-});
-```
+Then reference each provider by its catalog key (`"sendgrid"`, `"twilio"`) in a routing strategy's `channels.{channel}.providers`, see [routing-strategies.md](./routing-strategies.md).
 
 ---
 
 ## List, Retrieve, Update, Replace, Delete
 
-### List
+### List and retrieve
 
-**TypeScript:**
-```typescript
-const { results, paging } = await client.providers.list();
-for (const p of results) console.log(p.id, p.provider, p.title, p.alias);
-```
-
-**Python:**
-```python
-response = client.providers.list()
-for p in response.results:
-    print(p.id, p.provider, p.title, p.alias)
-```
-
-**curl:**
-```bash
-curl -s "https://api.courier.com/providers" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
-```
-
-### Retrieve
-
-**TypeScript:**
-```typescript
-const provider = await client.providers.retrieve("provider_01abc123");
-```
-
-**Python:**
-```python
-provider = client.providers.retrieve("provider_01abc123")
-```
+`client.providers.list({ cursor? })` returns `{ results, paging }`, each with `id`, `provider`, `title`, and `alias`. `client.providers.retrieve(id)` returns one config.
 
 ### Update part of a config (PATCH)
 
@@ -239,32 +126,7 @@ await client.providers.patch("provider_01abc123", {
 });
 ```
 
-**Python:**
-```python
-client.providers.patch(
-    "provider_01abc123",
-    patch=[{"op": "replace", "path": "/settings/api_key", "value": os.environ["SENDGRID_API_KEY_NEW"]}],
-)
-```
-
-**curl:**
-```bash
-curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{\"patch\": [{\"op\": \"replace\", \"path\": \"/settings/api_key\", \"value\": \"$SENDGRID_API_KEY_NEW\"}]}"
-```
-
-Rename a config and clear its alias:
-
-```typescript
-await client.providers.patch("provider_01abc123", {
-  patch: [
-    { op: "replace", path: "/title", value: "SendGrid Marketing" },
-    { op: "remove", path: "/alias" },
-  ],
-});
-```
+Python: `client.providers.patch("provider_01abc123", patch=[{"op": "replace", "path": "/settings/api_key", "value": ...}])`. curl: `PATCH https://api.courier.com/providers/{id}` with the body `{"patch": [...]}`.
 
 To apply a change only if the stored config is what you expect, put a `test` operation first. If it fails, the request returns `400` and nothing changes:
 
@@ -281,50 +143,11 @@ await client.providers.patch("provider_01abc123", {
 
 `PUT /providers/{id}` replaces the config in full. `provider` is required, and every field you omit is cleared, including `alias` and any `settings` key such as `rate_limit`. Use it when you intend to define the complete config, for example from a provisioning script that owns every field. To change one setting, use [PATCH](#update-part-of-a-config-patch).
 
-**TypeScript:**
-```typescript
-await client.providers.update("provider_01abc123", {
-  provider: "sendgrid",
-  title: "SendGrid Production",
-  alias: "sendgrid-prod",
-  settings: {
-    api_key: process.env.SENDGRID_API_KEY!,
-    from_address: "notifications@acme.co"
-  }
-});
-```
-
-**Python:**
-```python
-client.providers.update(
-    "provider_01abc123",
-    provider="sendgrid",
-    title="SendGrid Production",
-    alias="sendgrid-prod",
-    settings={
-        "api_key": os.environ["SENDGRID_API_KEY"],
-        "from_address": "notifications@acme.co",
-    },
-)
-```
+The body has the same shape as `providers.create`.
 
 ### Delete
 
-**TypeScript:**
-```typescript
-await client.providers.delete("provider_01abc123");
-```
-
-**Python:**
-```python
-client.providers.delete("provider_01abc123")
-```
-
-**curl:**
-```bash
-curl -X DELETE "https://api.courier.com/providers/provider_01abc123" \
-  -H "Authorization: Bearer $COURIER_API_KEY"
-```
+`client.providers.delete(id)` (`DELETE /providers/{id}`).
 
 Delete returns 409 while any routing strategy or template still references the provider. Remove its key from each strategy's `channels.{channel}.providers` array and update those templates first.
 
@@ -356,51 +179,7 @@ await client.providers.patch("provider_01abc123", {
 });
 ```
 
-**Python:**
-```python
-client.providers.patch(
-    "provider_01abc123",
-    patch=[{"op": "add", "path": "/settings/rate_limit", "value": {"rate": 10, "period": "second"}}],
-)
-```
-
-**curl:**
-```bash
-curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{ "patch": [{ "op": "add", "path": "/settings/rate_limit", "value": { "rate": 10, "period": "second" } }] }'
-```
-
-To change only the rate, `replace` `/settings/rate_limit/rate`:
-
-```typescript
-await client.providers.patch("provider_01abc123", {
-  patch: [{ op: "replace", path: "/settings/rate_limit/rate", value: 5 }],
-});
-```
-
-Remove the limit with a `remove` operation:
-
-**TypeScript:**
-```typescript
-await client.providers.patch("provider_01abc123", {
-  patch: [{ op: "remove", path: "/settings/rate_limit" }],
-});
-```
-
-**Python:**
-```python
-client.providers.patch("provider_01abc123", patch=[{"op": "remove", "path": "/settings/rate_limit"}])
-```
-
-**curl:**
-```bash
-curl -X PATCH "https://api.courier.com/providers/provider_01abc123" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{ "patch": [{ "op": "remove", "path": "/settings/rate_limit" }] }'
-```
+Change only the rate with `{ op: "replace", path: "/settings/rate_limit/rate", value: 5 }`, and remove the limit with `{ op: "remove", path: "/settings/rate_limit" }`.
 
 To start a new config with a limit, include `rate_limit` in `settings` on `providers.create`.
 
@@ -437,5 +216,3 @@ See [multi-channel.md](./multi-channel.md#provider-failover) for failover semant
 - [Create a provider](https://www.courier.com/docs/api-reference/providers/create-a-provider), official endpoint reference
 - [List available provider types](https://www.courier.com/docs/api-reference/providers/list-available-provider-types), `/providers/catalog` reference
 - [Integrations Overview](https://www.courier.com/docs/integrations/overview), human-facing integration docs
-
-<!-- Target line budget: <= 500 lines. -->

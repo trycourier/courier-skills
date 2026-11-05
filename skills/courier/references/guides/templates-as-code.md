@@ -1,9 +1,6 @@
 # Templates as Code
 
-Run notification templates like software releases: your repo is the source of truth, every
-change is validated before it ships, every release is verified against real rendered output,
-and any prior version is one call away. All the pieces are native to the Templates API — this
-page composes them into one repeatable workflow.
+Your repo is the source of truth for template content, and the Templates API supplies every step of the release loop:
 
 ```
 local files → validate → diff → push → publish → verify → (rollback if needed)
@@ -22,7 +19,6 @@ local files → validate → diff → push → publish → verify → (rollback 
 
 ### Common Mistakes
 - Pushing without diffing and overwriting dashboard edits.
-- Stripping `id`s or `locales` from the repo files. Pushing them back gives every element a new id and deletes every translation made in Design Studio or with `putLocale`.
 - Treating a push as a release. Nothing changes for recipients until you publish.
 
 ## 1. Local files are the source of truth
@@ -62,9 +58,6 @@ environment for dev → prod promotion:
   "welcome":       { "dev": "nt_02dev...", "prod": "nt_02prod..." }
 }
 ```
-
-Name templates by their trigger (`order-shipped`, not `email-v2-final`) and tag them by
-category (`transactional`, `marketing`) — tags are filterable in the dashboard and the API.
 
 ## 2. Validate before pushing
 
@@ -106,14 +99,7 @@ diff <(jq -S "$NORMALIZE" order-shipped.json) \
          -H "Authorization: Bearer $COURIER_API_KEY" | jq -S "$NORMALIZE")
 ```
 
-`-f` makes the fetch fail loudly on an HTTP error — a bad key or template id should stop the
-check, not be diffed as if it were content. A non-empty diff on a *successful* fetch before
-you've changed anything means the draft moved since your last sync — usually a teammate's
-Design Studio edits or new translations. Don't overwrite either side. With no local changes
-yet, save the draft through `$NORMALIZE` over your file. When both changed, merge the draft's
-changes (usually new `locales`) into your file, then push. Pulling before you start editing
-avoids the merge. To audit what's *live* rather than
-what's in-progress, run the same diff with `?version=published`.
+`-f` stops the check on an HTTP error instead of diffing an error body. A non-empty diff before you've changed anything means the draft moved (a teammate's Design Studio edits or new translations). With no local changes, save the draft through `$NORMALIZE` over your file; when both changed, merge the draft's changes (usually new `locales`) into your file, then push. To audit what's live, diff against `?version=published`.
 
 **If a translation tool owns the translations** rather than the repo, diff with
 `"$NORMALIZE | del(.. | .locales?)"` on both sides. A push without `locales` deletes them, so
@@ -131,22 +117,15 @@ content-only changes.
 
 ## 5. Publish deliberately
 
-Sends always use the published version, so drafts are free to iterate — publishing is your
-release step. Confirm the draft one last time (`GET .../content?version=draft`), then
-publish. See [Draft/Publish Workflow](./templates.md#draftpublish-workflow).
+Confirm the draft (`GET .../content?version=draft`), then publish. See [Draft/Publish Workflow](./templates.md#draftpublish-workflow).
 
 ## 6. Verify the release
 
-Send a test and assert on the real rendered output — the exact subject, HTML, and text part
-the recipient receives. Workflow and response shape:
-[Verify the Rendered Output](./templates.md#verify-the-rendered-output).
+Send a test and assert on the real rendered output: [Verify the Rendered Output](./templates.md#verify-the-rendered-output).
 
 ## 7. Know your rollback
 
-Inspect any historical version's content with `GET .../content?version=v001`, then republish
-it with `publish {"version": "v001"}` — history is append-only, so the rollback itself lands
-in the audit trail. Calls and details:
-[List Versions and Roll Back](./templates.md#list-versions-and-roll-back).
+Inspect the old version with `GET .../content?version=v001`, then `publish {"version": "v001"}`. See [List Versions and Roll Back](./templates.md#list-versions-and-roll-back).
 
 ## Template aliases
 
@@ -165,47 +144,12 @@ better in app code, and you can point the name at a different template without t
   content, publish, versions, locales, previews. Keep `templates.map.json` for pushes and promotion.
   The metrics endpoint also accepts an alias.
 
-**TypeScript:**
+Send by alias only after the template is published (`state: "PUBLISHED"` on create, or `publish(id)`):
 
 ```typescript
-await client.notifications.create({
-  notification: {
-    name: "Order shipped",
-    tags: [],
-    brand: null,
-    subscription: null,
-    routing: null,
-    content: {
-      version: "2022-01-01",
-      elements: [
-        {
-          type: "channel",
-          channel: "email",
-          elements: [
-            { type: "meta", title: "Your order shipped" },
-            { type: "text", content: "Order {{order_id}} is on its way." },
-          ],
-        },
-      ],
-    },
-    alias: "order-shipped",
-  },
-  state: "PUBLISHED",
-});
-
 await client.send.message({
   message: { to: { user_id: "user-123" }, template: "order-shipped", data: { order_id: "ORD-9042" } },
 });
-```
-
-Send by alias only after the template is published (`state: "PUBLISHED"` on create, or `publish(id)`).
-
-**Python:**
-
-```python
-client.send.message(
-    message={"to": {"user_id": "user-123"}, "template": "order-shipped", "data": {"order_id": "ORD-9042"}}
-)
 ```
 
 Agent guidance:
@@ -216,12 +160,7 @@ Agent guidance:
 
 ## Promotion between workspaces
 
-The same loop promotes templates between environments: validate → diff → push → publish →
-verify against the target workspace's API key, with the per-environment ids from your map.
-Because the content files are identical, dev and prod stay provably in sync.
-
-Templates, and so their aliases, are separate in each environment. Set the same `alias` on the
-target template when you promote it.
+The same loop promotes templates between environments: validate, diff, push, publish and verify against the target workspace's API key, with the per-environment ids from your map. Templates, and so their aliases, are separate in each environment, so set the same `alias` on the target template when you promote it.
 
 ## Related
 

@@ -50,14 +50,6 @@ const recommended = sets.find((s) => s.name === "Courier Recommended");
 if (!recommended) throw new Error("No Courier Recommended set in this workspace");
 ```
 
-**Python:**
-```python
-sets = client.previews.list_device_sets().results
-recommended = next((s for s in sets if s.name == "Courier Recommended"), None)
-if recommended is None:
-    raise RuntimeError("No Courier Recommended set in this workspace")
-```
-
 ### 2. Start the run
 
 **Node:**
@@ -72,22 +64,6 @@ const run = await client.notifications.previews.runs.create("nt_01abc123", {
   "Idempotency-Key": crypto.randomUUID(),
 });
 // run.status === "PENDING", run.device_ids lists the devices it will render
-```
-
-**Python:**
-```python
-import uuid
-
-run = client.notifications.previews.runs.create(
-    "nt_01abc123",
-    device_set_id=recommended.id,
-    data={
-        "profile": {"name": "Sarah Bennett", "email": "sarah@acme.com"},
-        "tenant": {"name": "Acme Corp"},
-        "order_id": "1042",
-    },
-    idempotency_key=str(uuid.uuid4()),
-)
 ```
 
 **CLI:** `courier notifications:previews:runs create --id nt_01abc123 --device-set-id "$SET_ID" --data '{"order_id": "1042"}' --idempotency-key "$(uuidgen)"`. **MCP:** `list_preview_device_sets`, then `create_preview_run`.
@@ -121,26 +97,7 @@ for (const r of detail.results) {
 }
 ```
 
-**Python:**
-```python
-import time, urllib.request
-
-deadline = time.monotonic() + 5 * 60
-detail = client.notifications.previews.runs.retrieve(run.id, id=run.template_id)
-while detail.status not in ("COMPLETED", "FAILED") and time.monotonic() < deadline:
-    time.sleep(10)
-    detail = client.notifications.previews.runs.retrieve(run.id, id=run.template_id)
-
-if detail.status not in ("COMPLETED", "FAILED"):
-    print(f"Run {run.id} is still {detail.status} after 5 minutes; report the devices with no result yet")
-
-for r in detail.results:
-    if r.status == "COMPLETED" and r.screenshot_url:
-        with urllib.request.urlopen(r.screenshot_url) as resp:  # download now; raises on an expired link
-            ext = resp.headers.get_content_subtype()
-            with open(f"preview-{r.device_id}.{ext}", "wb") as f:
-                f.write(resp.read())
-```
+**Python:** the same loop with `client.notifications.previews.runs.retrieve(run.id, id=run.template_id)` and `time.sleep(10)`; download each `screenshot_url` as soon as you read it.
 
 **MCP:** `get_preview_run` with the template id and run id.
 
@@ -164,14 +121,7 @@ for r in detail.results:
 
 1. **Say what it will cost.** "This run uses 8 previews." For iteration, start with 1 to 3 devices via `device_ids`, such as one Outlook desktop, one mobile, and one dark mode.
 2. **Run with realistic `data`** for every variable the template uses.
-3. **Download and look at every screenshot.** Check:
-   - blank gaps or stray punctuation from missing variables
-   - copy that doesn't match its section
-   - the subject line, on clients that show the inbox. Many screenshots show only the body, so check the subject with `messages.content` after a test send
-   - broken or missing images
-   - Outlook desktop layout: collapsed columns, oversized images, lost padding
-   - mobile: columns that don't stack, text too small, buttons off-screen
-   - dark mode: unreadable text, logos that disappear on dark backgrounds
+3. **Download and look at every screenshot**: gaps from missing variables, broken images, Outlook desktop layout, mobile stacking, dark-mode contrast. Many screenshots show only the body, so check the subject with `messages.content` after a test send.
 4. **Fix the draft you read, in place**: read it, change the element that's wrong, and write the whole tree back, keeping every `id` and `locales` ([Edit a Template in Place](./templates.md#edit-a-template-in-place) has the Node and Python code). Don't rebuild content from scratch: that deletes the translations. If the element you fixed has translations, update them with `putLocale` too ([localization.md](./localization.md)).
 5. **Re-run only the devices that looked wrong** with `device_ids`, then one final run on the full set.
 6. **Publish only when the user says so.** Previews render the draft, so nothing reaches recipients until then.
@@ -181,8 +131,6 @@ for r in detail.results:
 Pass `locale` to render a translation. Use the key exactly as the template stores it (sends match locale codes case-sensitively; see [localization.md](./localization.md)), and check that the screenshot is actually in that language. A key that doesn't match likely renders the default content and still uses previews. Run once per language that matters: longer translations are where buttons wrap and Outlook tables overflow.
 
 **Node:** `client.notifications.previews.runs.create("nt_01abc123", { device_ids: ["pvd_0rk8bz6ywhbydvhfh6xv0bw8ep"], locale: "de", data: { order_id: "1042" }, "Idempotency-Key": crypto.randomUUID() })`
-
-**Python:** `client.notifications.previews.runs.create("nt_01abc123", device_ids=["pvd_0rk8bz6ywhbydvhfh6xv0bw8ep"], locale="de", data={"order_id": "1042"}, idempotency_key=str(uuid.uuid4()))`
 
 ## Choose devices
 
@@ -215,41 +163,18 @@ const device_ids = picks.map((d) => d.id); // 2 devices = 2 previews
 
 ## Preview HTML from another platform
 
-Device Preview doesn't need Courier to send the email. Create a template around the existing HTML, with a `meta` element for the subject and an `html` element for the markup, then run a preview on its `id`:
+Device Preview doesn't need Courier to send the email. [Create a template](./templates.md#create-a-template) whose email channel holds a `meta` element for the subject and an `html` element for the markup, then run a preview on its `id`:
 
 ```json
-{
-  "notification": {
-    "name": "Order shipped (preview)",
-    "tags": [], "brand": null, "subscription": null, "routing": null,
-    "content": {
-      "version": "2022-01-01",
-      "elements": [
-        {
-          "type": "channel", "channel": "email",
-          "elements": [
-            { "type": "meta", "title": "Your order has shipped" },
-            { "type": "html", "content": "<table role=\"presentation\" width=\"600\"><tr><td>Hi {{profile.name}}, order {{order_id}} is on its way.</td></tr></table>" }
-          ]
-        }
-      ]
-    }
-  },
-  "state": "DRAFT"
-}
+{ "type": "channel", "channel": "email", "elements": [
+  { "type": "meta", "title": "Your order has shipped" },
+  { "type": "html", "content": "<table role=\"presentation\" width=\"600\"><tr><td>Hi {{profile.name}}, order {{order_id}} is on its way.</td></tr></table>" }
+] }
 ```
-
-Send that body with `client.notifications.create(...)` (see [templates.md](./templates.md#create-a-template)).
 
 ## Errors
 
-| Status | When |
-|---|---|
-| `400` | Both or neither of `device_set_id` and `device_ids`; an unknown body key such as `template_id`; a malformed version such as `v2` |
-| `402` | The add-on isn't enabled, or its billing is suspended |
-| `404` | The template, device set, or run doesn't exist. A run is only readable under the template it previewed |
-| `409` | Changing or archiving Courier Recommended |
-| `422` | A device id not in the catalog; a version the template doesn't have; not a Design Studio template or no email channel |
+`400`, `402`, `409` and `422` causes are in [Rules](#rules) and [Choose devices](#choose-devices); a `422` also means a `template_version` the template doesn't have. A `404` means the template, device set or run doesn't exist; a run is readable only under the template it previewed.
 
 ## Related
 

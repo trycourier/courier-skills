@@ -25,11 +25,6 @@ Neither is a send path. To *send* a notification over an HTTP callback, that's t
 - Verify signatures against the raw request bytes, not a re-serialized object.
 - Inbound events need a `userId` that matches an existing Courier user, or nothing starts.
 
-### Common Mistakes
-- Creating one webhook and expecting it to fire in both environments.
-- Hashing `JSON.stringify(parsedBody)` and getting a signature that never matches.
-- Deduplicating on `data.id` alone and dropping later status events for the same message.
-
 ## Outbound Webhooks
 
 ### Setup
@@ -86,10 +81,7 @@ Retries, when the failure looks temporary:
 
 Retries continue for roughly a day, then Courier gives up.
 
-**Events can arrive more than once, so handlers must be idempotent.** Note that `data.id` identifies
-the *resource*, not the event. One message emits several events that all carry the same `data.id`.
-Deduplicate on `data.id` **plus** `data.status` (or the event type), never on `data.id` alone.
-`preferences:user:updated` is simpler: its `data.id` is unique per change.
+**Events can arrive more than once, so handlers must be idempotent.** `data.id` is the *resource*, so one message's events share it: dedupe on `data.id` plus status, as in the Rules. `preferences:user:updated` is simpler: its `data.id` is unique per change.
 
 ### message:updated Payloads
 
@@ -264,74 +256,7 @@ app.post(
 );
 ```
 
-**Python (Flask):**
-
-```python
-import hmac
-import hashlib
-import os
-import time
-
-
-def parse_courier_signature(header: str | None):
-    if not header:
-        return None
-    parts = {}
-    for chunk in header.split(","):
-        if "=" in chunk:
-            k, v = chunk.split("=", 1)
-            parts[k.strip()] = v.strip()
-    if "t" not in parts or "signature" not in parts:
-        return None
-    return parts["t"], parts["signature"]
-
-
-def verify_webhook_signature(
-    raw_body: bytes,
-    header: str | None,
-    secret: str,
-    tolerance_ms: int = 5 * 60 * 1000,
-) -> bool:
-    parsed = parse_courier_signature(header)
-    if not parsed:
-        return False
-    timestamp, signature = parsed
-
-    try:
-        ts = int(timestamp)
-    except ValueError:
-        return False
-    if abs(int(time.time() * 1000) - ts) > tolerance_ms:
-        return False
-
-    signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
-    expected = hmac.new(
-        secret.encode(), signed_payload.encode(), hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(signature, expected)
-
-
-@app.route("/webhooks/courier", methods=["POST"])
-def courier_webhook():
-    raw_body = request.get_data()          # raw bytes, before Flask parses JSON
-    signature = request.headers.get("courier-signature")
-    if not verify_webhook_signature(
-        raw_body, signature, os.environ["COURIER_WEBHOOK_SECRET"]
-    ):
-        return "", 401
-
-    queue.enqueue("process_webhook", request.get_json())
-    return "", 200
-```
-
-### Checklist
-
-1. Acknowledge with a 2xx inside 10 seconds; process asynchronously.
-2. Deduplicate on `data.id` plus status. Redelivery is expected, and `data.id` alone is not unique per event.
-3. Verify the signature against raw bytes, in constant time, with a timestamp tolerance.
-4. Ignore unrecognized `type` values instead of erroring.
-5. Keep the secret in an environment variable.
-6. Create the destination in **every environment** you need it in.
+**Python (Flask):** the same steps with `hmac.new(secret.encode(), f"{t}.{raw_body.decode()}".encode(), hashlib.sha256).hexdigest()` and `hmac.compare_digest`, where `raw_body = request.get_data()` is read before Flask parses the JSON.
 
 <a id="inbound-webhooks"></a>
 
@@ -395,16 +320,13 @@ Point a journey's **Webhook trigger** at the webhook by name, then optionally na
 `data.<field>` on the run.
 
 > **Send real traffic before you build.** Courier learns event names and payload shape from events
-> it has actually received. Until at least one event arrives, the event picker and variable hints
-> are empty. The editor infers fields flattened four levels deep; anything nested deeper shows up as
-> a single object field. Without a selected event name, the editor unions fields across every event
-> seen on that source, so a suggested field may not exist on every payload.
+> it has actually received, so until one arrives the event picker and variable hints are empty.
 
 **You can also build the Webhook trigger over the API.** Use a trigger node with `"trigger_type": "webhook"` and `event_source`, plus an optional `event_id` to match one `event` name. See [journeys.md](./journeys.md#triggers).
 
 ## Related
 
 - [reliability.md](./reliability.md): delivery statuses, idempotency, retries
-- [patterns.md](./patterns.md#webhook-handler): copy-paste handler skeleton
+- [patterns.md](./patterns.md#webhook-handler): handler checklist
 - [journeys.md](./journeys.md): trigger types and journey structure
 - [Outbound Webhooks](https://www.courier.com/docs/monitor/webhooks/outbound) · [Inbound Webhooks](https://www.courier.com/docs/monitor/webhooks/inbound)

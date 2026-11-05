@@ -1,6 +1,6 @@
 # Multi-Channel Routing
 
-**Contents:** [Quick Reference](#quick-reference) · [Routing Methods](#routing-methods) · [Channel Selection Examples](#channel-selection-examples) · [Escalation Patterns](#escalation-patterns) · [Channel-Specific Formatting](#channel-specific-formatting) · [User Preferences Integration](#user-preferences-integration) · [Cross-Channel Coordination](#cross-channel-coordination) · [Provider Failover](#provider-failover) · [Monitoring & Analytics](#monitoring--analytics) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [Routing Methods](#routing-methods) · [Escalation Patterns](#escalation-patterns) · [Channel-Specific Formatting](#channel-specific-formatting) · [User Preferences Integration](#user-preferences-integration) · [Cross-Channel Coordination](#cross-channel-coordination) · [Provider Failover](#provider-failover) · [Monitoring & Analytics](#monitoring--analytics) · [Related](#related)
 
 ## Quick Reference
 
@@ -35,17 +35,7 @@ Rationale for "order shipped": email is the durable record; push is the awarenes
 | Provider returns 5xx | Courier retries, then tries next provider in priority order |
 | All providers for a channel fail | With `method: "single"`, falls through to next channel |
 
-### Common Mistakes
-- Using `all` when `single` is appropriate (spams user on all channels)
-- Not setting channel priority order correctly
-- Missing fallback channels for critical notifications
-- Sending same content to all channels (adapt per channel)
-- Not respecting user preferences
-- Forgetting idempotency keys (causes duplicates)
-
 ---
-
-Orchestrate notifications across channels for maximum deliverability and engagement.
 
 ## Routing Methods
 
@@ -54,8 +44,6 @@ Courier provides two core routing methods:
 ### Single Channel (`method: "single"`)
 
 Try channels in priority order until one succeeds. Best for most notifications where you want exactly one delivery.
-
-Pick the priority order based on the use case, OTP/2FA should be `["sms", "email"]` (speed matters more than durability), password reset should be `["email"]` (the secure link is the point), general fallback can be `["email", "sms"]` (email is the default record, SMS is the backstop).
 
 **TypeScript (generic fallback, email first):**
 ```typescript
@@ -71,23 +59,10 @@ await client.send.message({
 });
 ```
 
-**Python:**
-```python
-client.send.message(
-    message={
-        "to": {"user_id": "user-123"},
-        "template": "nt_01kmrbzj3q6x9v2d5c8n1w4ht",
-        "routing": {"method": "single", "channels": ["email", "sms"]},
-    }
-)
-```
-
 **Behavior:**
 1. Attempt the first channel
 2. If it fails (no contact info, provider error), try the next
 3. Stop after first successful delivery
-
-> For OTP specifically, swap the channel order to `["sms", "email"]`, the Quick Reference table above is the source of truth for per-use-case ordering.
 
 ### All Channels (`method: "all"`)
 
@@ -107,91 +82,10 @@ await client.send.message({
 });
 ```
 
-**Python:**
-```python
-client.send.message(
-    message={
-        "to": {"user_id": "user-123"},
-        "template": "nt_01kmrc06x1q5v8d2c6n4w9hj",
-        "routing": {"method": "all", "channels": ["email", "push", "sms"]},
-    }
-)
-```
-
 **Behavior:**
 - Attempts delivery to all channels in parallel
 - Each channel is independent (one failure doesn't affect others)
 - User receives on all channels where they have valid contact info
-
-## Channel Selection Examples
-
-### Security Alert (Highest Tier, Suspicious Activity)
-
-Security alerts fan out by severity (see [Security Alert Channels](../transactional.md#security-alert-channels)). The example below is for a **high-severity** event like suspicious activity, 2FA disabled, or a password change, which earns the full channel set. For a lower-severity event like a new device login, drop SMS and Inbox and use `channels: ["email", "push"]`.
-
-```typescript
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrc06x1q5v8d2c6n4w9hj",
-    data: {
-      alertType: "suspicious_activity",
-      device: "Chrome on Windows",
-      location: "New York, USA",
-      time: new Date().toISOString()
-    },
-    routing: {
-      method: "all",
-      channels: ["email", "push", "sms", "inbox"]
-    }
-  }
-});
-```
-
-### Order Shipped
-
-```typescript
-// Email is the durable record; push is the awareness nudge.
-// method: "all" skips channels the user has no contact info for
-// (e.g., no push token → push skipped, INCOMPLETE_PROFILE_DATA in the log, email still sent).
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    data: {
-      orderNumber: "12345",
-      trackingUrl: "https://acme.co/track/12345",
-      carrier: "FedEx",
-      estimatedDelivery: "Thursday, Jan 30"
-    },
-    routing: {
-      method: "all",
-      channels: ["email", "push"]
-    }
-  }
-});
-```
-
-### Activity Notification
-
-```typescript
-// Push for immediate, inbox for persistence
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbvb7x1q5v8d2c6n4w9hj",
-    data: {
-      commenterName: "Jane",
-      commentPreview: "Great point about the API design!",
-      postId: "post-456"
-    },
-    routing: {
-      method: "all",
-      channels: ["push", "inbox"]
-    }
-  }
-});
-```
 
 ## Escalation Patterns
 
@@ -206,135 +100,20 @@ T+1hr:    Email (if still unread)
 T+24hr:   SMS (if critical and still unread)
 ```
 
-**Implementation with Courier Journeys (recommended):**
-
-Build the escalation as a journey DAG with delay and send nodes. See [Journeys](./journeys.md) for the full create → template → wire → publish → invoke workflow.
-
-This is the `PUT /journeys/{id}` body once the journey and its templates exist. `POST /journeys` rejects node `id`s (400) and send nodes (422). See [Journeys](./journeys.md#standard-workflow).
-
-```json
-{
-  "name": "Escalating Notification",
-  "nodes": [
-    { "id": "trigger-1", "type": "trigger", "trigger_type": "api-invoke" },
-    { "id": "send-inbox", "type": "send", "message": { "template": "<inbox-template-id>" } },
-    { "id": "wait-15m", "type": "delay", "mode": "duration", "duration": "PT15M" },
-    {
-      "id": "check-read",
-      "type": "fetch",
-      "method": "get",
-      "url": "https://api.yourapp.com/notifications/{{data.notification_id}}/status",
-      "merge_strategy": "overwrite"
-    },
-    {
-      "id": "branch-read",
-      "type": "branch",
-      "paths": [
-        {
-          "label": "Already read",
-          "conditions": ["data.read", "is equal", "true"],
-          "nodes": [{ "id": "exit-read", "type": "exit" }]
-        }
-      ],
-      "default": {
-        "nodes": [
-          { "id": "send-push", "type": "send", "message": { "template": "<push-template-id>" } },
-          { "id": "wait-1h", "type": "delay", "mode": "duration", "duration": "PT1H" },
-          { "id": "send-email", "type": "send", "message": { "template": "<email-template-id>" } }
-        ]
-      }
-    },
-    { "id": "exit-1", "type": "exit" }
-  ],
-  "enabled": true
-}
-```
+Build it as a [journey](./journeys.md): send (inbox) → `delay` `PT15M` → `fetch` your app's read state → `branch` (read → `exit`; otherwise send push → `delay` `PT1H` → send email). Node shapes and a worked delay → fetch → branch → exit journey: [journeys.md](./journeys.md#delay-fetch-branch-and-exit-nodes).
 
 The fetch checks inbox read state in your own app, so keep it for an in-app first step: a read is not
 a click. When the earlier step is an email, push, or SMS and a click is the engagement you care about,
 branch on its send status instead (`["send_status.<nodeId>", "was not", "CLICKED"]`). See
 [Branching on an earlier send](./journeys.md#branching-on-an-earlier-send).
 
-Invoke the journey when the event occurs:
-
-```bash
-curl -sS -X POST "https://api.courier.com/journeys/$JOURNEY_ID/invoke" \
-  -H "Authorization: Bearer $COURIER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "user-123",
-    "data": { "approvalId": "apr-789", "requestedBy": "Jane" }
-  }'
-```
-
 ### Delivery-Based Escalation
 
-Automatically try next channel when delivery fails:
-
-```typescript
-// Single routing method handles this automatically
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrc0n6x9q3v7d1c5n8w2hj",
-    routing: {
-      method: "single",
-      channels: ["push", "email", "sms"] // Fallback chain
-    }
-  }
-});
-```
-
-**Failure reasons that trigger fallback:**
-- Missing contact info (no email address, no phone, no push token)
-- Provider error (temporary or permanent)
-- Invalid recipient (bounced email, invalid phone)
+**What triggers fallback:** a channel fails, and `single` moves to the next one, when the recipient has no address for it (no email, no phone, no push token) or every provider on it has failed. Courier retries transient provider errors before moving on. A bounce or other recipient-level failure reported after the provider accepted the message doesn't trigger fallback (see [When Failover Triggers](#when-failover-triggers)).
 
 ## Channel-Specific Formatting
 
 Same notification, optimized for each channel:
-
-### Email (Detailed)
-
-```jsonc
-// message.channels fragment — rich HTML with images, tracking details, etc.
-{
-  "email": {
-    "override": {
-      "subject": "Your order #12345 has shipped",
-      "html": "<h1>Order shipped</h1><p>Tracking: <a href=\"https://acme.co/t/12345\">acme.co/t/12345</a></p>"
-    }
-  }
-}
-```
-
-### Push (Concise)
-
-```jsonc
-// message.channels fragment
-{
-  "push": {
-    "override": {
-      "title": "Order shipped!",
-      "body": "Arriving Thursday. Tap to track.",
-      "data": { "deepLink": "acme://orders/12345" }
-    }
-  }
-}
-```
-
-### SMS (Ultra-Short)
-
-```jsonc
-// message.channels fragment
-{
-  "sms": {
-    "override": {
-      "body": "Acme: Order #12345 shipped! Arrives Thu. Track: acme.co/t/12345"
-    }
-  }
-}
-```
 
 ### Complete Multi-Channel Example
 
@@ -379,69 +158,15 @@ await client.send.message({
 
 ## User Preferences Integration
 
-### Respect User Choices
-
-Let users control which channels they receive:
-
-```typescript
-// Check preferences before routing
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbu5x8q2v6d1c4n7w9hj",
-    routing: {
-      method: "single",
-      channels: ["email", "inbox"] // Courier filters by user preference
-    }
-  }
-});
-```
-
-Courier automatically checks user preferences and filters channels.
-
-### Set Up Preference Topics
-
-1. Create topics in Courier dashboard (Settings → Preferences)
-2. Link templates to topics
-3. Courier checks preferences before delivery
-
-```typescript
-// User's preference might be:
-{
-  items: [
-    {
-      topic_id: "weekly-digest",
-      status: "OPTED_IN",
-      has_custom_routing: true,
-      custom_routing: ["email"]
-    }
-  ]
-}
-```
+Courier checks the user's preferences on every send. An opt-out of the template's topic stops the send. A user's per-topic channel choice (`custom_routing`) **replaces** the template's routing when `has_custom_routing` is true and the topic has channel selection enabled; without both, the template's routing applies. Topics, sections and the preference shape: [preferences.md](./preferences.md).
 
 ## Cross-Channel Coordination
-
-### Deduplication
-
-Prevent duplicate notifications with idempotency keys:
-
-```typescript
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbqf7z9dn2v6w4x8cj5ht",
-    data: { orderId: "12345" }
-  }
-}, {
-  headers: { "Idempotency-Key": `order-shipped-12345` }
-});
-```
 
 ### Read State Sync
 
 To stop a follow-up after the user engages, cancel that follow-up by its own message ID while it is still pending (for example a delayed send), or branch in a journey. `client.messages.cancel` can't retract a message that already reached the feed.
 
-> ⚠️ **Do not treat an email open as engagement.** Apple Mail Privacy Protection and Gmail's image proxy prefetch tracking pixels on the recipient's behalf, so `OPENED` fires for a large share of recipients who never saw the message. Escalation, suppression, and read-state logic keyed on opens will silently misfire. Key on **clicks** (`CLICKED`), in-app read state, or an action inside your own product instead.
+Don't key escalation or suppression on `OPENED`: image-proxy prefetch fires it for recipients who never saw the message. Use `CLICKED`, in-app read state, or an action in your product (see [reliability.md](./reliability.md)).
 
 ### Cancellation
 
@@ -456,48 +181,9 @@ With [Journeys](./journeys.md), build exit logic directly into the DAG using bra
 3. Drag to set priority order. Courier tries top-to-bottom
 4. Each provider needs its own credentials (API key, etc.)
 
-```
-Email Providers (Priority Order):
-1. SendGrid (Primary)     ← tried first
-2. Mailgun (Backup)       ← tried if SendGrid fails
-3. AWS SES (Last resort)  ← tried if both fail
-
-SMS Providers:
-1. Twilio (Primary)
-2. MessageBird (Backup)
-```
-
 ### Setup (API)
 
 The same setup can be done over the API, configure the provider integrations via `/providers`, then define priority order per channel via a routing strategy's `channels.{channel}.providers` array. The position of a provider key in that array is the drag-to-reorder equivalent.
-
-```typescript
-// 1. Configure the provider integrations (one-time, usually from an IaC script).
-//    See providers.md for the catalog discovery pattern and full CRUD.
-await client.providers.create({
-  provider: "sendgrid",
-  settings: { api_key: process.env.SENDGRID_API_KEY!, from_address: "notifications@acme.co" }
-});
-await client.providers.create({
-  provider: "aws-ses",
-  settings: { access_key_id: process.env.AWS_ACCESS_KEY_ID!, secret_access_key: process.env.AWS_SECRET_ACCESS_KEY!, region: "us-east-1" }
-});
-await client.providers.create({
-  provider: "twilio",
-  settings: { account_sid: process.env.TWILIO_ACCOUNT_SID!, auth_token: process.env.TWILIO_AUTH_TOKEN!, messaging_service_sid: "MG..." }
-});
-
-// 2. Define priority order per channel via a routing strategy.
-//    Array order in channels.{channel}.providers = failover priority.
-await client.routingStrategies.create({
-  name: "Transactional",
-  routing: { method: "single", channels: ["email", "sms"] },
-  channels: {
-    email: { providers: ["sendgrid", "aws-ses"] }, // SendGrid first, SES fallback
-    sms: { providers: ["twilio"] }
-  }
-});
-```
 
 - See [providers.md](./providers.md) for configuring provider integrations (catalog discovery, key rotation, per-provider `settings`).
 - See [routing-strategies.md](./routing-strategies.md) for the full routing strategy CRUD, per-provider `override`/`if`/`timeouts`, and how to link the resulting `rs_...` to templates via `routing.strategy_id`.
@@ -526,30 +212,7 @@ The history shows each provider attempt with timestamps and status.
 
 ### Provider-Specific Overrides
 
-Pass provider-level configuration without changing dashboard settings:
-
-```typescript
-await client.send.message({
-  message: {
-    to: { user_id: "user-123" },
-    template: "nt_01kmrbr0s4y7qv2n8c5d1xj9k",
-    providers: {
-      twilio: {
-        override: {
-          body: { MessagingServiceSid: "MG..." }
-        }
-      },
-      sendgrid: {
-        override: {
-          body: { ip_pool_name: "transactional" }
-        }
-      }
-    }
-  }
-});
-```
-
-`body` merges into the provider's own request, so use that API's field names.
+Per-send `providers.{key}.override` changes one provider's request without touching its stored config. See [providers.md](./providers.md#per-send-provider-overrides-recap).
 
 ## Monitoring & Analytics
 

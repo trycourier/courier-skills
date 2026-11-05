@@ -8,78 +8,89 @@ own type definitions, `node_modules/@trycourier/courier/resources/*.d.ts` or the
 package stubs. When they disagree with this file, they win. See
 [Verifying Against Live Sources](../SKILL.md#verifying-against-live-sources).
 
-**Staying current.** The installed version is the ground truth. Check it
-(`npm ls @trycourier/courier`, `pip show trycourier`) and verify shapes against its types.
-If it trails the latest release, recommend upgrading (`npm install @trycourier/courier@latest`);
-a major-version jump is a breaking migration rather than a silent bump, so flag it as one and
-check the SDK's release notes.
+**Staying current.** Check the installed version (`npm ls @trycourier/courier`, `pip show trycourier`) and verify shapes against its types. Minor versions have moved whole namespaces, so a namespace that is `undefined` on the client usually means upgrade (`npm install @trycourier/courier@latest`), not a missing method. Flag a major-version jump as a breaking migration and check the release notes.
 
-Minor versions have moved whole namespaces before now. If a namespace in this table is
-`undefined` on the installed client, check the installed version and upgrade before concluding
-the method doesn't exist.
+## Namespaces
+
+**The 23 namespaces are the complete SDK surface.** If an operation isn't here, it isn't in the SDK; use MCP, the CLI, or REST:
+
+```
+audiences  auditEvents  auth      automations  brands
+broadcasts  bulk        digests   inbound      journeys
+lists      messages     notifications  previews  profiles
+providers  requests     routingStrategies  send  tenants
+translations  users     workspacePreferences
+```
+
+Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `journeys.runs`, `journeys.templates`, `lists.subscriptions`, `notifications.checks`, `notifications.previews`, `notifications.previews.runs`, `profiles.lists`, `providers.catalog`, `tenants.preferences`, `tenants.preferences.items`, `tenants.templates`, `tenants.templates.versions`, `users.preferences`, `users.tenants`, `users.tokens`, `workspacePreferences.topics`.
+
+`auditEvents` and `inbound` (`inbound.trackEvent`) have no dedicated guide; use MCP or the CLI. `requests.archive` is in [inbox.md](./channels/inbox.md).
 
 ## Method lookup
 
-| Operation | Node | Python |
-|-----------|------|--------|
-| Send a message | `client.send.message({ message })` | `client.send.message(message=...)` |
-| Create a template | `client.notifications.create({ notification, state })` → returns `{ id, name, content, … }` at top level | `client.notifications.create(notification=..., state=...)` → `response.id` |
-| Publish a template (or roll back to a version) | `client.notifications.publish(templateId)` · rollback: `client.notifications.publish(templateId, { version: "v001" })` | `client.notifications.publish(template_id)` · rollback: `client.notifications.publish(template_id, version="v001")` |
-| List a template's versions | `client.notifications.listVersions(templateId)` — paginated, `{ cursor, limit }` (max 10/page) | `client.notifications.list_versions(template_id)` |
-| Retrieve a message | `client.messages.retrieve(id)` | `client.messages.retrieve(id)` |
-| List messages | `client.messages.list({ ... })` | `client.messages.list(...)` |
-| Subscribe a user to a list (additive) | `client.lists.subscriptions.subscribeUser(userId, { list_id })` | `client.lists.subscriptions.subscribe_user(user_id, list_id=...)` |
-| Replace a list's subscribers | `client.lists.subscriptions.subscribe(listId, { recipients })` | `client.lists.subscriptions.subscribe(list_id, recipients=...)` |
-| Create/replace a tenant | `client.tenants.update(tenantId, body)` | `client.tenants.update(tenant_id, ...)` |
-| Add a user to a tenant | `client.users.tenants.addSingle(tenantId, { user_id })` | `client.users.tenants.add_single(tenant_id, user_id=...)` |
-| Send to many recipients | `client.send.message({ message: { to: { list_id } } })`, or `{ audience_id }` | `client.send.message(message={"to": {"list_id": ...}})` |
-| Create a bulk job | `client.bulk.createJob({ message: { event } })` → `{ jobId }` (`event` required) | `client.bulk.create_job(message={"event": ...})` → `.job_id` |
-| Ingest users into a bulk job | `client.bulk.addUsers(jobId, { users })` | `client.bulk.add_users(job_id, users=[...])` |
-| Run a bulk job | `client.bulk.runJob(jobId)` | `client.bulk.run_job(job_id)` |
-| Bulk job status and counts | `client.bulk.retrieveJob(jobId)` → `{ job }` | `client.bulk.retrieve_job(job_id)` |
-| Per-recipient bulk outcomes | `client.bulk.listUsers(jobId)` → `{ items, paging }` | `client.bulk.list_users(job_id)` |
-| Archive a sent message | `client.requests.archive(requestId)` | `client.requests.archive(request_id)` |
-| Resend a message | `client.messages.resend(messageId)` | `client.messages.resend(message_id)` |
-| Rendered content of a sent message | `client.messages.content(messageId)` | `client.messages.content(message_id)` |
-| Delivery event history | `client.messages.history(messageId)` | `client.messages.history(message_id)` |
-| List preference changes | `client.workspacePreferences.listLogs({ user_id, since, limit, cursor })` → `{ items, paging }` | `client.workspace_preferences.list_logs(user_id=..., since=...)` |
-| Configure a topic's digest | `client.workspacePreferences.topics.create(sectionId, { name, default_status, digest })` · also `replace(topicId, { section_id, ... })` | `client.workspace_preferences.topics.create(section_id, name=..., default_status=..., digest=...)` |
-| Turn off a topic's digest | `client.workspacePreferences.topics.deleteDigest(topicId, { section_id })` | `client.workspace_preferences.topics.delete_digest(topic_id, section_id=...)` |
-| Release one recipient's digest | `client.workspacePreferences.topics.releaseDigest(topicId, { section_id, user_id })` | `client.workspace_preferences.topics.release_digest(topic_id, section_id=..., user_id=...)` |
-| Release a schedule's digests early | `client.digests.schedules.release(scheduleId)` | `client.digests.schedules.release(schedule_id)` |
-| Inspect digest accumulation | `client.digests.schedules.listInstances(scheduleId)` | `client.digests.schedules.list_instances(schedule_id)` |
-| Create/update a profile (merge) | `client.profiles.create(userId, { profile })` | `client.profiles.create(user_id, profile=...)` |
-| Get a user's preferences | `client.users.preferences.retrieve(userId)` | `client.users.preferences.retrieve(user_id)` |
-| Update a user's preference for a topic (status, channels, digest schedule) | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic: { status, digest_schedule_id?, ... } })` | `client.users.preferences.update_or_create_topic(topic_id, user_id=..., topic=...)` |
-| Register a user's device token | `client.users.tokens.addSingle(token, { user_id, provider_key, device })` | `client.users.tokens.add_single(token, user_id=..., provider_key=..., device=...)` |
-| Create a journey | `client.journeys.create({ name, nodes, enabled, cancelation_token? })` | `client.journeys.create(name=..., nodes=..., enabled=..., cancelation_token=...)` |
-| Replace a journey (draft) | `client.journeys.replace(id, { name, nodes, enabled })` | `client.journeys.replace(id, name=..., nodes=..., enabled=...)` |
-| Publish a journey | `client.journeys.publish(id)` | `client.journeys.publish(id)` |
-| Invoke a journey (start a run) | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` | `client.journeys.invoke(template_id=id, user_id=..., data=..., profile=...)` → `.run_id` |
-| Cancel a journey run | `client.journeys.cancel({ cancelation_token })`, or `{ run_id }`, exactly one | `client.journeys.cancel(cancelation_token=...)` |
-| List journey runs | `client.journeys.runs.list({ template_id?, status? })` | `client.journeys.runs.list(template_id=..., status=...)` |
-| One journey run, and its steps | `client.journeys.runs.retrieve(runId)` · `client.journeys.runs.listSteps(runId)` | `client.journeys.runs.retrieve(run_id)` · `client.journeys.runs.list_steps(run_id)` |
-| Create a journey-scoped template | `client.journeys.templates.create(journeyId, { ... })` | `client.journeys.templates.create(journey_id, ...)` |
-| Publish a journey-scoped template | `client.journeys.templates.publish(notificationId, { templateId: journeyId })` | `client.journeys.templates.publish(notification_id, template_id=journey_id)` |
-| Create and send a broadcast | `client.broadcasts.create({ name, channel })`, `putContent(id, { content })`, then `send(id, { recipient_type, recipient_id })` or `schedule(id, { recipient_type, recipient_id, scheduled_to })` | `client.broadcasts.create(name=..., channel=...)`, `put_content(id, content=...)`, then `send(id, recipient_type=..., recipient_id=...)` or `schedule(...)` |
-| Create a routing strategy | `client.routingStrategies.create({ name, routing, channels?, providers? })` → returns `{ id: "rs_...", ... }` | `client.routing_strategies.create(name=..., routing=..., ...)` |
-| Replace a routing strategy (full PUT) | `client.routingStrategies.replace(id, { name, routing, ... })` | `client.routing_strategies.replace(id, name=..., routing=..., ...)` |
-| Configure a provider | `client.providers.create({ provider, settings, title?, alias? })` | `client.providers.create(provider=..., settings=..., ...)` |
-| Change part of a provider config (PATCH, JSON Patch operations) | `client.providers.patch(id, { patch: [{ op, path, value? }] })` | `client.providers.patch(id, patch=[{"op": ..., "path": ..., "value": ...}])` |
-| Replace a provider config (full PUT) | `client.providers.update(id, { provider, settings, ... })` | `client.providers.update(id, provider=..., settings=..., ...)` |
-| List provider catalog (required `settings` schema) | `client.providers.catalog.list({ keys?, name?, channel? })` | `client.providers.catalog.list(keys=..., channel=...)` |
-| Cancel a message | `client.messages.cancel(messageId)` | `client.messages.cancel(message_id)` |
-| Retrieve a template | `client.notifications.retrieve(templateId)` | `client.notifications.retrieve(template_id)` |
-| List templates | `client.notifications.list()` | `client.notifications.list()` |
-| Replace a template (full PUT) | `client.notifications.replace(templateId, { notification, state })` | `client.notifications.replace(template_id, notification=..., state=...)` |
-| Archive a template | `client.notifications.archive(templateId)` | `client.notifications.archive(template_id)` |
-| Get template content (published, draft, or a version) | `client.notifications.retrieveContent(templateId, { version: "draft" \| "published" \| "v001" })` — omit for published | `client.notifications.retrieve_content(template_id, version="draft")` |
-| Write one locale's translations (merges) | `client.notifications.putLocale(localeId, { id: templateId, elements: [{ id, ...fields }] })` | `client.notifications.put_locale(locale_id, id=template_id, elements=[...])` |
-| Workspace `.po` strings for `{{t}}` (read) | `client.translations.retrieve(locale, { domain: "default" })`. Upload with raw HTTP `text/plain`, see [localization.md](./guides/localization.md#workspace-translation-strings) | `client.translations.retrieve(locale, domain="default")` |
-| List preview device sets / devices | `client.previews.listDeviceSets()` · `client.previews.listDevices()` | `client.previews.list_device_sets()` · `client.previews.list_devices()` |
-| Save a preview device set | `client.previews.createDeviceSet({ name, device_ids })` | `client.previews.create_device_set(name=..., device_ids=[...])` |
-| Start a Device Preview run | `client.notifications.previews.runs.create(templateId, { device_set_id, data, "Idempotency-Key": key })` | `client.notifications.previews.runs.create(template_id, device_set_id=..., data=..., idempotency_key=key)` |
-| Read a preview run (poll) | `client.notifications.previews.runs.retrieve(runId, { id: templateId })` | `client.notifications.previews.runs.retrieve(run_id, id=template_id)` |
-| Template delivery metrics (time series) | `client.notifications.getMetrics(templateId, { lookback: "P7D", granularity: "DAY" })` | `client.notifications.get_metrics(template_id, lookback="P7D", granularity="DAY")` |
+Python uses the same method in snake_case (`listVersions` → `list_versions`, `routingStrategies` → `routing_strategies`). The positional argument stays positional, and every key of the Node params object becomes a snake_case keyword argument, headers included (`"Idempotency-Key"` → `idempotency_key=`, `{ templateId }` → `template_id=`). Response fields are snake_case attributes (`.request_id`, `.job_id`, `.run_id`).
 
-> The table above covers the most common operations. [journeys.md](./guides/journeys.md), [templates.md](./guides/templates.md), [routing-strategies.md](./guides/routing-strategies.md), [providers.md](./guides/providers.md), [audiences.md](./guides/audiences.md), [brands.md](./guides/brands.md), [tenants.md](./guides/tenants.md), [preferences.md](./guides/preferences.md), [push.md](./channels/push.md) (device tokens), and [inbox/auth.md](./inbox/auth.md) each contain their own SDK tables for their resources (including `list`, `retrieve`, `replace`, and `archive`, or `delete` for providers). **Journeys are Courier's orchestration primitive for multi-step flows** (delays, branches, batching, A/B experiments). A digest collects through the Send API by default ([digests.md](./guides/digests.md)), and a cap across sends is a send limit ([throttling.md](./guides/throttling.md)).
+| Operation | Node |
+|-----------|------|
+| Send a message | `client.send.message({ message })` |
+| Create a template | `client.notifications.create({ notification, state })` → returns `{ id, name, content, … }` at top level |
+| Publish a template (or roll back to a version) | `client.notifications.publish(templateId)` · rollback: `client.notifications.publish(templateId, { version: "v001" })` |
+| List a template's versions | `client.notifications.listVersions(templateId)`, paginated, `{ cursor, limit }` (max 10/page) |
+| Retrieve a message | `client.messages.retrieve(id)` |
+| List messages | `client.messages.list({ ... })` |
+| Subscribe a user to a list (additive) | `client.lists.subscriptions.subscribeUser(userId, { list_id })` |
+| Replace a list's subscribers | `client.lists.subscriptions.subscribe(listId, { recipients })` |
+| Create/replace a tenant | `client.tenants.update(tenantId, body)` |
+| Add a user to a tenant | `client.users.tenants.addSingle(tenantId, { user_id })` |
+| Create a bulk job | `client.bulk.createJob({ message: { event } })` → `{ jobId }` (`event` required) |
+| Ingest users into a bulk job | `client.bulk.addUsers(jobId, { users })` |
+| Run a bulk job | `client.bulk.runJob(jobId)` |
+| Bulk job status and counts | `client.bulk.retrieveJob(jobId)` → `{ job }` |
+| Per-recipient bulk outcomes | `client.bulk.listUsers(jobId)` → `{ items, paging }` |
+| Archive a sent message | `client.requests.archive(requestId)` |
+| Resend a message (creates a **new** message with a new message ID; limited to 1 request per 2 seconds per message) | `client.messages.resend(messageId)` |
+| Rendered content of a sent message | `client.messages.content(messageId)` |
+| Delivery event history | `client.messages.history(messageId)` |
+| List preference changes | `client.workspacePreferences.listLogs({ user_id, since, limit, cursor })` → `{ items, paging }` |
+| Configure a topic's digest | `client.workspacePreferences.topics.create(sectionId, { name, default_status, digest })` · also `replace(topicId, { section_id, ... })` |
+| Turn off a topic's digest | `client.workspacePreferences.topics.deleteDigest(topicId, { section_id })` |
+| Release one recipient's digest | `client.workspacePreferences.topics.releaseDigest(topicId, { section_id, user_id })` |
+| Release a schedule's digests early | `client.digests.schedules.release(scheduleId)` |
+| Inspect digest accumulation | `client.digests.schedules.listInstances(scheduleId)` |
+| Write a profile (POST, deep-merge, the everyday write) | `client.profiles.create(userId, { profile })` |
+| Change profile fields (PATCH, JSON Patch RFC 6902) | `client.profiles.update(userId, { patch: [...] })` |
+| Overwrite a whole profile (PUT; omitted fields are removed) | `client.profiles.replace(userId, { profile })` |
+| Get a user's preferences | `client.users.preferences.retrieve(userId)` |
+| Update a user's preference for a topic (status, channels, digest schedule) | `client.users.preferences.updateOrCreateTopic(topicId, { user_id, topic: { status, digest_schedule_id?, ... } })` |
+| Register a user's device token | `client.users.tokens.addSingle(token, { user_id, provider_key, device })` |
+| Create a journey | `client.journeys.create({ name, nodes, enabled, cancelation_token? })` |
+| Replace a journey (draft) | `client.journeys.replace(id, { name, nodes, enabled })` |
+| Publish a journey | `client.journeys.publish(id)` |
+| Invoke a journey (start a run) | `client.journeys.invoke(id, { user_id, data, profile })` → `{ runId }` |
+| Cancel a journey run | `client.journeys.cancel({ cancelation_token })`, or `{ run_id }`, exactly one |
+| List journey runs | `client.journeys.runs.list({ template_id?, status? })` |
+| One journey run, and its steps | `client.journeys.runs.retrieve(runId)` · `client.journeys.runs.listSteps(runId)` |
+| Create a journey-scoped template | `client.journeys.templates.create(journeyId, { ... })` |
+| Publish a journey-scoped template | `client.journeys.templates.publish(notificationId, { templateId: journeyId })` |
+| Create and send a broadcast | `client.broadcasts.create({ name, channel })`, `putContent(id, { content })`, then `send(id, { recipient_type, recipient_id })` or `schedule(id, { recipient_type, recipient_id, scheduled_to })` |
+| Create a routing strategy | `client.routingStrategies.create({ name, routing, channels?, providers? })` → returns `{ id: "rs_...", ... }` |
+| Replace a routing strategy (full PUT) | `client.routingStrategies.replace(id, { name, routing, ... })` |
+| Configure a provider | `client.providers.create({ provider, settings, title?, alias? })` |
+| Change part of a provider config (PATCH, JSON Patch operations) | `client.providers.patch(id, { patch: [{ op, path, value? }] })` |
+| Replace a provider config (full PUT) | `client.providers.update(id, { provider, settings, ... })` |
+| List provider catalog (required `settings` schema) | `client.providers.catalog.list({ keys?, name?, channel? })` |
+| Cancel a message (only while it's still in flight; an unknown ID returns `404`) | `client.messages.cancel(messageId)` |
+| Retrieve a template | `client.notifications.retrieve(templateId)` |
+| List templates | `client.notifications.list()` |
+| Replace a template (full PUT) | `client.notifications.replace(templateId, { notification, state })` |
+| Archive a template | `client.notifications.archive(templateId)` |
+| Get template content (published, draft, or a version) | `client.notifications.retrieveContent(templateId, { version: "draft" \| "published" \| "v001" })`; omit for published |
+| Write one locale's translations (merges) | `client.notifications.putLocale(localeId, { id: templateId, elements: [{ id, ...fields }] })` |
+| Workspace `.po` strings for `{{t}}` (read) | `client.translations.retrieve(locale, { domain: "default" })`. Upload with raw HTTP `text/plain`, see [localization.md](./guides/localization.md#workspace-translation-strings) |
+| List preview device sets / devices | `client.previews.listDeviceSets()` · `client.previews.listDevices()` |
+| Save a preview device set | `client.previews.createDeviceSet({ name, device_ids })` |
+| Start a Device Preview run | `client.notifications.previews.runs.create(templateId, { device_set_id, data, "Idempotency-Key": key })` |
+| Read a preview run (poll) | `client.notifications.previews.runs.retrieve(runId, { id: templateId })` |
+| Template delivery metrics (time series) | `client.notifications.getMetrics(templateId, { lookback: "P7D", granularity: "DAY" })` |
+
+> The table covers the most common operations. [journeys.md](./guides/journeys.md), [templates.md](./guides/templates.md), [routing-strategies.md](./guides/routing-strategies.md), [providers.md](./guides/providers.md), [audiences.md](./guides/audiences.md), [brands.md](./guides/brands.md), [tenants.md](./guides/tenants.md), [preferences.md](./guides/preferences.md), [push.md](./channels/push.md) (device tokens), and [inbox/auth.md](./inbox/auth.md) each have the full SDK table for their resource.

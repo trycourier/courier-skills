@@ -2,15 +2,12 @@
 
 Notifications Courier sends proactively rather than in response to a user action, onboarding sequences, feature adoption, activity and engagement, win-back, referral, and promotional campaigns.
 
-**Courier does all of these.** This file maps each use case to the Courier primitive that implements it. It deliberately does **not** prescribe cadence, send times, or copy, "nudge at day 7" and "max 2 emails per week" are product decisions that depend on your users, not integration facts.
-
 ## Quick Reference
 
 ### Rules
 
 - **Let Courier handle suppression.** Subscription topics are enforced at send time, so an unsubscribe takes effect on the next send with no suppression job of your own.
 - **Stop the sequence when its goal is met.** A user who activated should not receive the day-3 activation nudge. Cancel, don't let it run out.
-- **Check preferences before sending**: not after. Courier enforces subscription topics at send time. Use them rather than reimplementing suppression.
 
 ### Use case → Courier primitive
 
@@ -28,8 +25,6 @@ Notifications Courier sends proactively rather than in response to a user action
 | Letting users choose frequency | [Subscription topics + preferences](./guides/preferences.md), including a hosted or embedded preference center |
 | One-off broadcast to a list or audience | A [broadcast](https://www.courier.com/docs/broadcasts/overview), built in the dashboard or with the API: `client.broadcasts.create`, `putContent`, then `send` or `schedule` |
 
-**The two things people rebuild unnecessarily** are frequency capping and digest scheduling. Courier does both: send limits cap what a user gets across campaigns, a `throttle` node caps one point in a journey, and a topic digest collects sends on the recipient's schedule. See [Digests](./guides/digests.md), [Batching](./guides/batching.md), and [Throttling](./guides/throttling.md).
-
 ### Cancel the sequence when its goal is met
 
 This is the most common lifecycle bug: a user activates on day 1 and still gets the day-3 "still need help getting started?" email. Set `cancelation_token` on the journey, then cancel on the success event:
@@ -45,47 +40,12 @@ await client.journeys.invoke(onboardingJourneyId, {
 await client.journeys.cancel({ cancelation_token: `onboarding-${userId}` });
 ```
 
-`cancelation_token` is a field on the journey, set on create or replace, and templated from run data (e.g. `onboarding-{{data.user_id}}`). If the referenced field is missing at invoke time the run gets **no token and can never be cancelled by token**. See [Cancelling Runs](./guides/journeys.md#cancelling-runs).
+If the field the token references is missing at invoke, the run gets **no token** and can't be cancelled by it. See [Cancelling Runs](./guides/journeys.md#cancelling-runs).
 
 ### Common mistakes
 
-- Letting a sequence run after the user did the thing it was nudging toward
 - Rebuilding digest scheduling or frequency capping in application code
 - Targeting by a hand-maintained user query instead of an audience
-
----
-
-## Targeting: use audiences, not queries
-
-An audience is a filter whose membership Courier stores and keeps current. Send to it directly instead of resolving a user list yourself.
-
-```typescript
-await client.send.message({
-  message: {
-    to: { audience_id: "trial-users-no-integration" },
-    template: "nt_feature_announcement_template_id",
-    data: { feature_name: "Journeys" },
-  },
-});
-```
-
-For per-user data that Courier doesn't hold, invoke a journey per user and pass it in `data`, a `fetch` node can also pull it at send time. See [Patterns](./guides/patterns.md).
-
-## Respecting frequency without writing a scheduler
-
-To cap what one user receives across every campaign, set a [send limit](https://www.courier.com/docs/send/statuses#send-limits) per user, topic, or tenant. A `throttle` node caps only the point in the journey where it sits. Put one at the top of a lifecycle journey to stop that journey firing too often for one user:
-
-```json
-{ "type": "throttle", "scope": "user", "max_allowed": 2, "period": "P7D" }
-```
-
-It doesn't count sends from other journeys. Details in [Throttling](./guides/throttling.md).
-
-## Letting users pick their own cadence
-
-Create a subscription topic per notification category, expose a preference center, and let Courier enforce the result at send time. You stop maintaining suppression logic entirely.
-
-Courier offers a hosted preference page and embeddable React / Web Components. See [Preferences](./guides/preferences.md).
 
 ## Related
 
@@ -94,5 +54,5 @@ Courier offers a hosted preference page and embeddable React / Web Components. S
 - [Batching](./guides/batching.md), the `batch` node for aggregation
 - [Throttling](./guides/throttling.md), frequency caps and fatigue control
 - [Preferences](./guides/preferences.md), subscription topics, preference centers, opt-out handling
-- [Patterns](./guides/patterns.md), lists, audiences, tenants, bulk targeting
+- [Patterns](./guides/patterns.md), lists and many-recipient sends · [Audiences](./guides/audiences.md), dynamic segments
 - [Transactional](./transactional.md), action-triggered sends: OTP, receipts, order updates, security alerts

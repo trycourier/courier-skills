@@ -2,8 +2,6 @@
 
 Notifications triggered by a user action, expected by the recipient, and required to deliver the service, password resets, OTPs, order updates, receipts, appointment reminders, security alerts.
 
-**Courier does all of these.** This file maps each use case to the Courier primitive that implements it. It deliberately does **not** prescribe cadence, copy, or subject lines, those are product decisions, not integration ones.
-
 **Contents:** [Quick Reference](#quick-reference) · [Sending an OTP](#sending-an-otp) · [A security alert with masked values](#a-security-alert-with-masked-values) · [A dunning sequence](#a-dunning-sequence) · [Related](#related)
 
 ## Quick Reference
@@ -11,8 +9,6 @@ Notifications triggered by a user action, expected by the recipient, and require
 ### Rules
 
 - **Use an idempotency key** where a duplicate would be harmful, payments, OTPs, security alerts. Pass it as a header (see [Reliability](./guides/reliability.md)).
-- **Email-change alerts go to BOTH addresses**: old and new. The old address is the only channel the legitimate owner still controls.
-- **Render times in the recipient's timezone** with the abbreviation (`2:00 PM PST`), never in server time.
 - Transactional sends still respect a user's channel-level preferences unless you explicitly override them.
 
 ### Use case → Courier primitive
@@ -33,17 +29,6 @@ Notifications triggered by a user action, expected by the recipient, and require
 
 **Cancelling a ladder is the part people miss.** If an appointment is rescheduled or an invoice is paid, the pending reminders must stop. Set a cancelation token on the journey and call `POST /journeys/cancel`. See [Cancelling Runs](./guides/journeys.md#cancelling-runs).
 
-### Rate limits worth enforcing on your side
-
-Courier can cap delivery with [send limits](https://www.courier.com/docs/send/statuses#send-limits) per user, topic, or tenant, and blocked messages show as `THROTTLED`. Request-side checks, such as per-IP limits and lockouts, are still yours.
-
-| Action | Suggested limit | Lockout |
-|--------|-------|---------|
-| Password reset | 3/hour | 1 hour |
-| OTP request | 5/hour | 1 hour |
-| Magic link | 5/hour | 1 hour |
-| Verification resend | 3/hour | 30 minutes |
-
 <a id="security-alert-channels"></a>
 
 ### Security Alert Channels
@@ -57,15 +42,6 @@ Fan out by severity. The highest-severity events warrant interrupting the user.
 | Email changed | Old email + New email + SMS |
 | 2FA disabled | Email + Push + SMS |
 | Suspicious activity | All channels |
-
-### Common mistakes
-
-- Batching or quiet-hour-delaying an OTP (breaks the flow and the security model)
-- Sending an email-change alert only to the new address
-- Echoing a full email or phone number in a security notification
-- Leaving reminder journeys running after the triggering event resolved
-- Adding a promotional footer to a receipt
-- Omitting the timezone abbreviation on a scheduled-event reminder
 
 ---
 
@@ -86,28 +62,11 @@ await client.send.message({
 });
 ```
 
-```python
-client.send.message(
-    message={
-        "to": {"user_id": user_id},
-        "template": "nt_otp_template_id",
-        "data": {"code": code, "expires_in_minutes": 10},
-        "routing": {"method": "single", "channels": ["sms", "email"]},
-    },
-    extra_headers={"Idempotency-Key": f"otp-{user_id}-{request_id}"},
-)
-```
-
 `routing.method: "single"` delivers to the **first** channel that works, the fallback semantics you want. `"all"` would send the code twice. See [Multi-Channel](./guides/multi-channel.md).
 
 ## A security alert with masked values
 
 ```typescript
-const maskEmail = (e: string) => {
-  const [user, domain] = e.split("@");
-  return `${user[0]}${"*".repeat(Math.max(user.length - 1, 3))}@${domain}`;
-};
-
 await client.send.message({
   message: {
     to: { user_id: userId },

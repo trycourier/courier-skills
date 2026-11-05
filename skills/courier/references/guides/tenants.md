@@ -1,10 +1,6 @@
 # Tenants
 
-A tenant is one of your customer organizations: the company, account, or workspace a group of your
-users belongs to. If you sell to businesses, you almost certainly have this object in your own
-database already. Attach users to a tenant, store everything specific to that customer on it, and
-one template renders per-tenant: the brand, preference defaults, properties, and credentials apply
-automatically when a send carries its `tenant_id`.
+A tenant is one of your customer organizations: the company, account, or workspace a group of your users belongs to. Attach users to it and store that customer's settings on it; one template then renders per tenant when a send carries its `tenant_id`.
 
 What lives where on a tenant:
 
@@ -17,16 +13,9 @@ What lives where on a tenant:
 | Their Slack bot token or Teams Bot Framework credentials | `user_profile` |
 | Their position under a parent org | `parent_tenant_id` |
 
-Two things tenants are **not**: a way to group recipients (use a list or audience for "send this to
-these people" — tenants isolate customers, they don't gather people), and a permissions system
-(authorization stays in your application). A user can belong to many tenants, with independent
-preferences, branding, and Inbox feeds in each; a send names both the `user_id` and a `context.tenant_id`. The
-user determines who receives, the tenant determines which context builds the message.
+A tenant is not a recipient group (use a list or audience) and not a permissions system. A user can belong to many tenants, with independent preferences, branding, and Inbox feeds in each: the user decides who receives, the tenant decides which context builds the message.
 
-To segment delivery data by customer afterwards, filter the message log by tenant:
-`GET /messages?tenant_id=acme-corp` ("messages sent with the context of a tenant"). Don't reach for
-`providers[].reference` for this — its contents are provider-specific, and the `tenantId` the MS Teams
-provider records there is the *Microsoft* tenant, not yours.
+To segment delivery data by customer, filter the message log by tenant: `GET /messages?tenant_id=acme-corp`. Don't use `providers[].reference` for this. Its contents are provider-specific, and the `tenantId` the MS Teams provider records there is the *Microsoft* tenant, not yours.
 
 **Contents:** [Quick Reference](#quick-reference) · [Create or replace a tenant](#create-or-replace-a-tenant) · [Associate users, then send](#associate-users-then-send) · [Per-tenant preference overrides](#per-tenant-preference-overrides) · [Tenant-scoped templates](#tenant-scoped-templates)
 
@@ -37,15 +26,11 @@ provider records there is the *Microsoft* tenant, not yours.
 - `brand_id: null` returns `400`, even though the SDK types allow `null`. To remove a brand, omit `brand_id`.
 - Four layers load per send, as a sliding window; merging is parent first, child overwrites per key. `default_preferences` is the exception: a child with any items replaces the parent's whole list, see [Hierarchy and merging](#hierarchy-and-merging).
 - An inbox client signed in with a `tenantId` shows only that tenant's messages. Signed in without one, it shows only messages sent without a tenant. Sign in with the `tenantId` the send carried.
-- Pass the tenant on the recipient (`to.context.tenant_id`) or in `message.context.tenant_id`, and use one form consistently. `to: { user_id, tenant_id }` returns `400`, even though the SDK types allow it. `to: { tenant_id }` alone sends to every member of the tenant.
 
 ### Common Mistakes
-- Signing the inbox client in without a `tenantId`, or with a different one, after a tenant-scoped send. The message never shows and nothing fails.
 - Relying on auto-inferred tenant context for users who belong to more than one tenant.
 
 ## Create or replace a tenant
-
-`update` creates or replaces by the id you choose (`PUT /tenants/{id}`); `name` is required. It replaces the whole tenant, so a field you leave out (`properties`, `brand_id`, `user_profile`, `default_preferences`) is cleared. To change one field, read the tenant first and send everything back. To remove a brand, omit `brand_id`: `brand_id: null` returns `400`.
 
 ```ts
 // Node
@@ -56,15 +41,6 @@ await client.tenants.update("acme-corp", {
   // default_preferences, parent_tenant_id, user_profile also accepted
 });
 ```
-
-```python
-# Python
-client.tenants.update("acme-corp", name="Acme Corp", brand_id="brand_acme",
-                      properties={"plan": "enterprise"})
-```
-
-A tenant carries `name`, `brand_id`, `default_preferences`, `properties`, `parent_tenant_id`, and
-`user_profile`. A **child** tenant (`parent_tenant_id` set) inherits the parent's brand and defaults.
 
 ### Hierarchy and merging
 
@@ -92,24 +68,21 @@ This is also how one [journey](./journeys.md) serves every customer: a send node
 `message.context.tenant_id` and its Slack/Teams sends pick up that tenant's stored credentials —
 see [Slack and Teams sends](./journeys.md#slack-and-teams-sends) for the reference forms and rules.
 
-### Auto-infer, and two silent gotchas
+### Auto-infer and other send gotchas
 
 - **Auto-infer tenant context:** when a user belongs to exactly one tenant and the send names none,
   Courier loads that tenant's context automatically (toggle in workspace settings). Useful for
   Studio, list, and audience sends; surprising when you didn't expect tenant branding to apply
-- **Sign the inbox in with the `tenantId` the send carried.** A send with `tenant_id: "acme"` shows
-  only for a client signed in with `tenantId: "acme"`. A client signed in without a `tenantId` shows
-  only messages sent without a tenant. Signed in without one or with another, the tenant-scoped
-  message never shows, and nothing fails. With no
-  `tenantId`, the unread count can still include tenant-scoped messages the list doesn't show. See
-  [inbox/rendering.md](../inbox/rendering.md)
+- **A user in two or more tenants needs `context.tenant_id` on every send.** Without it the send
+  fails with `Tenant Context Not Found`
+- **Membership isn't required to send in a tenant's context.** A user who isn't a member still gets
+  the tenant's brand and credentials when the send names the tenant
+- **A tenant fan-out uses the named tenant's preferences.** Sending to `{ tenant_id, include_children: true }`
+  checks every member, including members of child tenants, against the `default_preferences` of the
+  tenant you sent to, not their own tenant's. When child tenants keep their own preferences, send to
+  each child tenant directly
 
-| Operation | Node | Python |
-|---|---|---|
-| Get | `client.tenants.retrieve(tenantId)` | `client.tenants.retrieve(tenant_id)` |
-| List | `client.tenants.list()` | `client.tenants.list()` |
-| Delete | `client.tenants.delete(tenantId)` | `client.tenants.delete(tenant_id)` |
-| List users in a tenant | `client.tenants.listUsers(tenantId)` | `client.tenants.list_users(tenant_id)` |
+Other calls: `client.tenants.retrieve(id)`, `list()`, `delete(id)`, `listUsers(id)`. Python uses the same names in snake_case.
 
 ## Associate users, then send
 
@@ -124,10 +97,6 @@ await client.send.message({
   },
 });
 ```
-
-When the send carries `tenant_id`, Courier applies that tenant's `brand_id` and preference defaults to
-the rendered template automatically. `tenant_id` is valid in the recipient's context (`to.context.tenant_id`) or in
-`message.context.tenant_id`. Pick one and use it consistently.
 
 ## Per-tenant preference overrides
 
@@ -157,25 +126,15 @@ await client.tenants.templates.list("acme-corp");                              /
 await client.tenants.templates.retrieve("nt_01k…", { tenant_id: "acme-corp" });
 await client.tenants.templates.replace("nt_01k…", {
   tenant_id: "acme-corp",
-  template: {
-    content: {
-      version: "2022-01-01",
-      elements: [
-        {
-          type: "channel",
-          channel: "email",
-          elements: [
-            { type: "meta", title: "Welcome to Acme" },
-            { type: "text", content: "Hi from Acme" },
-          ],
-        },
-      ],
-    },
-  },
+  template: { content: { version: "2022-01-01", elements: [/* channel-wrapped Elemental, see elemental.md */] } },
 });
 await client.tenants.templates.publish("nt_01k…", { tenant_id: "acme-corp" });
 ```
 
-Confirm exact request bodies (brand `settings`, template content) against the installed types under
-`resources/tenants/`. For the multi-tenant design pattern end-to-end, see [patterns.md](./patterns.md);
-for brand shapes, [brands.md](./brands.md).
+Send it with `template: "tenant/<template_id>"` and the tenant in `context`. `tenant` is the literal word, not the tenant id. Without the prefix the send succeeds with the workspace template, so the tenant's content never appears:
+
+```ts
+await client.send.message({
+  message: { to: { user_id: "user-123" }, template: "tenant/nt_01k…", context: { tenant_id: "acme-corp" } },
+});
+```

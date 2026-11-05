@@ -15,61 +15,34 @@ checks them on every send, so the enforcement lives in Courier rather than in yo
 - **Channel selection is enabled per section**, not per topic
 - **Editor changes are a draft until you publish.** Preview Page opens the draft; Publish makes it live
 - **Preference and unsubscribe URLs need `to.user_id` on the send**, or they render empty
+- **Preferences are keyed by `user_id`** (and by tenant when you pass `tenant_id`), never by email address. Two user IDs that share an email keep separate opt-outs, so opting one out doesn't stop sends to the other. Read a tenant-scoped opt-out with `tenant_id` on the read, or you get the user's workspace-level preference
+- **Topic IDs are generated and can't be chosen.** Topic create has no `id` field, and `PUT` on an unknown topic ID returns `404`. Topics are per environment: **Migrate assets** on a template carries its topic with it, and topics you recreate by API get new IDs, so update templates that reference the old ones. A send whose template references a topic missing from that environment fails there
 
 ### Common Mistakes
-- Leaving a template unmapped from any topic, then wondering why preferences aren't applied
 - Using the wrong variable syntax for the editing context, which renders nothing at all (see [Linking to the page](#linking-to-the-page))
 - Putting an unsubscribe link on a template mapped to a `REQUIRED` topic, where the opt-out silently does nothing
 - Setting `custom_routing` without `has_custom_routing: true`, so the channel list is ignored
 - Using bulk `PUT` when you meant `POST`, which resets every override you did not send
-- Reimplementing suppression in application code instead of letting topic status gate the send
 
 ## The Model
 
-| Piece | What it is | Where it lives |
-|---|---|---|
-| **Topic** | A category users opt in or out of, with a default state | Preferences Editor |
-| **Section** | A named group of topics, and the unit that enables channel selection | Preferences Editor |
-| **Template mapping** | Ties a template to one topic, which is what triggers enforcement | Design Studio template settings, or the API |
-| **User preference** | That user's override on a topic's default | User Preferences API, hosted page, or embedded UI |
-
-Reading returns the user's `status` alongside the topic's `default_status`. Writing sets overrides,
-so you only need to send topics where the user differs from the default. Deleting an override
-reverts that topic to its default.
-
-Topics also carry arbitrary metadata you set through the API, useful for filtering or driving layout
-in a custom preference page.
-
 ### How preferences interact with routing
 
-1. Courier builds the channel list from `routing.channels`
-2. It removes any channel the user disabled for the mapped topic
-3. With `method: "single"` it tries the remaining channels in order
-4. If nothing remains, the message is skipped silently
+1. If the user opted out of the template's topic (and it isn't `REQUIRED`), the send is skipped silently
+2. If the user set `has_custom_routing: true` with `custom_routing` channels, and the topic's section has channel selection enabled, those channels **replace** the template's `routing.channels`
+3. Otherwise the template's routing applies unchanged
 
-Routing of `["email", "push", "sms"]` where the user dropped SMS for this topic tries email and push only.
+A template routed to `["email", "push", "sms"]`, for a user whose custom routing for that topic is `["email"]`, sends email only.
 
 ## Setting It Up
 
-Everything is configured in the **Preferences Editor** ([Settings > Preferences](https://app.courier.com/settings/preferences)),
-which is organised top down: page settings, then sections, then topics. Templates map to topics from
-the template side.
+Everything is configured in the **Preferences Editor** ([Settings > Preferences](https://app.courier.com/settings/preferences)), top down:
 
-**1. Page settings** apply to the whole page: the [brand](./brands.md) (logo, colors, typography),
-the heading, the description, and the **channel names** users see. Rename channels to match your
-product's language, for example "In-App" to "Inbox" or "Push" to "Mobile Push".
+**1. Page settings:** the [brand](./brands.md), heading, description, and the channel display names users see.
 
-**2. Create a section.** Sections group related topics under a heading you name, and are the unit
-that enables channel selection. Each has an auto-generated **ID** used in the API, a heading, and an
-optional description shown beneath it. Reorder them to control how they appear.
+**2. Sections** group topics under a heading and are the unit that enables channel selection. Each has an auto-generated ID used in the API.
 
-**3. Create topics inside the section.** Each topic has a name, its section, and a default state:
-
-| Default | Behavior |
-|---|---|
-| **On** (`OPTED_IN`) | Users receive these unless they opt out |
-| **Off** (`OPTED_OUT`) | Users receive nothing until they opt in |
-| **Required** (`REQUIRED`) | Users can't opt out. For things like security alerts |
+**3. Topics** each have a name, a section, and a default: `OPTED_IN` (On), `OPTED_OUT` (Off), or `REQUIRED` (users can't opt out, e.g. security alerts).
 
 **4. Map templates to topics.** This is the step that makes enforcement happen. In Design Studio,
 open the template's settings and choose a subscription topic. Through the API it is the
@@ -87,16 +60,7 @@ curl -X POST https://api.courier.com/notifications \
 To change an existing template's topic, `PUT /notifications/{id}` replaces the whole template, so
 fetch it first, update `subscription`, and send the full payload back. See [templates.md](./templates.md).
 
-**5. Publish.** Editing preferences never affects users immediately. Every change saves as a draft
-and users keep seeing the last published version until you publish.
-
-| Control | Does |
-|---|---|
-| **Save** | Keeps changes as a draft |
-| **Preview Page** | Opens the page as a user would see it, with unpublished changes and a "Draft mode" banner |
-| **Publish** | Makes the draft live. **View Page** then opens the live page |
-
-Embedded preferences render whatever is published, so use Preview Page to check a draft first.
+**5. Publish.** Every change is a draft until you publish; users, including the embedded components, see the last published version. **Preview Page** opens the draft with a "Draft mode" banner.
 
 ## User Preferences API
 
@@ -117,9 +81,6 @@ Add a `tenant_id` query parameter to any of the `/users` calls to scope preferen
 const prefs = await client.users.preferences.retrieve("user-123");
 // items[]: { topic_id, topic_name, status, default_status, has_custom_routing, custom_routing }
 ```
-```python
-prefs = client.users.preferences.retrieve("user-123")
-```
 
 **Write one topic.** The topic must already exist in the Preferences Editor; these calls set the
 *user's* preference, they do not create the topic definition. An unknown topic returns 404. Note that
@@ -135,13 +96,8 @@ await client.users.preferences.updateOrCreateTopic("weekly-digest", {
   },
 });
 ```
-```python
-client.users.preferences.update_or_create_topic(
-    "weekly-digest",
-    user_id="user-123",
-    topic={"status": "OPTED_OUT"},
-)
-```
+
+Python uses the same calls in snake_case: `client.users.preferences.retrieve(...)`, `update_or_create_topic(topic_id, user_id=..., topic={...})`.
 
 ### Replace vs update
 
@@ -166,14 +122,10 @@ differ from the default. It's idempotent, so the import is safe to re-run.
 
 | Field | Notes |
 |---|---|
-| `topic_id` | The subscription topic the preference applies to |
-| `status` | `OPTED_IN` or `OPTED_OUT`. `REQUIRED` is a topic default, not a user choice |
-| `has_custom_routing` | Must be `true` for `custom_routing` to apply |
-| `custom_routing` | `email`, `sms`, `push`, `inbox`, `direct_message`, `webhook` |
-| `default_status` | The topic's default, returned on reads. Applies when the user has no override |
-| `topic_name` | Display name, returned on reads |
-| `section_id` / `section_name` | The section the topic belongs to, returned on reads |
+| `custom_routing` | `email`, `sms`, `push`, `inbox`, `direct_message`, `webhook`. Applies only with `has_custom_routing: true` |
 | `digest_schedule_id` | The user's digest schedule for the topic. Omit to keep, `null` to reset. See [digests.md](./digests.md#per-recipient-schedule) |
+
+Reads also return `default_status` (the topic default, used when the user has no override), `topic_name`, `section_id`, and `section_name`.
 
 ## Channel Selection
 
@@ -192,7 +144,7 @@ In a multi-tenant workspace a user can hold different preferences per tenant: al
 layers, top to bottom. A layer overrides the ones above it for the topics it sets:
 
 1. Workspace-level topic defaults (the Preferences Editor)
-2. The tenant's defaults (`default_preferences`, written with `tenants.preferences.items`, see [tenants.md](./tenants.md#per-tenant-preference-overrides)). They inherit as **one list, not topic by topic**. A tenant with no items uses its parent's list. A tenant with any items uses only its own, so a topic it leaves out falls back to the workspace default, not the parent's
+2. The tenant's defaults (`default_preferences`, written with `tenants.preferences.items`). They inherit as one list, not topic by topic, see [tenants.md](./tenants.md#hierarchy-and-merging)
 3. The user's global preferences
 4. The user's per-tenant overrides (highest priority)
 
@@ -202,11 +154,7 @@ Read or write the per-tenant layer by adding `tenant_id` as a query parameter on
 
 ## Hosted Preference Center
 
-A Courier-hosted, responsive page where users manage their own preferences, with no frontend to
-build. Everything on it comes from the Preferences Editor: the topics and sections users see, and the
-[brand](./brands.md) supplying logo, colors, and typography. Update the brand and the page follows.
-
-Changes stay in a draft until you publish. **Preview Page** opens it in draft mode.
+A Courier-hosted page where users manage their own preferences, with no frontend to build. Its topics, sections, and look come from the Preferences Editor and the [brand](./brands.md).
 
 <a id="linking-to-the-page"></a>
 
@@ -227,8 +175,7 @@ construct it yourself, but the send must include `to.user_id` or it resolves emp
 { "type": "action", "content": "Manage preferences", "href": "{$.urls.preferences}", "style": "button" }
 ```
 
-Put it in a template's content for contextual access, or once in the brand footer so it appears on
-every message. Preview emails render a sample URL rather than a live one, since they aren't sent to real users.
+Put it in a template, or once in the brand footer to cover every message. Preview emails render a sample URL, not a live one.
 
 ### Unsubscribe links
 
@@ -249,25 +196,11 @@ your email provider's own settings (SendGrid, Mailgun, and so on).
 
 ## Digest Schedules
 
-A topic can deliver its messages as a digest: collected and sent as one message on a schedule the
-recipient picks (Instant, Daily, Every weekday, Multiple days, Weekly, Monthly). Recipients choose in
-the hosted or embedded preference page, or your backend sets `digest_schedule_id`. Configure it in the
-Preferences Editor under **Digest settings**, or with the `digest` object on the topics API.
-
-Setup, the send payload, what the digest template receives, and release are in **[digests.md](./digests.md)**.
+A topic can deliver as a digest on a schedule the recipient picks in the hosted or embedded page, or that your backend sets with `digest_schedule_id`. Setup, the send payload, the digest template, and release are in **[digests.md](./digests.md)**.
 
 ## Embedded Preferences
 
-For a native experience inside your own app instead of the hosted page, use the
-[Courier React SDK](https://www.courier.com/docs/sdk-libraries/courier-react-web).
-
-```bash
-npm install @trycourier/courier-react     # React 18+; use @trycourier/courier-react-17 for React 17
-```
-
-**Preferences authenticate with a JWT, not a client key.** Generate it server-side with the
-`read:preferences` and `write:preferences` scopes. Auth is shared across every Courier component, so
-if you already signed in for Inbox or Toast you don't sign in again.
+For a native page inside your own app, use `<CourierPreferences>` from `@trycourier/courier-react` (React 17: `@trycourier/courier-react-17`). Sign in with a JWT carrying `read:preferences write:preferences` ([auth.md](../inbox/auth.md)); one sign-in covers inbox, toast, and preferences.
 
 ```tsx
 import { CourierPreferences, useCourier } from "@trycourier/courier-react";
@@ -284,37 +217,13 @@ function PreferencePage({ userId, jwt }: { userId: string; jwt: string }) {
 `<CourierPreferences>` renders topics, channel selection, and digest schedules, with native theming
 and built-in dark mode.
 
-| Prop | Purpose |
-|---|---|
-| `lightTheme` / `darkTheme` | Themes merged over the defaults, so override only what you need |
-| `mode` | `"light"`, `"dark"`, or `"system"` (default) |
-| `title` / `subtitle` | Override the component's text |
-| `brandId` | Render using a specific brand's styling |
-| `channelLabels` | Rename channels in the UI, e.g. `{ email: "E-mail" }` |
-| `style` / `onError` | Container styles; error callback |
-
-Theming is applied through props, not `styled-components`. `defaultPreferencesLightTheme`,
-`defaultPreferencesDarkTheme`, and `mergePreferencesTheme(mode, overrideTheme)` are exported for
-building on the defaults. Tenant scope is set on `signIn`, never per component.
+Props: `lightTheme` / `darkTheme` (merged over the defaults), `mode` (`"system"` by default), `title` / `subtitle`, `brandId`, `channelLabels` (e.g. `{ email: "E-mail" }`), `style`, `onError`. Theming goes through props, not `styled-components`. Tenant scope is set on `signIn`, never per component.
 
 > The `userId` you sign in with must match `to.user_id` on your sends, or enforcement won't line up.
 
 ### Headless hooks
 
 For a fully custom UI, read and write through `useCourier().preferences`:
-
-```tsx
-const { preferences } = useCourier();
-
-const prefs = await preferences.getUserPreferences();   // prefs.items holds the topics
-
-await preferences.putUserPreferenceTopic({
-  topicId: topic.topicId,
-  status: topic.status === "OPTED_IN" ? "OPTED_OUT" : "OPTED_IN",
-  hasCustomRouting: topic.hasCustomRouting,
-  customRouting: topic.customRouting,
-});
-```
 
 | Method | Returns |
 |---|---|
@@ -328,27 +237,9 @@ Note these are camelCase (`topicId`, `hasCustomRouting`) while the server API is
 (`topic_id`, `has_custom_routing`). Tenant scope comes from `signIn`; none of these take a
 `tenantId` argument.
 
-### Picking an approach
+### Other surfaces
 
-| Approach | Best for | Effort |
-|---|---|---|
-| Hosted page | No frontend work at all | Lowest |
-| `<CourierPreferences>` (React) | A standard UI inside your web app, themed | Low |
-| Headless hooks | Custom workflows and UX, complete control | Higher |
-| `<courier-preferences>` web component | Any non-React web framework | Low |
-| Mobile SDKs | Native preference screens on iOS, Android, React Native, Flutter | Low |
-| User Preferences API | Backend-managed preferences, imports, sync | Varies |
-
-**The mobile SDKs ship the same prebuilt UI natively**: `CourierPreferencesView` (SwiftUI) /
-`CourierPreferences` (UIKit, Android, React Native, Flutter widget). Each supports **topic mode**
-(toggle topics on/off) and **channels mode** (per-channel controls per topic), authenticates with
-the same JWT scopes, and renders whatever is published in the Preferences Editor. See the
-[iOS](https://www.courier.com/docs/sdk-libraries/ios#preferences),
-[Android](https://www.courier.com/docs/sdk-libraries/android#preferences),
-[React Native](https://www.courier.com/docs/sdk-libraries/react-native#preferences), and
-[Flutter](https://www.courier.com/docs/sdk-libraries/flutter#preferences) docs.
-
-See [inbox/auth.md](../inbox/auth.md) for JWT issuing and refresh.
+Non-React web apps use the `<courier-preferences>` web component. The mobile SDKs ship the same UI natively (`CourierPreferencesView` in SwiftUI; `CourierPreferences` in UIKit, Android, React Native, and Flutter) in topic or channels mode, with the same JWT scopes, rendering what is published. See each SDK's docs, e.g. [iOS](https://www.courier.com/docs/sdk-libraries/ios#preferences).
 
 <a id="tracking-preference-changes"></a>
 
@@ -407,21 +298,7 @@ changed) are in the workspace [audit trail](https://www.courier.com/docs/workspa
 
 ## Workspace Sections and Topics API
 
-The topics above are **per-user** state. **Preference sections** are the workspace-level structure of
-the preferences page, named groups that contain topics, shared across all users. Manage them with
-`client.workspacePreferences.*` (REST: `/preferences/sections/{section_id}`).
-
-| Operation | Node |
-|---|---|
-| Create a section | `client.workspacePreferences.create({ name, description })` |
-| List sections | `client.workspacePreferences.list()` |
-| Get a section | `client.workspacePreferences.retrieve(sectionId)` |
-| Replace a section | `client.workspacePreferences.replace(sectionId, { name, description })` |
-| Archive a section | `client.workspacePreferences.archive(sectionId)` |
-| Publish preference changes | `client.workspacePreferences.publish()` |
-
-Topics within a section live under `client.workspacePreferences.topics.*`:
-`create(sectionId, {...})`, `list(sectionId)`, and `retrieve`/`replace`/`archive(topicId, {...})`.
+Sections and topics are the workspace-level structure of the preferences page, shared by all users. Manage sections with `client.workspacePreferences.*` (REST: `/preferences/sections/{section_id}`): `create({ name, description })`, `list()`, `retrieve(id)`, `replace(id, { name, description })`, `archive(id)`, and `publish()` to make preference changes live. Topics live under `client.workspacePreferences.topics.*`: `create(sectionId, {...})`, `list(sectionId)`, and `retrieve` / `replace` / `archive(topicId, {...})`.
 
 A section carries `name` (required), an optional `description` (shown under the section on the hosted
 page), and `has_custom_routing`.
@@ -433,10 +310,9 @@ channels), `allowed_preferences` (`snooze`, `channel_preferences`), `include_uns
 
 ## Related
 
-- [Multi-Channel](./multi-channel.md) - channel routing, and how `custom_routing` narrows it
+- [Multi-Channel](./multi-channel.md) - channel routing, and how `custom_routing` replaces it when channel selection is on
 - [Brands](./brands.md) - what drives the hosted page's appearance
 - [Tenants](./tenants.md) - tenant defaults that override workspace defaults
 - [Digests](./digests.md) - digest schedules, the digest template, and the Send to Digest node
-- [Batching](./batching.md) - the journey `batch` node
 - [Webhooks](./webhooks.md#preference-events) - the `preferences:user:updated` event, signatures, retries
 - [Hosted Preference Center](https://www.courier.com/docs/guides/build-a-preference-center#hosted-page) · [Preferences Editor](https://www.courier.com/docs/recipients/preferences/preferences-editor) · [Get and Set User Preferences](https://www.courier.com/docs/recipients/preferences/api) · [Track Preference Changes](https://www.courier.com/docs/recipients/preferences/api#track-preference-changes) · [Embedding](https://www.courier.com/docs/guides/build-a-preference-center#embedded-component)
