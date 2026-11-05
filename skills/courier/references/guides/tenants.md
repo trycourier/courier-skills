@@ -130,3 +130,11 @@ await client.tenants.templates.replace("nt_01k…", {
 });
 await client.tenants.templates.publish("nt_01k…", { tenant_id: "acme-corp" });
 ```
+
+Send it with `template: "tenant/<template_id>"` and the tenant in `context`. `tenant` is the literal word, not the tenant id. Without the prefix the send succeeds with the workspace template, so the tenant's content never appears:
+
+```ts
+await client.send.message({
+  message: { to: { user_id: "user-123" }, template: "tenant/nt_01k…", context: { tenant_id: "acme-corp" } },
+});
+```

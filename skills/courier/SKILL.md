@@ -1,6 +1,6 @@
 ---
 name: courier
-description: "Builds and debugs notifications with Courier. Use when sending through Courier on email, SMS, push, in-app inbox, Slack, Teams or WhatsApp: templates, translations, journeys, preferences, routing."
+description: "Builds, debugs and operates notifications with Courier. Use whenever a task involves Courier or its API, SDKs, CLI or MCP: sends on email, SMS, push, inbox, Slack, Teams or WhatsApp; templates, journeys, digests, preferences, providers, webhooks, tenants; or questions about Courier itself."
 license: MIT
 ---
 
@@ -49,6 +49,8 @@ await client.send.message({
 
 **Python (`trycourier`)**: `from courier import Courier`, then the same call in snake_case with the key as a keyword argument: `client.send.message(message={...}, idempotency_key="order-confirmation-12345")`.
 
+**Ruby, Java, Go, PHP and C#** have official SDKs with the same resources; use them instead of hand-rolled HTTP. Ruby (`gem "trycourier"`): `Courier::Client.new`, then `.send_.message(message: {...})` on it, since `send` is reserved. Java (`com.courier:courier-java`): `CourierOkHttpClient.fromEnv()`, then `client.send().message(params)` with `SendMessageParams.builder()`. The rest: [SDK libraries](https://www.courier.com/docs/sdk-libraries/sdks-overview).
+
 Method names for both SDKs, and the complete list of the 23 SDK namespaces and their sub-namespaces: **[sdk-reference.md](./references/sdk-reference.md)**. If an operation isn't in that namespace list, it isn't in the SDK; use MCP, the CLI, or REST.
 
 To write a profile, `client.profiles.create(id, { profile })` deep-merges; `profiles.update` is JSON Patch and `profiles.replace` wipes every field you omit ([sdk-reference.md](./references/sdk-reference.md)).
@@ -60,6 +62,7 @@ To write a profile, `client.profiles.create(id, { profile })` deep-merges; `prof
 - Use E.164 format for phone numbers
 - Only send to channels the user has asked for or that make sense for the use case. Don't blast every channel by default
 - For template sends, pass the Courier-generated `nt_...` ID or a template alias as `template`; treat IDs as opaque, workspace-specific values
+- In templates, every variable names its root: `{{data.order_id}}`, `{{profile.email}}`. A bare `{{order_id}}` renders as nothing in Design Studio, with no error ([templates.md](./references/guides/templates.md#variables))
 - Never put JSON or literal curly braces in inline `message.content`. Courier reads `{path}` in inline content as a variable, so the innermost `{…}` of a JSON string renders as `[Error]`. Put structured payloads in `message.data` as an object and keep `title` and `body` readable text, see the [before and after](./references/guides/templates.md#inline-vs-templated-sending)
 
 ## Debugging a Delivery Failure
@@ -67,7 +70,7 @@ To write a profile, `client.profiles.create(id, { profile })` deep-merges; `prof
 This ladder is for **one message**. A template whose delivery rate is falling, or whose delivered count is low while sent looks healthy (usually the provider isn't reporting delivery back), is [metrics.md](./references/guides/metrics.md).
 
 1. **No `requestId` from `send`** means the call failed, not the delivery.
-2. `courier messages list --trace-id "<requestId>"`. A list or audience send fans out to one message per recipient, so its `requestId` is the job, not a message id.
+2. `courier messages list --trace-id "<requestId>"`. For a single-recipient send the `requestId` is the message id. A list or audience send fans out to one message per recipient, so its `requestId` is the job.
 3. `courier messages history --message-id "<id>"` for where it stopped, then `courier messages content --message-id "<id>"` for what rendered.
 4. **Only then look at the channel:** [email.md](./references/channels/email.md) for sender auth and provider traps, [sms.md](./references/channels/sms.md) for 10DLC, [reliability.md](./references/guides/reliability.md) for retries and webhooks.
 
@@ -144,6 +147,8 @@ Most multi-step work pairs a use-case file with **journeys.md**. Most debugging 
 
 ### Not covered here
 
-EU data residency and audit events have no dedicated file (environments and Test→Production promotion are in [quickstart.md](./references/guides/quickstart.md#environments)). Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/) rather than reconstructing their shapes from memory.
+EU data residency, audit events and compliance have no dedicated file (environments and Test→Production promotion are in [quickstart.md](./references/guides/quickstart.md#environments)). Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/) rather than reconstructing their shapes from memory.
 
 For EU data residency specifically: point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.
+
+For compliance (SOC 2, HIPAA, GDPR), see the [compliance page](https://www.courier.com/docs/workspaces/compliance). Its rule: never send PHI, in content or in `data`, because message logs show the data you send.
