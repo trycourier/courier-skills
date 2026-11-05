@@ -1,12 +1,14 @@
 ---
 name: courier
-description: "Builds, debugs and operates notifications with Courier. Use whenever a task involves Courier or its API, SDKs, CLI or MCP: sends on email, SMS, push, inbox, Slack, Teams or WhatsApp; templates, journeys, digests, preferences, providers, webhooks, tenants; or questions about Courier itself."
+description: "Builds and debugs notifications with Courier. Use whenever code or a task involves Courier or its API, SDKs, CLI or MCP: sends on email, SMS, push, inbox, Slack, Teams or WhatsApp; templates, journeys, digests, preferences, providers, webhooks, tenants."
 license: MIT
 ---
 
 # Courier
 
 ## The Model
+
+Courier is a notification platform. One API sends your product's notifications on email, SMS, push, in-app inbox, Slack, Microsoft Teams and WhatsApp through provider accounts you connect (SendGrid, Amazon SES, Twilio, FCM, APNs and more), with templates, journeys, preferences, brands, tenants, broadcasts, logs and analytics in one place. Teams edit templates in Design Studio without a deploy. A workspace has environments (Production, Test, and custom ones), each with its own API keys, templates and logs, and the key on a request picks the environment.
 
 One `send` call does the whole job. You address a **user** (or list, audience, or tenant), content comes from a **template** or inline, **routing** picks the channels, and **preferences** gate delivery. Courier renders, routes, and delivers; your app supplies the trigger and the data.
 
@@ -147,8 +149,8 @@ Most multi-step work pairs a use-case file with **journeys.md**. Most debugging 
 
 ### Not covered here
 
-EU data residency, audit events and compliance have no dedicated file (environments and Test→Production promotion are in [quickstart.md](./references/guides/quickstart.md#environments)). Find them with the docs MCP (`search_courier`) or the [API reference](https://www.courier.com/docs/api-reference/) rather than reconstructing their shapes from memory.
+This skill is for building and debugging. Product, account and support questions (plans and pricing, SLAs, security reviews, billing, retention) and anything else these files don't cover: answer from the docs, through the docs MCP (`search_courier`) or [courier.com/docs](https://www.courier.com/docs), and say so when the docs don't answer it. Don't answer from memory.
 
-For EU data residency specifically: point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.
+Environments and Test→Production promotion are in [quickstart.md](./references/guides/quickstart.md#environments). EU data residency and audit events have no file; for EU, point the SDK at the EU host via the `baseURL` option or `COURIER_BASE_URL`.
 
-For compliance (SOC 2, HIPAA, GDPR), see the [compliance page](https://www.courier.com/docs/workspaces/compliance). Its rule: never send PHI, in content or in `data`, because message logs show the data you send.
+One compliance rule shapes what you build: never send PHI, in content or in `data`, because message logs show the data you send ([compliance](https://www.courier.com/docs/workspaces/compliance)).
