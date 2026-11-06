@@ -23,7 +23,7 @@ Notifications Courier sends proactively rather than in response to a user action
 | Promotional campaign | Send to a [list or audience](./guides/patterns.md), gated on a subscription topic |
 | Frequency capping across campaigns | [Send limits](https://www.courier.com/docs/send/statuses#send-limits) per user, topic, or tenant. A [`throttle`](./guides/journeys.md) node caps only one point in one journey |
 | Letting users choose frequency | [Subscription topics + preferences](./guides/preferences.md), including a hosted or embedded preference center |
-| One-off broadcast to a list or audience | A [broadcast](https://www.courier.com/docs/broadcasts/overview), built in the dashboard or with the API: `client.broadcasts.create`, `putContent`, then `send` or `schedule` |
+| One-off broadcast to a list or audience | A [broadcast](https://www.courier.com/docs/broadcasts/overview), built in the dashboard or with the API: `client.broadcasts.create`, `putContent`, then `send` or `schedule`. `cancel` only removes a pending schedule: a broadcast that's sending can't be stopped, so correct one by `duplicate`, fix, and send after the user confirms |
 
 ### Cancel the sequence when its goal is met
 

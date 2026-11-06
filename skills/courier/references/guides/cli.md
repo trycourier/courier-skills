@@ -166,7 +166,7 @@ courier journeys create \
 courier journeys:templates create \
   --template-id "$JOURNEY_ID" \
   --channel email \
-  --notification '{"name":"Welcome","tags":[],"brand":null,"subscription":null,"content":{"version":"2022-01-01","elements":[{"type":"channel","channel":"email","elements":[{"type":"meta","title":"Welcome"},{"type":"text","content":"Hi {{data.first_name}}"}]}]}}'
+  --notification '{"name":"Welcome","tags":[],"brand":null,"subscription":null,"content":{"version":"2022-01-01","scope":"strict","elements":[{"type":"channel","channel":"email","elements":[{"type":"meta","title":"Welcome"},{"type":"text","content":"Hi {{data.first_name}}"}]}]}}'
 
 # Publish each journey-scoped template first (or pass --state PUBLISHED on create).
 # Publishing the journey doesn't publish them.
@@ -202,7 +202,7 @@ Trace why a notification failed in four steps:
 courier messages list --format json --transform "results.#(status=UNDELIVERABLE)"
 ```
 
-`messages list` filter flags include `--status`, `--recipient`, `--notification`, `--event`, `--tag`, `--tags`, `--provider`, `--list`, `--message-id`, `--archived`, `--tenant-id`, `--enqueued-after`, `--cursor`, and `--trace-id`. Note: the flag for looking up messages by a send's `requestId` is `--trace-id`, not `--request-id`. See the [next section](#debugging-list--bulk-sends-requestid-vs-message-id).
+`messages list` filter flags include `--status`, `--recipient`, `--notification`, `--event`, `--tag`, `--tags`, `--provider`, `--list`, `--message-id`, `--archived`, `--tenant-id`, `--enqueued-after`, `--cursor`, and `--trace-id`. `--trace-id` matches a send's `metadata.trace_id` (36 characters max), not its `requestId`. See the [next section](#debugging-list--bulk-sends-requestid-vs-message-id).
 
 **2. Inspect the message:**
 
@@ -234,17 +234,13 @@ Shows the final content sent to the provider, after template variables and routi
 
 For a single send (`to: { email }` / `to: { user_id }`), the `requestId` returned by `client.send.message` *is* the message ID. Pass it straight to `courier messages retrieve --message-id "<requestId>"` and `client.messages.retrieve(requestId)`.
 
-For **list**, **list-pattern**, **audience**, or **bulk** sends, the `requestId` is the *job* ID, which fans out to one message per recipient. Passing the job's requestId to `messages retrieve` returns `404 Message not found`. Instead:
+For **list** and **audience** sends, the `requestId` is the *job* ID, which fans out to one message per recipient. Passing it to `messages retrieve` returns `404 Message not found`. Each recipient's message ID is `<requestId>:<user_id>`. To list them, set `metadata.trace_id` on the send and filter by it (`--list <list_id>` also works for a list send):
 
 ```bash
-# Every per-recipient message the job generated; each row's `id` is a message ID:
-courier messages list --trace-id "1-69e16217-36dbd96d7abbe2ccc14cb989" \
-  --format json --transform "results.#.id"
+courier messages list --trace-id "signup-wave-42" --format json --transform "results.#.id"
 ```
 
-Pass each ID to `messages retrieve`, `history`, and `content` as in the steps above.
-
-In the SDKs the same distinction applies: `client.messages.list({ traceId: "<requestId>" })` (Node) / `client.messages.list(trace_id="<requestId>")` (Python) returns the per-recipient messages; each has an `id` you can pass to `client.messages.retrieve`.
+Pass each ID to `messages retrieve`, `history`, and `content` as in the steps above. The SDKs filter the same way: `client.messages.list({ traceId })` (Node), `client.messages.list(trace_id=...)` (Python).
 
 ## Template Metrics
 

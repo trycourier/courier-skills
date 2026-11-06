@@ -14,7 +14,7 @@ Workspace-level, reusable routing configurations. A routing strategy bundles a `
 - `routing.method` is `"single"` (try channels in order until one succeeds) or `"all"` (send to all channels in parallel)
 - **Design Studio names these differently.** **Basic** sends on every channel you switch on. **Advanced** has two lists: everything under **Always send to** (at least one channel) sends, and if the last of those fails, Courier tries the channels in the fallback list below it, in order, until one delivers. For Slack, then Teams, then SMS, then email, put Slack under Always send to and the rest, in that order, in the fallback list. Inside a channel, **To the best of** tries providers in order and **To all** sends through every one
 - `PUT /routing-strategies/{id}` is a **full replacement**, any field you omit is reset to its default
-- `DELETE /routing-strategies/{id}` archives; it returns **409 Conflict** if any notification template still references the strategy. Unlink templates first (point their `routing.strategy_id` at another strategy; `routing: null` leaves the template unsendable by id)
+- `DELETE /routing-strategies/{id}` archives; it returns **409 Conflict** if any notification template still references the strategy. Unlink templates first (point their `routing.strategy_id` at another strategy; `routing: null` needs `routing` on every send by id)
 - `GET /routing-strategies` returns metadata only (no `routing`/`channels`/`providers` content). Use `GET /routing-strategies/{id}` for the full document
 - Templates and routing strategies are decoupled: one strategy can back many templates, and swapping a strategy's providers reroutes every template pointing at it without republishing
 
@@ -184,7 +184,7 @@ await client.routingStrategies.replace("rs_01abc123", {
 await client.routingStrategies.archive("rs_01abc123");
 ```
 
-Returns `204`. Returns `409` if any template still references the strategy. Find them with `client.routingStrategies.listNotifications(id)`, then point each at another strategy with `notifications.replace`. Use `routing: null` only for a template you are retiring: a template with no strategy isn't sendable by id (see [templates.md](./templates.md)).
+Returns `204`. Returns `409` if any template still references the strategy. Find them with `client.routingStrategies.listNotifications(id)`, then point each at another strategy with `notifications.replace`. Use `routing: null` only for a template you are retiring: a send by id then needs its own `routing` (see [templates.md](./templates.md)).
 
 ---
 

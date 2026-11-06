@@ -17,7 +17,7 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 ### Common mistakes
 
 - Not archiving the inbox copy when the user engages via email or push, see [Cross-Channel Sync](#cross-channel-sync)
-- Sending a template by id with no routing strategy attached. API-created templates start with `routing: null` and fail `UNROUTABLE`, see [Troubleshooting](#troubleshooting)
+- Sending a template by id with `routing: null` and no `routing` on the send. It fails `UNROUTABLE`, see [Troubleshooting](#troubleshooting)
 - Reaching for the `{ title, body }` sugar in a stored template. That form is inline-only, see [Elemental Content for Inbox](#elemental-content-for-inbox)
 
 ---

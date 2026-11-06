@@ -15,7 +15,7 @@ What lives where on a tenant:
 
 A tenant is not a recipient group (use a list or audience) and not a permissions system. A user can belong to many tenants, with independent preferences, branding, and Inbox feeds in each: the user decides who receives, the tenant decides which context builds the message.
 
-To segment delivery data by customer, filter the message log by tenant: `GET /messages?tenant_id=acme-corp`. Don't use `providers[].reference` for this. Its contents are provider-specific, and the `tenantId` the MS Teams provider records there is the *Microsoft* tenant, not yours.
+To segment delivery data by customer, filter the message log by tenant: `GET /messages?tenant_id=acme-corp`. Each message records the tenant as `accountId`; `providers[].reference` doesn't.
 
 **Contents:** [Quick Reference](#quick-reference) · [Create or replace a tenant](#create-or-replace-a-tenant) · [Associate users, then send](#associate-users-then-send) · [Per-tenant preference overrides](#per-tenant-preference-overrides) · [Tenant-scoped templates](#tenant-scoped-templates)
 
