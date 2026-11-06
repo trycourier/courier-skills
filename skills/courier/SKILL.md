@@ -21,7 +21,7 @@ Multi-step flows (anything with a delay, a branch, or aggregation) are **journey
 3. **Verify shapes against a [live source](#verifying-against-live-sources)** rather than memory. The installed SDK's own types are ground truth.
 4. **Apply the rules.** [Universal Rules](#universal-rules) and each file's Quick Reference are constraints, not suggestions.
 
-If the project already has `@trycourier/courier` or `trycourier` installed, skip quickstart's install steps and assume `client` exists.
+If the project already has the SDK installed, skip quickstart's install steps and assume `client` exists.
 
 ## Addressing a Send
 
@@ -104,8 +104,6 @@ When you need an API signature, SDK method, or feature not covered in these reso
 
 ## Where to Look
 
-One row per file. Read the 1–2 that match the task, not the whole tree.
-
 | Working on | Read |
 |---|---|
 | **First notification / addressing (`to` field) / inline vs template** | [quickstart.md](./references/guides/quickstart.md) |
@@ -139,7 +137,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | **Webhooks both directions**: outbound events to your endpoint, inbound events into Courier | [webhooks.md](./references/guides/webhooks.md) |
 | **Debugging any delivery failure**: start here | [cli.md](./references/guides/cli.md) (`courier messages list`, then `history`, then `content`) |
 | MCP setup, API server to operate, docs server to look things up | [mcp.md](./references/guides/mcp.md) |
-| Email: overrides, attachments, bounces, SES and SMTP setup traps | [email.md](./references/channels/email.md) |
+| Email: overrides, attachments, bounces, delivery tracking (SendGrid and SES stay at `SENT` without their webhooks), SMTP setup traps | [email.md](./references/channels/email.md) |
 | SMS: 10DLC rule, STOP opt-outs mirrored into preferences | [sms.md](./references/channels/sms.md) |
 | Push: tokens, reaching every device (`routing_method: "all"`), FCM, Expo, web push, overrides | [push.md](./references/channels/push.md) |
 | Sending **to** the in-app inbox: the built-in `courier` provider, content, actions, inbox+push, Elemental for inbox, `UNROUTABLE` triage | [inbox.md](./references/channels/inbox.md) |
@@ -148,7 +146,7 @@ One row per file. Read the 1–2 that match the task, not the whole tree.
 | Microsoft Teams: bot setup, Adaptive Card sends, proactive messages, thread replies | [ms-teams.md](./references/channels/ms-teams.md) |
 | WhatsApp through Twilio, Content SIDs, 24-hour window | [whatsapp.md](./references/channels/whatsapp.md) |
 
-Most multi-step work pairs a use-case file with **journeys.md**. Most debugging starts with **cli.md**.
+Most multi-step work pairs a use-case file with **journeys.md**.
 
 ### Not covered here
 
