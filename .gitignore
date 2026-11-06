@@ -11,3 +11,7 @@
 node_modules/
 .venv/
 __pycache__/
+
+# Local API keys used for checks; never commit them
+.env
+.env.*

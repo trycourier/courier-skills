@@ -3,7 +3,7 @@
   "owner": {
     "name": "Courier"
   },
-  "description": "Agent skills for the Courier notification platform — sending across email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp, plus journeys, templates, preferences, routing, and delivery debugging.",
+  "description": "Agent skills for building and debugging notifications with Courier: sends on email, SMS, push, in-app inbox, Slack, Teams, and WhatsApp, plus journeys, templates, preferences, routing, and delivery debugging.",
   "plugins": [
     {
       "name": "courier",
@@ -24,7 +24,11 @@
         "slack",
         "whatsapp",
         "journeys",
-        "transactional"
+        "transactional",
+        "teams",
+        "templates",
+        "preferences",
+        "mcp"
       ],
       "mcpServers": "./.mcp.json"
     }

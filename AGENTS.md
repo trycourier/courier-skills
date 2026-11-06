@@ -11,9 +11,11 @@ Everything is the `skills/courier` skill. Inside it, `references/` splits along 
 
 Sending *to* the inbox is a channel (`references/channels/inbox.md`); *rendering* it is client work (`references/inbox/`). When unsure where something belongs, ask whether the code runs on a server or in the user's browser or device.
 
-## Two rules that keep this honest
+## Rules that keep this honest
 
 **Every SDK call must exist.** Any `client.X.Y(...)` you write in a reference must exist in the installed `@trycourier/courier` (Node) and `trycourier` (Python) packages. Don't reconstruct signatures from memory. Read the SDK's own type definitions, or use the docs MCP (`https://www.courier.com/docs/mcp`).
+
+**Every behavior claim needs a source.** What an endpoint returns, which status a failure gets, how a template variable resolves: confirm it in the docs, the SDK types, or a call against the API. A support reply or an old example isn't enough, since behavior changes. When the docs and the API disagree, describe what the API does.
 
 **YAML frontmatter descriptions must be wrapped in double quotes**; an unquoted colon-space anywhere in the value makes the file unparseable and the skill silently uninstallable. Before committing a `SKILL.md`, validate the frontmatter with a strict YAML parser, not by eyeballing:
 
@@ -21,7 +23,16 @@ Sending *to* the inbox is a channel (`references/channels/inbox.md`); *rendering
 node -e 's=require("fs").readFileSync("skills/courier/SKILL.md","utf8");require("js-yaml").load(s.split(/^---$/m)[1])' && echo OK
 ```
 
-**A skill's `name:` equals its directory name**, and each `SKILL.md` stays lean (~5,000 tokens, ~500 lines). Depth lives in `references/`, pulled on demand; the entry point routes, it doesn't document everything.
+**A skill's `name:` equals its directory name**, and `SKILL.md` stays lean (under ~4,000 tokens). Depth lives in `references/`, pulled on demand; the entry point routes, it doesn't document everything.
+
+## What belongs in the skill
+
+The skill is for building and debugging with Courier. Add text only if it is one of these:
+
+- a Courier-specific trap or silent failure that an agent gets wrong without it
+- routing: a **Where to Look** row, a cross-link, or one canonical example per concept
+
+Leave out generic platform knowledge (email authentication, carrier rules, Slack or push SDK basics) and long-tail facts that are one docs search away. Product, plan, account and support questions are answered from the docs, not added here. Keep one home per fact and link to it, and prefer one line plus a docs link over a new section.
 
 ## When Courier ships an endpoint
 
