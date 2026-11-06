@@ -60,12 +60,13 @@ To write a profile, `client.profiles.create(id, { profile })` deep-merges; `prof
 ## Universal Rules
 
 - Use idempotency keys for sends where duplicates would be harmful (payments, security alerts, OTPs)
+- Hold, delay or roll up notifications with Courier's delay, delivery window, digest or batch, not a queue in your app
 - Send one-time codes (OTPs) immediately, never through a batch, digest or delay, even when asked to. A late code has expired and locks the user out, so say so and send it on its own
 - Use E.164 format for phone numbers
 - Before a delete, archive or bulk send, name the environment the API key points to and confirm with the user that the data lives there
 - Only send to channels the user has asked for or that make sense for the use case. Don't blast every channel by default
 - For template sends, pass the Courier-generated `nt_...` ID or a template alias as `template`; treat IDs as opaque, workspace-specific values
-- Create templates with `scope: "strict"` and write `{{data.order_id}}`. Without it, and in inline sends, `{{data.order_id}}` renders empty and only `{{order_id}}` works ([templates.md](./references/guides/templates.md#variables))
+- Variables follow the template's scope: `{{data.order_id}}` under `scope: "strict"` (Design Studio), bare `{{order_id}}` in default scope (API-created without `scope`) and inline sends. The wrong form renders empty. Create templates with `scope: "strict"` ([templates.md](./references/guides/templates.md#variables))
 - Never put JSON or literal curly braces in inline `message.content`. Courier reads `{…}` in inline content as a variable, so a JSON string can render as `[Error]`. Put structured payloads in `message.data` as an object and keep `title` and `body` readable text, see the [before and after](./references/guides/templates.md#inline-vs-templated-sending)
 
 ## Debugging a Delivery Failure
@@ -79,15 +80,13 @@ This ladder is for **one message**. A template's falling delivery rate, or a low
 
 Don't blame the payload or the developer's code before the logs show it, and don't state how a provider or third-party app behaves unless a source says so; say it's unverified.
 
-Status meanings (`THROTTLED` never sends later, `OPENED` isn't proof of a read, `FILTERED` is a preference or condition): [reliability.md](./references/guides/reliability.md#message-status-glossary). Commands and flags: [cli.md](./references/guides/cli.md#debugging-workflow).
+Status meanings: `UNROUTABLE` means no channel or provider could take it (missing contact info or provider config), `UNDELIVERABLE` means the provider rejected it (check `reason`), `UNMAPPED` means the event matched no template. `THROTTLED` never sends later, `OPENED` isn't proof of a read, `FILTERED` is a preference or condition. Full glossary: [reliability.md](./references/guides/reliability.md#message-status-glossary). Commands and flags: [cli.md](./references/guides/cli.md#debugging-workflow).
 
 If the failing channel is `inbox` and the send itself looks correct, the problem is client-side. See [inbox/rendering.md](./references/inbox/rendering.md).
 
 ## Verifying Against Live Sources
 
 When you need an API signature, SDK method, or feature not covered in these resources, verify it. Do **not** reconstruct it from memory.
-
-**Does the method exist?** → installed SDK types. **What does it mean?** → docs.
 
 | Source | Use it for |
 |--------|-----------|
@@ -125,17 +124,15 @@ When you need an API signature, SDK method, or feature not covered in these reso
 | Template CRUD, editing a template in place, publishing, versioning, rollback, verify rendered output | [templates.md](./references/guides/templates.md) |
 | **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, template aliases, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
 | **Delivery metrics for a template**: sent/delivered/opened/clicked as a time series, dashboards, alerting on delivery rate | [metrics.md](./references/guides/metrics.md) |
-| Exact SDK method names for an operation | [sdk-reference.md](./references/sdk-reference.md), or read the installed package's own types |
 | Elemental content format, elements, control flow | [elemental.md](./references/guides/elemental.md) |
 | **Translating a template**: add languages, sync with a translation tool (export strings, `putLocale`), how the recipient's locale is picked, Design Studio AI Translation, `.po` strings for `{{t}}` | [localization.md](./references/guides/localization.md) |
 | **See an email on real clients before sending**: Outlook, Gmail, Apple Mail, mobile, dark mode screenshots (Device Preview), an agent review loop | [device-preview.md](./references/guides/device-preview.md) |
 | Routing strategies (`rs_...`, provider priority) | [routing-strategies.md](./references/guides/routing-strategies.md) |
 | Configuring providers via API, catalog discovery, changing one setting (`PATCH`), capping a provider's send rate | [providers.md](./references/guides/providers.md) |
 | Lists and bulk targeting (subscribe, list/pattern sends) | [patterns.md](./references/guides/patterns.md) |
-| **Reaching many recipients**: list/audience fan-out, the 500 cap | [patterns.md](./references/guides/patterns.md#many-recipients) |
 | **Bulk API**: jobs for a large ad-hoc recipient set, ingest then run | [bulk.md](./references/guides/bulk.md) |
 | **Webhooks both directions**: outbound events to your endpoint, inbound events into Courier | [webhooks.md](./references/guides/webhooks.md) |
-| **Debugging any delivery failure**: start here | [cli.md](./references/guides/cli.md) (`courier messages list`, then `history`, then `content`) |
+| **Debugging any delivery failure**: start here | [cli.md](./references/guides/cli.md) |
 | MCP setup, API server to operate, docs server to look things up | [mcp.md](./references/guides/mcp.md) |
 | Email: overrides, attachments, bounces, delivery tracking (SendGrid and SES stay at `SENT` without their webhooks), SMTP setup traps | [email.md](./references/channels/email.md) |
 | SMS: 10DLC rule, STOP opt-outs mirrored into preferences | [sms.md](./references/channels/sms.md) |
@@ -146,7 +143,6 @@ When you need an API signature, SDK method, or feature not covered in these reso
 | Microsoft Teams: bot setup, Adaptive Card sends, proactive messages, thread replies | [ms-teams.md](./references/channels/ms-teams.md) |
 | WhatsApp through Twilio, Content SIDs, 24-hour window | [whatsapp.md](./references/channels/whatsapp.md) |
 
-Most multi-step work pairs a use-case file with **journeys.md**.
 
 ### Not covered here
 
