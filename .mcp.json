@@ -1,8 +1,5 @@
 {
   "mcpServers": {
-    "courier-docs": {
-      "type": "http",
-      "url": "https://www.courier.com/docs/mcp"
-    }
+    "courier-docs": { "type": "http", "url": "https://www.courier.com/docs/mcp" }
   }
 }
