@@ -7,7 +7,7 @@ Two separate features that share a settings page and nothing else.
 | **[Outbound](#outbound-webhooks)** | Courier `POST`s workspace events (message delivered, template published, audience changed) to *your* endpoint | Platform → Webhooks → Outbound Webhooks |
 | **[Inbound](#inbound-webhooks)** | *Your* systems `POST` JSON to a Courier-generated URL; the events can start journeys | Platform → Webhooks → Inbound Webhooks |
 
-Both live under [Platform → Webhooks](https://app.courier.com/platform/webhooks).
+Both live under [Platform → Webhooks](https://app.courier.com/settings/webhooks).
 
 Neither is a send path. To *send* a notification over an HTTP callback, that's the webhook
 *channel* on a template, which is a different thing again.

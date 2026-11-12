@@ -36,7 +36,7 @@ A template routed to `["email", "push", "sms"]`, for a user whose custom routing
 
 ## Setting It Up
 
-Everything is configured in the **Preferences Editor** ([Settings > Preferences](https://app.courier.com/settings/preferences)), top down:
+Everything is configured in the **Preferences Editor** ([Platform → Preferences](https://app.courier.com/~/test/platform/preferences)), top down:
 
 **1. Page settings:** the [brand](./brands.md), heading, description, and the channel display names users see.
 
