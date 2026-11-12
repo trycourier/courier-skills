@@ -4,10 +4,10 @@ Two separate features that share a settings page and nothing else.
 
 | Direction | What it is | Configure at |
 |---|---|---|
-| **[Outbound](#outbound-webhooks)** | Courier `POST`s workspace events (message delivered, template published, audience changed) to *your* endpoint | Settings → Webhooks → Outbound Webhooks |
-| **[Inbound](#inbound-webhooks)** | *Your* systems `POST` JSON to a Courier-generated URL; the events can start journeys | Settings → Webhooks → Inbound Webhooks |
+| **[Outbound](#outbound-webhooks)** | Courier `POST`s workspace events (message delivered, template published, audience changed) to *your* endpoint | Platform → Webhooks → Outbound Webhooks |
+| **[Inbound](#inbound-webhooks)** | *Your* systems `POST` JSON to a Courier-generated URL; the events can start journeys | Platform → Webhooks → Inbound Webhooks |
 
-Both live under [Settings > Webhooks](https://app.courier.com/settings/webhooks), under **Developers**.
+Both live under [Platform → Webhooks](https://app.courier.com/settings/webhooks).
 
 Neither is a send path. To *send* a notification over an HTTP callback, that's the webhook
 *channel* on a template, which is a different thing again.
@@ -29,7 +29,7 @@ Neither is a send path. To *send* a notification over an HTTP callback, that's t
 
 ### Setup
 
-1. Settings → Webhooks → **Outbound Webhooks** → **Add**.
+1. Platform → Webhooks → **Outbound Webhooks** → **Add**.
 2. Name it and give it a URL that accepts `POST`.
 3. Copy the `whsec_...` signing secret Courier creates for the destination. Every event is signed with it.
 
@@ -268,7 +268,7 @@ Courier API.
 
 ### Setup
 
-1. Settings → Webhooks → **Inbound Webhooks** → **Add**.
+1. Platform → Webhooks → **Inbound Webhooks** → **Add**.
 2. Give it a name and description, and save.
 3. Courier generates the URL: `https://api.courier.com/inbound/webhook/<token>`.
 

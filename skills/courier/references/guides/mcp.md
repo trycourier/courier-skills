@@ -37,7 +37,7 @@ When to use which source, including the cheaper `.md` page fetch: [Verifying Aga
 ## Quick Reference
 
 ### Rules
-- Auth via the `api_key` header, with a key from [Settings > API Keys](https://app.courier.com/settings/api-keys). Use a dedicated key per environment for production or CI
+- Auth via the `api_key` header, with a key from [Platform → API Keys](https://app.courier.com/settings/api-keys). Use a dedicated key per environment for production or CI
 - Coverage is most of the API, including template and journey writes, but newly shipped endpoints can lag (see [Known gaps](#known-gaps)). If a tool you need isn't in `tools/list`, use the SDK, CLI, or REST
 - After setup, confirm with one read call (`list_notifications` or `list_messages`). Don't write to a workspace only to verify setup
 - Qualify tool names with the server name (e.g. `courier:list_messages`) in prompts and docs
