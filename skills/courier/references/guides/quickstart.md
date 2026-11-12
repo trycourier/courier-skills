@@ -87,7 +87,7 @@ Python: `client.messages.retrieve(response.request_id)`. CLI: `courier messages 
 
 ## 5. Send with a Template
 
-Templates are designed in [Design Studio](https://app.courier.com/designer). Send one by passing `template` (its `nt_...` ID or an alias) and `data` in place of `content`, exactly as in SKILL.md's [Canonical SDK Shape](../../SKILL.md#canonical-sdk-shape). IDs are workspace-specific, so use your own. CLI: `courier send message --message.to '{"user_id":"user-123"}' --message.template "nt_..." --message.data '{"orderId":"12345"}'`.
+Templates are designed in [Design Studio](https://app.courier.com/content/templates) (Content → Templates). Send one by passing `template` (its `nt_...` ID or an alias) and `data` in place of `content`, exactly as in SKILL.md's [Canonical SDK Shape](../../SKILL.md#canonical-sdk-shape). IDs are workspace-specific, so use your own. CLI: `courier send message --message.to '{"user_id":"user-123"}' --message.template "nt_..." --message.data '{"orderId":"12345"}'`.
 
 ## Common First-Run Errors
 
