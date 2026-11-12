@@ -246,7 +246,7 @@ Non-React web apps use the `<courier-preferences>` web component. The mobile SDK
 
 Courier records every time a user opts in, opts out, or changes a topic's channels, wherever it
 happened: the hosted page, an unsubscribe link, the embedded preference center, or the API. See them
-in the dashboard ([Users](https://app.courier.com/users) → select the user → preference log), list
+in the dashboard ([Directory → Users](https://app.courier.com/directory/users) → select the user → preference log), list
 them with `GET /preferences/logs`, or get each one pushed to you as a `preferences:user:updated`
 [webhook](./webhooks.md#preference-events).
 

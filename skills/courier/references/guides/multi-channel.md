@@ -176,7 +176,7 @@ With [Journeys](./journeys.md), build exit logic directly into the DAG using bra
 
 ### Setup (Dashboard)
 
-1. Go to **Channels** in the [Courier dashboard](https://app.courier.com/channels)
+1. Go to **Platform → Integrations** in the [Courier dashboard](https://app.courier.com/integrations)
 2. Add multiple providers for the same channel type (e.g., two email providers)
 3. Drag to set priority order. Courier tries top-to-bottom
 4. Each provider needs its own credentials (API key, etc.)
