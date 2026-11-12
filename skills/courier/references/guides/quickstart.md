@@ -7,8 +7,8 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 ## Quick Reference
 
 ### Rules
-- You need a Courier API key from [Settings > API Keys](https://app.courier.com/settings/api-keys)
-- Use a test environment key for development, copy the "Test" key from Settings
+- You need a Courier API key from [Platform → API Keys](https://app.courier.com/platform/api-keys)
+- Use a test environment key for development: copy the Test key from [Platform → API Keys](https://app.courier.com/~/test/platform/api-keys)
 - Inbox works without setup: the `courier` provider is preinstalled in Production and Test (a custom environment, or a deleted provider, needs it added, see [inbox.md](../channels/inbox.md#setup)). Email works without setup only with a Test key and only to your sign-up address (the Courier Test Email Provider); any other address, or a Production key, needs your own provider. SMS, push, and other channels always need a provider first.
 - All tools read `COURIER_API_KEY` from the environment (SDK, CLI, curl)
 - Both `import Courier from "@trycourier/courier"` (default export) and `import { Courier } from "@trycourier/courier"` (named export) work, the named export is `Courier`, not `CourierClient`
@@ -31,7 +31,7 @@ If a `user_id` has no contact info for a channel, Courier skips that channel's p
 
 ## 1. Get an API Key
 
-Create an API key in your [Courier Settings](https://app.courier.com/settings/api-keys). Use a test key for development.
+Create an API key in [Platform → API Keys](https://app.courier.com/platform/api-keys). Use a test key for development.
 
 ## 2. Install and Authenticate
 
