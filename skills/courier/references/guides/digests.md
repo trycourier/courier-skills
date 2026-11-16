@@ -31,7 +31,6 @@ and the categories. A journey feeds it.
 - Testing with Instant as the topic's default. Every new test user delivers immediately, and nothing is ever `DIGESTED`
 - Linking a digest template with no content for the channel. The release still sends, with subject `(no subject)` and an empty body
 - Putting the digest body in a channel override (`channels.email.override.html`). Overrides on held sends are dropped at release
-- Naming the event's actor `user_id` in a journey invoke's `data`. A value other than the recipient fails the invoke with 400, see [journeys.md](./journeys.md#step-5-invoke). Use `author_id` or similar
 - Relying on send order. Without a `sort_key`, items follow the order Courier collected them, and events sent close together, or through a journey and a direct send, can swap. Send a numeric timestamp and set it as the category's `sort_key`
 - Storing a "digest frequency" field on the profile and branching in app code. Recipients choose a schedule on the topic
 - Using a digest for a burst-of-events rollup inside a journey. That is the journey `batch` node, a different mechanism, see [batching.md](./batching.md)
@@ -255,8 +254,7 @@ In the app, the topic's **Test** button releases one recipient without any ids.
 default); the Send node's template isn't linked to the topic (template settings, **Subscription
 Topic**); the payload key doesn't match a category; no digest template is set.
 
-**Events are missing from a Send to Digest digest.** The run data matched no category, or the invoke
-failed (check its status: a `user_id` in `data` that isn't the recipient returns 400).
+**Events are missing from a Send to Digest digest.** The run data matched no category.
 
 **The digest arrives with blank values.** The total uses the wrong root for the template's scope,
 the item field skips the category key, or the sender wrapped events in their own `count` and
