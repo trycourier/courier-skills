@@ -231,7 +231,6 @@ Start a run. The journey must be **published** first, and you can invoke it by I
 
 - **Profile-only** (no stored Courier user): pass `profile` with contact info and omit `user_id`.
 - **Profile merge:** when you pass both `user_id` and `profile`, request fields override stored profile fields with the same key; other stored fields are preserved.
-- **Mismatched ids:** a `user_id` in `data` that differs from the top-level `user_id` returns `400 Recipient does not match profile`, and no run starts. Name an actor field something else, like `author_id`.
 - **Tenant-scoped profile** (multi-tenant): pass `"profile": { "context": { "tenant_id": "hospital-a" } }` to load the user's tenant-scoped profile.
 
 ```bash
