@@ -117,7 +117,8 @@ Use [Journeys](https://www.courier.com/docs/journeys/build), a JSON graph of sen
 
 ```
 courier-skills/
-├── .claude-plugin/marketplace.json   : Claude Code plugin manifest
+├── .claude-plugin/plugin.json        : plugin manifest (name, version, MCP, links)
+├── .claude-plugin/marketplace.json   : Claude Code marketplace entry
 ├── .mcp.json                         : Courier docs MCP, shipped with the plugin
 ├── AGENTS.md                         : contributor guide
 └── skills/courier/
