@@ -9,26 +9,7 @@
       "name": "courier",
       "source": "./",
       "description": "Build with Courier: send on any channel, run journeys, manage templates and preferences, and debug deliveries. Ships the Courier docs MCP.",
-      "category": "developer-tools",
-      "homepage": "https://www.courier.com/docs",
-      "repository": "https://github.com/trycourier/courier-skills",
-      "license": "MIT",
-      "keywords": [
-        "courier",
-        "notifications",
-        "email",
-        "sms",
-        "push",
-        "inbox",
-        "slack",
-        "whatsapp",
-        "journeys",
-        "transactional",
-        "teams",
-        "templates",
-        "preferences",
-        "mcp"
-      ]
+      "category": "developer-tools"
     }
   ]
 }
