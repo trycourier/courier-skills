@@ -48,5 +48,6 @@ Don't state that MCP lacks a tool as a fact anywhere in the skill. The one place
 ## With every change
 
 - A reference file over 100 lines opens with a one-line `**Contents:**` list of its sections. When you add, rename or remove a section, update that line.
-- Bump `version` in `.claude-plugin/marketplace.json` in every PR that changes `skills/courier/`: a patch for corrections, a minor version for new coverage. There's no changelog file; the commit subject says what changed.
+- The plugin's manifest is `.claude-plugin/plugin.json` (name, description, version, MCP servers, privacy policy, icon at `.claude-plugin/icon.png`). The Claude Directory reads it, and it refuses MCP servers declared in `marketplace.json`.
+- Bump `version` in `.claude-plugin/plugin.json` in every PR that changes `skills/courier/`: a patch for corrections, a minor version for new coverage. There's no changelog file; the commit subject says what changed.
 - Keep PR descriptions short: what changed and why, in a few lines.
