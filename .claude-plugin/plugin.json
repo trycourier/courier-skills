@@ -26,5 +26,7 @@
     "mcp"
   ],
   "mcpServers": "./.mcp.json",
-  "privacyPolicyUrl": "https://www.courier.com/privacy-policy"
+  "privacyPolicyUrl": "https://www.courier.com/privacy-policy",
+  "supportUrl": "https://www.courier.com/docs/resources/help",
+  "termsOfServiceUrl": "https://www.courier.com/terms-of-service"
 }
