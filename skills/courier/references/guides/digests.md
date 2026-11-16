@@ -27,6 +27,7 @@ and the categories. A journey feeds it.
 - Sending `{ "author_name": "..." }` when the category is `comments`. It delivers individually. Send `{ "comments": { "author_name": "..." } }`
 - Reading a field without the category key. Each item is one send's whole `data`, so the author is `comments.author_name` on the item
 - Writing the total without the root that matches the template's scope (see [What the template receives](#what-the-template-receives)). The wrong form renders an empty string
+- Writing `{{data.comments.author_name}}` in a journey template created over the API without `scope: "strict"`. It renders empty, so Instant recipients get blank emails
 - Looping with `{{#each}}` in a text block. It renders, but the designer then shows broken variable chips. Use a `list` element with `loop`
 - Testing with Instant as the topic's default. Every new test user delivers immediately, and nothing is ever `DIGESTED`
 - Linking a digest template with no content for the channel. The release still sends, with subject `(no subject)` and an empty body
@@ -46,11 +47,12 @@ recipient's first held event arrived. Digests are kept per recipient and per ten
 
 ## Configure a topic's digest
 
-In the app: **Platform → Preferences**, open the topic, turn on **Digest Schedules**, then click
-**Add Digest Schedules** (**Edit Digest Schedules** once the topic has a digest). Pick the digest
-template under **Template**. The editor allows up to four schedules and five categories and keeps 10
-items per category. The editor's **Save** writes the digest, so collection starts then; **Publish**
-puts the schedule choices on the hosted preference page.
+In the app: **Platform → Preferences**, open the topic, then click **Add Digest Schedules** (**Edit
+Digest Schedules** once the topic has a digest; if the button is missing, turn on the **Digest
+Schedules** toggle). Pick the digest template under **Template**. The editor allows up to four
+schedules and five categories and keeps 10 items per category. Click **Save** in the dialog, then
+**Save** at the top of the editor: collection starts on that save, before you publish. The dialog's
+**Save** alone doesn't create the digest.
 
 Through the API, the whole configuration is the `digest` object on topic create and replace, with no
 cap on schedules or categories:
@@ -126,6 +128,11 @@ const template = await client.journeys.templates.create(journeyId, {
   },
 });
 ```
+
+The Send node's template reads the event under the same scope rule as the digest template. Created
+over the API without `scope`, it reads `{{comments.author_name}}`, and `{{data.comments.author_name}}`
+renders empty with no error. Set `scope: "strict"` in `content` to write `data.` in both templates.
+Templates saved in the Journeys editor are already strict.
 
 For an existing journey template, send the same `notification` to
 `client.journeys.templates.replace(notificationId, { templateId: journeyId, notification })`. Publish
