@@ -72,7 +72,7 @@ Python uses the same method in snake_case (`listVersions` → `list_versions`, `
 | One journey run, and its steps | `client.journeys.runs.retrieve(runId)` · `client.journeys.runs.listSteps(runId)` |
 | Create a journey-scoped template | `client.journeys.templates.create(journeyId, { ... })` |
 | Publish a journey-scoped template | `client.journeys.templates.publish(notificationId, { templateId: journeyId })` |
-| Create and send a broadcast | `client.broadcasts.create({ name, channel })`, `putContent(id, { content })`, then `send(id, { recipient_type, recipient_id })` or `schedule(id, { recipient_type, recipient_id, scheduled_to })` |
+| Create and send a broadcast | `client.broadcasts.create({ name, channel })`, `putContent(id, { content })`, then `send(id, { recipient_type, recipient_id })` or `schedule(id, { recipient_type, recipient_id, scheduled_to, timezone })` (`scheduled_to` has no offset; the zone comes from `timezone`) |
 | Create a routing strategy | `client.routingStrategies.create({ name, routing, channels?, providers? })` → returns `{ id: "rs_...", ... }` |
 | Replace a routing strategy (full PUT) | `client.routingStrategies.replace(id, { name, routing, ... })` |
 | Configure a provider | `client.providers.create({ provider, settings, title?, alias? })` |

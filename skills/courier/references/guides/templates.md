@@ -97,13 +97,12 @@ Hi {{profile.first_name}}, your order {{data.order_id}} shipped to {{profile.ema
 - **Read the tenant through `{{tenant.id}}`.** `{{context.tenant_id}}` resolves to an empty string.
 - **Profile values aren't copied into `data`.** If the email is on the profile, write `{{profile.email}}`; `{{data.email}}` only works when you send it in `data`.
 - **A missing variable doesn't fail the send.** A missing double-brace variable (`{{data.coupon}}`) renders as an empty string; supply a fallback with `{{default data.value "fallback"}}`. A missing single-brace variable (`{order.total}`, the older designer's syntax) stays in the output as literal text.
-- **The designer's preview substitutes variables but doesn't run helpers.** `{{datetime-format}}` or `{{truncate}}` can look wrong in preview and render correctly on send, so check helper output in a test send's [rendered output](#verify-the-rendered-output).
 
 ---
 
 ## Send conditions
 
-A template condition (Design Studio, template settings, **Conditions**) enables or disables the whole template at send time, on every channel. To skip one channel and still deliver the rest, put the condition on that channel instead, in the channel's **Conditions** tab or on the send:
+A template condition (Design Studio, template settings, **Conditions**) enables or disables the whole template at send time, on every channel. To skip one channel and still deliver the rest, put the condition on that channel in the send:
 
 ```typescript
 await client.send.message({

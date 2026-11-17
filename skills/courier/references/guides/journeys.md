@@ -21,6 +21,7 @@ A journey is a JSON graph of nodes that Courier runs asynchronously when you inv
 ### Common Mistakes
 - Publishing the journey and expecting its templates to go live. A send whose template has no published version fails at delivery (`UNDELIVERABLE`, "... has no published version") while the run and the send step still show `PROCESSED`. Check the message, not the run
 - Assuming the trigger `schema` rejects bad payloads. It isn't enforced at invoke: a payload that breaks it gets `202` and the run completes. Validate in your app, or gate with trigger `conditions` (a failed one returns `422`)
+- Leaving `data.` fields you branch on out of an `api-invoke` trigger's `schema`. The run still matches them, but Studio marks the journey invalid and won't republish it, even for fields a fetch adds. Studio also rejects a batch without `max_items` and a Slack send without `access_token`, both of which the API accepts. Declare every branched field if anyone edits journeys in Studio
 - Treating a fetch as best-effort. A failed fetch stops the run with `ERROR`, and no later node runs. See [When a fetch fails](#when-a-fetch-fails)
 - Addressing Teams by `channel_name`, `user_id`, or `email` without `service_url` or `tenant_id`. See [Slack and Teams sends](#slack-and-teams-sends)
 
@@ -75,7 +76,7 @@ Every journey starts with a trigger node. The API accepts four `trigger_type` va
 
 | Trigger type | How runs begin | Required fields |
 |-------------|----------------|-----------------|
-| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema for editor autofill and variable hints, **not enforced at invoke**), `conditions` (gate invocation; failed condition → `422`). |
+| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema; not enforced at invoke, but Studio requires every `data.` field a condition reads to be declared here), `conditions` (gate invocation; failed condition → `422`). |
 | `segment` | A matching Segment event arrives | `request_type` (`identify`, `group`, `track`, or `page`). Optional: `event_id`, `conditions`. With no `event_id` it fires on every event of that type. For `track` events, the event `userId` must be a valid Courier Profile ID or the journey won't start. |
 | `webhook` | An event arrives on one of your [inbound webhooks](./webhooks.md#inbound-webhooks) | `event_source`. Optional: `event_id`, matched against the payload's `event`, and `conditions`. Every payload needs a `userId` matching a Courier user. |
 | `audience` | A user newly matches an [audience](./audiences.md) | `audience_id` (one audience). Optional: `conditions`. Users already in the audience when you publish don't enter. |
@@ -84,7 +85,7 @@ Webhook and audience triggers take no `schema`.
 
 ### Run data is a snapshot
 
-On invoke, Courier loads the recipient's profile once and stores the run's `{ data, profile }`. Every node reads that snapshot. A delay doesn't refresh it: if you update the user's profile or your own database while the run waits, a later branch still sees the values from invoke time. Only a `fetch` node (or an update-profile step) changes the run's context mid-flight. So branch on data you pass at invoke or fetch during the run:
+On invoke, Courier loads the recipient's profile once and stores the run's `{ data, profile }`. Every node reads that snapshot. A delay doesn't refresh it: if you update the user's profile or your own database while the run waits, a later branch still sees the values from invoke time. Only fetch, AI and batch nodes add to the run's context mid-flight. So branch on data you pass at invoke or fetch during the run:
 
 ```json
 { "type": "fetch", "method": "get", "url": "https://api.example.com/users/{{recipient}}/plan", "merge_strategy": "soft-merge" }
@@ -356,7 +357,7 @@ Every condition path starts with one of these roots, on branch paths, node `cond
 
 - `data.`: the invocation `data`, plus anything a fetch or AI node merged in
 - `profile.`: the recipient's profile. There is no `user.` root, so write `profile.tier`, not `user.tier`
-- `tenant.`: the run's tenant. Only when the trigger sets one, otherwise the save fails
+- `tenant.`: the run's tenant. Only when the trigger sets `tenant_id` (a literal or a whole `{{data.x}}`), otherwise the save fails
 - `send_status.<nodeId>`: an earlier send's delivery status, with `was` or `was not` only
 
 Create and replace check every condition and return a `400` that names the bad path, for example `Condition path "user.tier" must start with data., profile., tenant., or send_status.` Array wildcards (`data.items.#.sku`) are rejected the same way.
@@ -412,7 +413,11 @@ The [Standard Workflow](#standard-workflow) covers the trigger, journey-scoped t
 
 ```json
 [
-  { "type": "trigger", "trigger_type": "api-invoke" },
+  {
+    "type": "trigger",
+    "trigger_type": "api-invoke",
+    "schema": { "type": "object", "properties": { "setup_complete": { "type": "boolean" } } }
+  },
   { "type": "send", "message": { "template": "<welcome-template-id>" } },
   { "type": "delay", "mode": "duration", "duration": "P1D" },
   {
@@ -600,11 +605,11 @@ Instead of `api-invoke`, start runs from your Segment event stream, and filter w
   "trigger_type": "segment",
   "request_type": "track",
   "event_id": "Order Completed",
-  "conditions": ["data.total", "greater than", "100"]
+  "conditions": ["data.properties.total", "greater than", "100"]
 }
 ```
 
-A Segment event's properties are the run's `data`, so trigger `conditions` and later nodes both use `data.total`. A `properties.total` path is a `400` on create or replace, like any condition without a `data.`, `profile.`, `tenant.` or `send_status.` root. Segment triggers take no `schema`.
+The Segment event is the run's `data`, so a track event's properties are at `data.properties.*`: trigger `conditions` and later nodes use `data.properties.total`. A bare `data.total` saves but never matches, and `properties.total` is a `400` on create or replace, like any condition without a `data.`, `profile.`, `tenant.` or `send_status.` root. Segment triggers take no `schema`.
 
 ---
 

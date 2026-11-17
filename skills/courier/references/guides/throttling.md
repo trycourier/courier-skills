@@ -4,7 +4,7 @@
 
 ### Rules
 - **Inside a journey, the `throttle` node is the rate limiter**: `scope: "user"`, `"global"`, or `"dynamic"` with a `throttle_key`, plus `max_allowed` and an ISO 8601 `period`. It counts passes through that node only
-- **[Send limits](https://www.courier.com/docs/send/statuses#send-limits)** cap what a user, topic, or tenant receives across every send, per hour, day, week, month, or billing period. Blocked messages end `THROTTLED` and never send later. Send limits have no API endpoint, so code and MCP can't set them; set them in the Courier app. A provider's **[send rate limit](./providers.md#send-rate-limits)** is different: it caps how fast Courier sends through that provider, and queues the extra sends instead of blocking them
+- **[Send limits](https://www.courier.com/docs/send/statuses#send-limits)** cap what the workspace, a user, a tenant, or a user on one topic receives across every send, per hour, day, week, month, or billing period, with topics you can exclude. Blocked messages end `THROTTLED` and never send later. Send limits have no API endpoint, so code and MCP can't set them; set them in Settings → Send Limits. A provider's **[send rate limit](./providers.md#send-rate-limits)** is different: it caps how fast Courier sends through that provider, and queues the extra sends instead of blocking them
 - **For user-facing cadence control, prefer [digest schedules](./digests.md)** over your own throttle: the recipient picks the frequency and Courier does the collecting
 - **The SDK already handles provider `429`s** on your call to Courier (see [reliability.md](./reliability.md#retry-logic)); provider-side rate limits are Courier's job during delivery
 

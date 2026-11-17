@@ -1,7 +1,7 @@
 {
   "name": "courier",
   "description": "Build with Courier: send on any channel, run journeys, manage templates and preferences, and debug deliveries. Ships the Courier docs MCP.",
-  "version": "1.10.2",
+  "version": "1.11.0",
   "author": {
     "name": "Courier",
     "url": "https://www.courier.com"

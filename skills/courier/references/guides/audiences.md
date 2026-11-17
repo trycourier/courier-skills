@@ -12,6 +12,7 @@ plan tier, an activity cohort); use a **list** when you want an explicit, manage
 - Create or update an audience with an upsert by the id you choose. Membership is stored and changes as user data changes, so it isn't a static list.
 - Send with `to: { audience_id: "..." }`; Courier fans out to every current member. Preferences still apply: a marketing audience only reaches opted-in users.
 - A filter `path` is relative to the profile root: `plan` for a top-level field, `custom.plan` for one under `custom`. A `profile.` prefix silently matches no one.
+- Comparisons are type-strict: `"0"` never matches a numeric `0`. Send `value` in the profile field's type. The SDK types say string, but a number passes through (cast it in TypeScript), which `GT`/`LT` need.
 
 ## Create or update (upsert)
 
@@ -26,7 +27,7 @@ await client.audiences.update("trial-users-no-integration", {
     operator: "AND",                                   // combine the rules below
     filters: [
       { operator: "EQ", path: "plan", value: "trial" },     // profile attribute EQ value
-      { operator: "EQ", path: "integrations_count", value: "0" },
+      { operator: "EQ", path: "onboarding_step", value: "connect" },
     ],
   },
 });
