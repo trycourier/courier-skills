@@ -80,7 +80,7 @@ This ladder is for **one message**. A template's falling delivery rate, or a low
 
 Don't blame the payload or the developer's code before the logs show it, and don't state how a provider or third-party app behaves unless a source says so; say it's unverified.
 
-Status meanings: `UNROUTABLE` means no channel or provider could take it (missing contact info or provider config), `UNDELIVERABLE` means the provider rejected it (check `reason`), `UNMAPPED` means the event matched no template. `THROTTLED` never sends later, `OPENED` isn't proof of a read, `FILTERED` is a preference or condition. Full glossary: [reliability.md](./references/guides/reliability.md#message-status-glossary). Commands and flags: [cli.md](./references/guides/cli.md#debugging-workflow).
+Status meanings: `UNROUTABLE` means no channel or provider could take it (missing contact info or provider config), `UNDELIVERABLE` means the provider rejected it (check `reason`), `UNMAPPED` means the alias (or legacy `event`) matched no template, such as a renamed alias; an unknown `nt_` ID ends `UNDELIVERABLE` instead. `THROTTLED` never sends later, `OPENED` isn't proof of a read, `FILTERED` is a preference or condition. Full glossary: [reliability.md](./references/guides/reliability.md#message-status-glossary). Commands and flags: [cli.md](./references/guides/cli.md#debugging-workflow).
 
 If the failing channel is `inbox` and the send itself looks correct, the problem is client-side. See [inbox/rendering.md](./references/inbox/rendering.md).
 
