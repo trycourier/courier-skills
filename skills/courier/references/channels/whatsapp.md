@@ -7,7 +7,7 @@
 ### Rules
 - Courier sends WhatsApp through Twilio. The provider key is `twilio-whatsapp`
 - Connect it under Integrations with a Twilio Account SID, Auth Token and a WhatsApp-enabled From number
-- Every send needs a Twilio Content SID (`HX...`). Set it in the template's WhatsApp channel settings, or per send at `providers["twilio-whatsapp"].override.body.ContentSid`. Without one, the send fails with `No Content SID specified.`
+- Every send needs a Twilio Content SID (`HX...`). Pass it per send at `providers["twilio-whatsapp"].override.body.ContentSid` (only Design Studio Classic templates can store one). Without one, the send fails with `No Content SID specified.`
 - Outside the 24-hour window, the Content SID must belong to a template WhatsApp approved. Submit it in the Twilio Console
 - Inside the window, unapproved text, media, quick-reply and list-picker content can go out, but it still needs a Content SID
 - Phone numbers go in `phone_number`, in E.164: `+15551234567`
@@ -72,8 +72,8 @@ Templates are built and submitted in Twilio's Content Template Builder (**Messag
 ### Setup
 
 1. In the Twilio Console, copy your Account SID and Auth Token. Your WhatsApp sender is the From number
-2. In Courier, open **Integrations → WhatsApp** and enter the Account SID, Auth Token and From number
-3. Create the content template in Twilio and get it approved, then paste its Content SID into your Courier template's WhatsApp channel settings
+2. In Courier, open **Integrations → WhatsApp via Twilio** and enter the Account SID, Auth Token and From number
+3. Create the content template in Twilio, get it approved, and pass its Content SID on each send
 
 ### Template Variable Mapping
 

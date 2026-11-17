@@ -65,7 +65,7 @@ Filter with `keys` (exact catalog keys), `channel` (e.g. `email`), or `name` (su
 
 ### SendGrid (worked example)
 
-After consulting the catalog you know SendGrid needs `api_key` (required) and optionally `from_address`, `ip_pool_name`, etc.
+After consulting the catalog you know SendGrid needs `api_key` and `from_address` (both required) and optionally `ip_pool_name`, etc.
 
 **TypeScript:**
 ```typescript
@@ -90,7 +90,7 @@ await client.providers.create({
   settings: {
     account_sid: process.env.TWILIO_ACCOUNT_SID!,
     auth_token: process.env.TWILIO_AUTH_TOKEN!,
-    messaging_service_sid: "MG..." // or `from` for a single number
+    messaging_service_sid: "MG..." // required; `from_number` is optional
   }
 });
 ```

@@ -7,8 +7,7 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 ## Quick Reference
 
 ### Rules
-- You need a Courier API key from [Platform → API Keys](https://app.courier.com/settings/api-keys)
-- Use a test environment key for development: copy the Test key from [Platform → API Keys](https://app.courier.com/~/test/platform/api-keys)
+- Get a Courier API key from [Platform → API Keys](https://app.courier.com/~/test/platform/api-keys), and use the Test environment's key for development
 - Inbox works without setup: the `courier` provider is preinstalled in Production and Test (a custom environment, or a deleted provider, needs it added, see [inbox.md](../channels/inbox.md#setup)). Email works without setup only with a Test key and only to your sign-up address (the Courier Test Email Provider); any other address, or a Production key, needs your own provider. SMS, push, and other channels always need a provider first.
 - All tools read `COURIER_API_KEY` from the environment (SDK, CLI, curl)
 - Both `import Courier from "@trycourier/courier"` (default export) and `import { Courier } from "@trycourier/courier"` (named export) work, the named export is `Courier`, not `CourierClient`
@@ -21,7 +20,7 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 | User profile | `to: { user_id: "user-123" }` | User exists in Courier with stored contact info |
 | Multi-tenant | `to: { user_id: "user-123", context: { tenant_id: "acme-corp" } }` | B2B apps with per-tenant branding. `tenant_id` directly beside `user_id` is a `400` |
 | List | `to: { list_id: "beta-testers" }` | Send to a group of users |
-| List pattern | `to: { list_pattern: "eng.*" }` | Send to all lists matching a prefix |
+| List pattern | `to: { list_pattern: "eng.*" }` | Send to every list the pattern matches: `*` is one dot-separated segment, a trailing `**` any depth |
 | Audience | `to: { audience_id: "active-trials" }` | A filter whose membership Courier stores and keeps current |
 | Array | `to: [{ user_id: "a" }, { email: "b@example.com" }]` | Up to **500** recipients; above that `400 message.to has N recipients. Max is 500`, so use a list, an audience or [bulk](./bulk.md) |
 
@@ -31,7 +30,7 @@ If a `user_id` has no contact info for a channel, Courier skips that channel's p
 
 ## 1. Get an API Key
 
-Create an API key in [Platform → API Keys](https://app.courier.com/settings/api-keys). Use a test key for development.
+Create an API key in [Platform → API Keys](https://app.courier.com/~/test/platform/api-keys). Use a test key for development.
 
 ## 2. Install and Authenticate
 
@@ -104,7 +103,7 @@ Templates are designed in [Design Studio](https://app.courier.com/content/templa
 
 A workspace holds several environments (Production, Test, and custom ones such as Staging), and the API key on each request picks the environment. Each one has its own templates, brands, tags, journeys, subscription topics, provider integrations, API keys, logs and metrics. Team members, their roles, tracking settings and billing are shared.
 
-- **Promote a template with Migrate assets.** In the templates page, open the template's menu and choose **Migrate assets**. Courier copies the template with its brands, tags, subscription topics, test events and event maps. Provider integrations aren't copied, so set them up in the destination before you send. To do the same from code, see [templates-as-code.md](./templates-as-code.md).
+- **Promote a template with Migrate template.** In the templates page, open the template's menu and choose **Migrate template**. Courier copies the template with its brands, tags, subscription topics, test events and event maps. Provider integrations aren't copied, so set them up in the destination before you send. To do the same from code, see [templates-as-code.md](./templates-as-code.md).
 - **Set up dependencies in Production first.** A send whose template references a brand, tag or topic missing from that environment fails there, even though it worked in Test.
 - For staging, use a custom environment in the same workspace. Separate workspaces are for separate billing.
 

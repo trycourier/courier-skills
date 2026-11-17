@@ -13,7 +13,7 @@ picks it up without touching message content.
 - Inline sends always arrive branded, with the brand you name or the workspace default.
 - To send unbranded email, use a template with `brand: null`, not an inline send.
 - **Brand chrome is email only.** The header, footer and logo render in email; `settings.inapp` themes the in-app inbox. SMS, push, Slack and Teams messages carry no brand styling, though any template can read values such as `{{brand.colors.primary}}`.
-- **Brands are per environment.** A brand created with a Test key doesn't exist in Production. **Migrate assets** on a template copies its brand along with it. To copy a brand on its own, `retrieve` it with one environment's key and `create` it with the other's, passing the same `id`.
+- **Brands are per environment.** A brand created with a Test key doesn't exist in Production. **Migrate template** on a template copies its brand along with it. To copy a brand on its own, `retrieve` it with one environment's key and `create` it with the other's, passing the same `id`.
 - Brand IDs are `bnd_...`; older brands may use a slug like `default`. IDs are case-sensitive, and `create` accepts your own `id`.
 - In the console, publishing a template doesn't publish changes to its brand. Publish the brand too.
 
