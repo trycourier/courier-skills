@@ -120,7 +120,7 @@ When you need an API signature, SDK method, or feature not covered in these reso
 | **Audiences**: dynamic segments, filter rules, sending to a segment | [audiences.md](./references/guides/audiences.md) |
 | **Broadcasts**: a one-off send to a list or audience, now or scheduled | [lifecycle-marketing.md](./references/lifecycle-marketing.md), calls in [sdk-reference.md](./references/sdk-reference.md) |
 | **Multi-tenant / B2B**: tenants, per-tenant brand, preference defaults, tenant templates | [tenants.md](./references/guides/tenants.md) |
-| Frequency caps (send limits per workspace, user, tenant or topic; journey `throttle` node), quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
+| Frequency caps (send limits per workspace, user, tenant, or user and topic; journey `throttle` node), quiet hours, fatigue | [throttling.md](./references/guides/throttling.md) |
 | Template CRUD, editing a template in place, publishing, versioning, rollback, verify rendered output | [templates.md](./references/guides/templates.md) |
 | **Templates as code**: manage templates from a repo, CI/CD, sync/drift detection, template aliases, promote between workspaces | [templates-as-code.md](./references/guides/templates-as-code.md) |
 | **Delivery metrics for a template**: sent/delivered/opened/clicked as a time series, dashboards, alerting on delivery rate | [metrics.md](./references/guides/metrics.md) |

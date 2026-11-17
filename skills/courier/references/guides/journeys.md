@@ -21,7 +21,7 @@ A journey is a JSON graph of nodes that Courier runs asynchronously when you inv
 ### Common Mistakes
 - Publishing the journey and expecting its templates to go live. A send whose template has no published version fails at delivery (`UNDELIVERABLE`, "... has no published version") while the run and the send step still show `PROCESSED`. Check the message, not the run
 - Assuming the trigger `schema` rejects bad payloads. It isn't enforced at invoke: a payload that breaks it gets `202` and the run completes. Validate in your app, or gate with trigger `conditions` (a failed one returns `422`)
-- Leaving `data.` fields you branch on out of an `api-invoke` trigger's `schema`. The run still matches them, but Studio marks the journey invalid and won't republish it, even for fields a fetch adds. Studio also rejects a batch without `max_items` and a Slack send without `access_token`, both of which the API accepts. Declare every branched field if anyone edits journeys in Studio
+- Leaving `data.` fields you branch on out of an `api-invoke` trigger's `schema`. The run still matches them, but the journey designer marks the journey invalid and won't republish it, even for fields a fetch adds. The designer also rejects a batch without `max_items` and a Slack send without `access_token`, both of which the API accepts. Declare every branched field if anyone edits journeys in the designer
 - Treating a fetch as best-effort. A failed fetch stops the run with `ERROR`, and no later node runs. See [When a fetch fails](#when-a-fetch-fails)
 - Addressing Teams by `channel_name`, `user_id`, or `email` without `service_url` or `tenant_id`. See [Slack and Teams sends](#slack-and-teams-sends)
 
@@ -76,7 +76,7 @@ Every journey starts with a trigger node. The API accepts four `trigger_type` va
 
 | Trigger type | How runs begin | Required fields |
 |-------------|----------------|-----------------|
-| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema; not enforced at invoke, but Studio requires every `data.` field a condition reads to be declared here), `conditions` (gate invocation; failed condition → `422`). |
+| `api-invoke` | You call `POST /journeys/{id}/invoke` | None beyond discriminators. Optional: `schema` (JSON Schema; not enforced at invoke, but the journey designer requires every `data.` field a condition reads to be declared here), `conditions` (gate invocation; failed condition → `422`). |
 | `segment` | A matching Segment event arrives | `request_type` (`identify`, `group`, `track`, or `page`). Optional: `event_id`, `conditions`. With no `event_id` it fires on every event of that type. For `track` events, the event `userId` must be a valid Courier Profile ID or the journey won't start. |
 | `webhook` | An event arrives on one of your [inbound webhooks](./webhooks.md#inbound-webhooks) | `event_source`. Optional: `event_id`, matched against the payload's `event`, and `conditions`. Every payload needs a `userId` matching a Courier user. |
 | `audience` | A user newly matches an [audience](./audiences.md) | `audience_id` (one audience). Optional: `conditions`. Users already in the audience when you publish don't enter. |
