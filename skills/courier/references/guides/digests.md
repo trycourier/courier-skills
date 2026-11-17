@@ -132,7 +132,7 @@ const template = await client.journeys.templates.create(journeyId, {
 The Send node's template reads the event under the same scope rule as the digest template. Created
 over the API without `scope`, it reads `{{comments.author_name}}`, and `{{data.comments.author_name}}`
 renders empty with no error. Set `scope: "strict"` in `content` to write `data.` in both templates.
-Templates saved in the Journeys editor are already strict.
+Templates saved in the journey designer are already strict.
 
 For an existing journey template, send the same `notification` to
 `client.journeys.templates.replace(notificationId, { templateId: journeyId, notification })`. Publish

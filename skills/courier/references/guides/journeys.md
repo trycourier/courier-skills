@@ -271,7 +271,7 @@ The SDK forms are in the [Journey management table](#sdk-shape-journey-managemen
 | AI | `type: "ai"` | `model`, `user_prompt`, `output_schema` (JSON Schema for the structured result). Optional: `web_search`, `conditions`. |
 | Exit | `type: "exit"` | None. Optional: `id`. |
 
-The builder's **Cancel** node has no API `type`; from code, call `POST /journeys/cancel`. See [Cancelling Runs](#cancelling-runs).
+The designer's **Cancel** node has no API `type`; from code, call `POST /journeys/cancel`. See [Cancelling Runs](#cancelling-runs).
 
 ---
 
@@ -671,7 +671,7 @@ A **Cancel** node stops in-flight runs from within a journey. Its one setting is
 
 This is the pattern for "the newest run wins": a re-engagement journey whose first node cancels any earlier run for the same user, so a returning user doesn't receive two overlapping sequences.
 
-The Cancel node is configured in the journey builder. It is **not part of the API journey definition**, there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead. It has the same token semantics.
+The Cancel node is configured in the journey designer. It is **not part of the API journey definition**, there is no `cancel` node `type` in the published OpenAPI schema, so you cannot add one via `POST /journeys` or `PUT /journeys/{id}`. Building journeys as code? Call `POST /journeys/cancel` from your application at the equivalent point instead. It has the same token semantics.
 
 ## Debugging Runs
 
