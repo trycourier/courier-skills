@@ -103,7 +103,7 @@ Templates are designed in [Design Studio](https://app.courier.com/content/templa
 
 A workspace holds several environments (Production, Test, and custom ones such as Staging), and the API key on each request picks the environment. Each one has its own templates, brands, tags, journeys, subscription topics, provider integrations, API keys, logs and metrics. Team members, their roles, tracking settings and billing are shared.
 
-- **Promote a template with Migrate template.** In the templates page, open the template's menu and choose **Migrate template**. Courier copies the template with its brands, tags, subscription topics, test events and event maps. Provider integrations aren't copied, so set them up in the destination before you send. To do the same from code, see [templates-as-code.md](./templates-as-code.md).
+- **Promote a template with Migrate template.** In the templates page, open the template's menu and choose **Migrate template**. Courier copies the template with its brand, tags and subscription topic. Provider integrations aren't copied, so set them up in the destination before you send. To do the same from code, see [templates-as-code.md](./templates-as-code.md).
 - **Set up dependencies in Production first.** A send whose template references a brand, tag or topic missing from that environment fails there, even though it worked in Test.
 - For staging, use a custom environment in the same workspace. Separate workspaces are for separate billing.
 

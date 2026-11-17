@@ -29,7 +29,7 @@ await client.send.message({
     routing: { method: "single", channels: ["twilio-whatsapp"] },
     providers: {
       "twilio-whatsapp": {
-        override: { body: { ContentSid: "HXXXXXXXXXXXXXXXXXXXXXXXXXXX" } }, // or set it on the template's WhatsApp channel
+        override: { body: { ContentSid: "HXXXXXXXXXXXXXXXXXXXXXXXXXXX" } }, // required unless a Classic template stores it
       },
     },
   },
@@ -101,7 +101,7 @@ Meta charges per message, by category and the recipient's country. Twilio adds i
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| `No Content SID specified.` | No SID on template or send | Set ContentSid |
+| `No Content SID specified.` | No SID on the send (and none stored on a Classic template) | Pass `ContentSid` in the send's `twilio-whatsapp` override |
 | Message not delivered | Unapproved content outside 24hr window | Use an approved template |
 | Rate limited | Too many messages | Set a [send rate limit](../guides/providers.md#send-rate-limits) on the provider |
 
