@@ -72,7 +72,7 @@ Templates are built and submitted in Twilio's Content Template Builder (**Messag
 ### Setup
 
 1. In the Twilio Console, copy your Account SID and Auth Token. Your WhatsApp sender is the From number
-2. In Courier, open **Integrations → WhatsApp** and enter the Account SID, Auth Token and From number
+2. In Courier, open **Integrations → WhatsApp via Twilio** and enter the Account SID, Auth Token and From number
 3. Create the content template in Twilio and get it approved, then paste its Content SID into your Courier template's WhatsApp channel settings
 
 ### Template Variable Mapping

@@ -244,7 +244,7 @@ Pass each ID to `messages retrieve`, `history`, and `content` as in the steps ab
 
 ## Template Metrics
 
-`courier notifications get-metrics` returns one template's delivery funnel as a time series, the same data as the Analytics tab.
+`courier notifications get-metrics` returns one template's delivery funnel as a time series, the same data as the template's panel in Platform → Analytics.
 
 ```bash
 courier notifications get-metrics \
