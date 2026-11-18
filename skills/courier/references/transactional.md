@@ -78,7 +78,7 @@ await client.send.message({
       occurred_at: new Date().toISOString(),
       not_me_url: `https://app.example.com/security/report?t=${reportToken}`,
     },
-    routing: { method: "all", channels: ["email", "push", "sms"] },
+    routing: { method: "all", channels: ["email", "apn", "firebase-fcm", "sms"] },
   },
 }, {
   headers: { "Idempotency-Key": `sec-${userId}-${eventId}` },

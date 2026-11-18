@@ -12,6 +12,7 @@ Sending to Courier's in-app inbox. The inbox is a delivery channel like email or
 
 - Always include deep-link data in `data`, a click with nowhere to go is a dead end
 - Batch similar events into one message rather than one per event, see [batching.md](../guides/batching.md)
+- Route the in-app feed with the `inbox` channel. Courier Inbox also answers the `push` channel as a last resort, so route device push by provider key, see [push.md](./push.md#quick-reference)
 - No OS permission needed, so the inbox reaches every user. It is the safe default channel: the `courier` provider is already configured in production and test, so don't add it there (see [Setup](#setup))
 
 ### Common mistakes
