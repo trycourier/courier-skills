@@ -7,7 +7,7 @@
 | | **API MCP** | **Docs MCP** |
 |---|---|---|
 | URL | `https://mcp.courier.com` | `https://www.courier.com/docs/mcp` |
-| Auth | `api_key` header (required) | **None**, public docs |
+| Auth | API key (required) in `api_key`, `Authorization: Bearer`, or `x-api-key` | **None**, public docs |
 | Purpose | **Do things**: send, manage templates, journeys, profiles, preferences | **Look things up**: search docs, read pages, read the OpenAPI specs |
 | Tools | ~170 (see inventory below) | `search_courier`, `query_docs_filesystem_courier`, `submit_feedback` |
 | Reach for it when | You're operating on a workspace | You need semantics, a parameter shape, or a page you can't name |
@@ -37,7 +37,7 @@ When to use which source, including the cheaper `.md` page fetch: [Verifying Aga
 ## Quick Reference
 
 ### Rules
-- Auth via the `api_key` header, with a key from [Platform → API Keys](https://app.courier.com/settings/api-keys) in the environment the agent should act on. Use a dedicated key per environment for production or CI
+- Auth via the `api_key` header, `Authorization: Bearer <key>`, or `x-api-key`, with a key from [Platform → API Keys](https://app.courier.com/settings/api-keys) in the environment the agent should act on. Use a dedicated key per environment for production or CI
 - Coverage is most of the API, including template and journey writes, but newly shipped endpoints can lag (see [Known gaps](#known-gaps)). If a tool you need isn't in `tools/list`, use the SDK, CLI, or REST
 - After setup, confirm with one read call (`list_notifications` or `list_messages`). Don't write to a workspace only to verify setup
 - Qualify tool names with the server name (e.g. `courier:list_messages`) in prompts and docs
@@ -90,7 +90,7 @@ Each takes the same URL and `api_key` header in its MCP config. Claude Desktop s
 
 ### Calling Courier MCP from your own agent
 
-Any MCP client that can set a custom request header works: point it at `https://mcp.courier.com` with `api_key: $COURIER_API_KEY`. Clients that only send bearer auth (the Claude Messages API connector sends `authorization_token` as a bearer token) may be rejected; bridge them with `npx -y mcp-remote https://mcp.courier.com --header api_key:$COURIER_API_KEY`, or use the [CLI](./cli.md) or SDK directly.
+Point any MCP client at `https://mcp.courier.com` with the key as a bearer token or in the `api_key` header. In the Claude Messages API connector, set `authorization_token` to the key. In Claude Managed Agents, store it in a vault as a `static_bearer` credential for that URL. Full setup: [courier.com/docs/resources/mcp](https://www.courier.com/docs/resources/mcp).
 
 ## Available Tools
 
@@ -108,7 +108,7 @@ Call the server's `tools/list` for exact names and parameters. Tools follow the 
 
 ## Error Handling
 
-Tool errors come back as `{ "error": true, "status": 404, "message": "Profile not found" }`, carrying the API's HTTP status. A `403` is a valid key without access to the resource: check the key's environment and scope.
+Tool errors come back as `{ "error": true, "status": 404, "message": "Profile not found" }`, carrying the API's HTTP status. A `403` is an invalid key, or a valid one without access to the resource: check the key's environment and scope.
 
 
 ## Known gaps
