@@ -7,7 +7,8 @@
 ### Rules
 - Aggregate similar notifications with a [batch node](../guides/batching.md) rather than app-side
 - Register every device's token on the user with its `provider_key` and `device.platform`, and re-register when the OS rotates it
-- A user with tokens on more than one provider (APNs and FCM) gets the push on only one of them, unless the send sets `channels: { push: { routing_method: "all" } }`
+- **Courier Inbox is also a provider on the `push` channel**, tried after APNs and FCM. So `["push", "email"]` ends in the in-app Inbox instead of falling back to email, and a push to `routing_method: "all"` adds an Inbox copy. Route devices by provider key (`["apn", "firebase-fcm", "email"]`), or set `channels: { push: { providers: ["apn", "firebase-fcm"] } }`. Use the `inbox` channel for the in-app feed
+- A user with tokens on more than one provider (APNs and FCM) gets the push on only one of them, unless the send sets `channels: { push: { routing_method: "all", providers: ["apn", "firebase-fcm"] } }`
 
 ### Templates
 
@@ -34,7 +35,7 @@ await client.send.message({
     },
     routing: {
       method: "single",
-      channels: ["push"]
+      channels: ["apn", "firebase-fcm"]
     }
   }
 });
@@ -128,13 +129,14 @@ await client.users.tokens.addSingle("xyz...", { user_id: "user-123", provider_ke
 await client.users.tokens.addSingle("123...", { user_id: "user-123", provider_key: "firebase-fcm" }); // Samsung
 
 // The push channel stops at the first provider that works, so without this
-// the iPhone (APNs) and the Android phones (FCM) don't all get it.
+// the iPhone (APNs) and the Android phones (FCM) don't all get it. Listing the
+// providers keeps Courier Inbox, also a push provider, out of the fan-out.
 await client.send.message({
   message: {
     to: { user_id: "user-123" },
     template: "nt_01kmrbvk2q5x9v1d4c7n8w6hj",
     routing: { method: "single", channels: ["push"] },
-    channels: { push: { routing_method: "all" } },
+    channels: { push: { routing_method: "all", providers: ["apn", "firebase-fcm"] } },
   },
 });
 ```

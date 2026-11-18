@@ -15,7 +15,7 @@ Node and Python: SKILL.md's [Canonical SDK Shape](../../SKILL.md#canonical-sdk-s
 
 ## Multi-Channel Fallback
 
-`routing: { method: "single", channels: ["push", "email", "sms"] }` tries the channels in order until one succeeds; `method: "all"` sends to every channel at once. TypeScript and Python examples, escalation, and provider failover are in [Multi-Channel](./multi-channel.md).
+`routing: { method: "single", channels: ["apn", "firebase-fcm", "email", "sms"] }` tries them in order until one succeeds (name push providers by key, since Courier Inbox also answers `push`, see [push.md](../channels/push.md#quick-reference)); `method: "all"` sends to every channel at once. TypeScript and Python examples, escalation, and provider failover are in [Multi-Channel](./multi-channel.md).
 
 ## Webhook Handler
 

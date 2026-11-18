@@ -76,7 +76,7 @@ await client.send.message({
     template: "nt_01kmrc06x1q5v8d2c6n4w9hj",
     routing: {
       method: "all",
-      channels: ["email", "push", "sms"]
+      channels: ["email", "apn", "firebase-fcm", "sms"]
     }
   }
 });
@@ -142,6 +142,7 @@ await client.send.message({
         }
       },
       push: {
+        providers: ["apn", "firebase-fcm"], // keep Courier Inbox, also a push provider, from sending a second Inbox copy
         override: {
           title: "Order shipped! 📦",
           body: "Arriving Thursday. Tap to track.",

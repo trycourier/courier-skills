@@ -13,7 +13,6 @@
 - Setting `max_wait_period` below `wait_period` or above `P7D`, or `wait_period` above `P1D`. Each returns a `400`, such as `max_wait_period must be at most 7 days`
 - Setting `wait_period` below `PT1M`, which returns `400 wait_period must be at least 1 minute`
 - Writing `category_key` as a plain path (`"target_id"` or `"data.target_id"`). It returns `400 category_key must be a reference like "{{data.category}}"`
-- Relying on `retain` names or `sort_key`: `first` keeps the most recent events, `last` the earliest, and `highest`/`lowest` ignore `sort_key`. See [the retain table](#batch-data-in-templates)
 - Writing a list `loop` path without the `data.` root (`batch.items`). The send fails with `js-block: batch is not defined`
 - Using `{{json x}}` in the template. There is no `json` helper, so the render fails with "Missing helper"
 
@@ -89,16 +88,16 @@ The template sees top-level `batch.count` (the true total) and `batch.items` (th
 {{/if}}
 ```
 
-**`retain` doesn't behave as its names suggest.** In current behavior it only looks at arrival order:
+`retain` picks which events `items` keeps:
 
 | `retain.type` | Keeps | Order of `items` |
 |---|---|---|
-| `first` | The most recent events | Newest first |
-| `last` | The earliest events | Oldest first |
-| `highest` | Same as `first`; `sort_key` is ignored | Newest first |
-| `lowest` | Same as `last`; `sort_key` is ignored | Oldest first |
+| `first` | The earliest events | Oldest first |
+| `last` | The most recent events | Newest first |
+| `highest` | The largest `sort_key` values | Highest first |
+| `lowest` | The smallest `sort_key` values | Lowest first |
 
-So `items.[0]` with `first` is the latest event. To keep the latest events, use `first`. There is no way to keep the top events by a value such as priority: send everything and pick in your backend, see [App-side aggregation](#app-side-aggregation-only-when-the-nodes-dont-fit). Check a test run before shipping copy that depends on which events were kept.
+`sort_key` names a field of each event's `data`, written `"data.priority"` or `"{{data.priority}}"`, and numbers sort as numbers.
 
 **With a `category_key`** such as `"{{data.event_type}}"`, the groups sit under `batch.categories`, keyed by each value, each with its own `count` and `items`. `batch.count` and `batch.items` still cover the whole batch. A category with no events is absent, so guard each one:
 
