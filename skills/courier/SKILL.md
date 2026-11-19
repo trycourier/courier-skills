@@ -77,12 +77,17 @@ This ladder is for **one message**. A template's falling delivery rate, or a low
 2. `courier messages retrieve --message-id "<requestId>"` for a single-recipient send. A list or audience send fans out; each recipient's message id is `<requestId>:<user_id>`.
 3. `courier messages history --message-id "<id>"` for where it stopped, then `courier messages content --message-id "<id>"` for what rendered.
 4. **Only then look at the channel:** [email.md](./references/channels/email.md) for sender auth and provider traps, [sms.md](./references/channels/sms.md) for 10DLC, [reliability.md](./references/guides/reliability.md) for retries and webhooks.
+5. **If the logs show Courier going against its docs,** report it ([Reporting to Courier](#reporting-to-courier)).
 
 Don't blame the payload or the developer's code before the logs show it, and don't state how a provider or third-party app behaves unless a source says so; say it's unverified.
 
 Status meanings: `UNROUTABLE` means no channel or provider could take it (missing contact info or provider config), `UNDELIVERABLE` means the provider rejected it (check `reason`), `UNMAPPED` means the alias (or legacy `event`) matched no template, such as a renamed alias; an unknown `nt_` ID ends `UNDELIVERABLE` instead. `THROTTLED` never sends later, `OPENED` isn't proof of a read, `FILTERED` is a preference or condition. Full glossary: [reliability.md](./references/guides/reliability.md#message-status-glossary). Commands and flags: [cli.md](./references/guides/cli.md#debugging-workflow).
 
 If the failing channel is `inbox` and the send itself looks correct, the problem is client-side. See [inbox/rendering.md](./references/inbox/rendering.md).
+
+## Reporting to Courier
+
+When Courier does something unexpected (an error you can't explain, a response that contradicts the docs) or a feature would have made the task easier, report it with the Feedback API and keep working. For a possible bug, rule out the project's own code first. Send it with the API MCP's `submit_feedback` or `courier feedback create`, never the docs MCP's `submit_feedback`. Include the goal, the steps, the result, and the request ID, never secrets or customer data. Report each issue once per session, and once it's sent, tell the user in one line with its `fbk_` ID. Categories, fields and error handling: [feedback.md](./references/guides/feedback.md).
 
 ## Verifying Against Live Sources
 
@@ -134,6 +139,7 @@ When you need an API signature, SDK method, or feature not covered in these reso
 | **Webhooks both directions**: outbound events to your endpoint, inbound events into Courier | [webhooks.md](./references/guides/webhooks.md) |
 | **Debugging any delivery failure**: start here | [cli.md](./references/guides/cli.md) |
 | MCP setup, API server to operate, docs server to look things up | [mcp.md](./references/guides/mcp.md) |
+| **Reporting to Courier**: a bug, confusing behavior, or a feature request, from your agent or by hand (Feedback API, `submit_feedback`) | [feedback.md](./references/guides/feedback.md) |
 | Email: overrides, attachments, bounces, delivery tracking (SendGrid and SES stay at `SENT` without their webhooks), SMTP setup traps | [email.md](./references/channels/email.md) |
 | SMS: 10DLC rule, STOP opt-outs mirrored into preferences | [sms.md](./references/channels/sms.md) |
 | Push: tokens, reaching every device (`routing_method: "all"`), FCM, Expo, web push, overrides | [push.md](./references/channels/push.md) |

@@ -1,0 +1,75 @@
+# Reporting to Courier (Feedback API)
+
+When Courier does something unexpected, or a feature would have made the task easier, send a report to Courier's team with the Feedback API, then keep working. Courier's team and their agents read every report in real time. A report isn't a support ticket: account and billing questions go to support.
+
+## Quick Reference
+
+### When to report
+
+| You hit | `category` |
+|---|---|
+| An error you can't explain, a response that contradicts the docs, a status that doesn't match what happened | `possible_bug` |
+| Behavior that works but took real effort to understand | `confusing_behavior` |
+| Something Courier doesn't do that would have made the task easier | `feature_request` |
+| Anything else worth Courier's attention | `other` |
+
+Before reporting a possible bug, rule out the project's own code with the [debugging ladder](../../SKILL.md#debugging-a-delivery-failure). Don't report the project's own bugs, or a provider's behavior with no Courier side to it.
+
+### How to send
+
+1. **API MCP** `submit_feedback` (the `courier` server at `https://mcp.courier.com`) when it's connected.
+2. Otherwise **CLI** `courier feedback create` (CLI 6.1.0 or later).
+3. Otherwise **SDK** `client.feedback.create(...)` (Node and Python 10.1.0 or later).
+
+The docs MCP server (`courier-docs`) has its own `submit_feedback` that only flags one docs page for the docs team. Don't use it for these reports. Send docs problems through the Feedback API with `surface: "docs"`.
+
+Reports need an API key with no scope restrictions: a scoped key gets `403` and a JWT gets `401`. With no such key, skip the report and mention the issue to the user instead.
+
+### What to include
+
+- **Required:** `category`, `surface` (`api`, `sdk`, `mcp`, `ui` for the Courier app, `docs`, or `other`), `title` (one line), and `description`.
+- **`description`:** the goal, the steps, and the result. Include a fix or workaround if you found one.
+- **Optional:** `location` (endpoint, SDK method, MCP tool, or page URL), `expected_behavior`, and `request_id` when an API call shows the problem.
+- **`model` and `harness`:** set them only if you know them. Omit them rather than guess.
+- **Never** include API keys, secrets, or customer data (recipient emails, names, message content, PHI). Describe the problem with IDs.
+
+### Rules
+
+- Report each issue once per session.
+- Don't send messages, change data, or take risky actions to reproduce an issue.
+- Report, then continue the original task.
+- A `400` names the bad field in `field`: fix it and resend once. On `403`, `429`, or any other error, drop the report. Don't retry it, and don't report the failure through `submit_feedback`.
+- After a `201`, tell the user in one line: the report's title and its `feedback_id` (`fbk_...`).
+- Each workspace can send 200 reports per day, shared across every key and the MCP server.
+
+## Example
+
+A good report traces goal, steps, and result, and names the change it expects:
+
+```typescript
+const { feedback_id } = await client.feedback.create({
+  category: "confusing_behavior",
+  surface: "api",
+  title: "Template metrics return an empty series for an unknown template ID",
+  description:
+    "Goal: chart last week's delivery rate for the order confirmation template. Steps: called GET /notifications/{id}/metrics with lookback P7D and granularity DAY. Result: a 200 with an empty series, so the dashboard showed a template that had stopped sending. The template ID had a typo. With the correct ID, the same call returned real counts.",
+  location: "GET /notifications/{id}/metrics",
+  expected_behavior: "A 404 for a template ID that doesn't exist, so a typo can't look like a template with no sends.",
+  model: "claude-opus-5-5",
+  harness: "Claude Code",
+});
+```
+
+The same report from a shell:
+
+```bash
+courier feedback create \
+  --category confusing_behavior \
+  --surface api \
+  --title "Template metrics return an empty series for an unknown template ID" \
+  --description "Goal: chart last week's delivery rate for the order confirmation template. Steps: called GET /notifications/{id}/metrics with lookback P7D and granularity DAY. Result: a 200 with an empty series. The template ID had a typo." \
+  --location "GET /notifications/{id}/metrics" \
+  --expected-behavior "A 404 for a template ID that doesn't exist."
+```
+
+Documentation: [courier.com/docs/resources/feedback-api](https://www.courier.com/docs/resources/feedback-api)

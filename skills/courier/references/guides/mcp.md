@@ -24,7 +24,7 @@ claude mcp add --transport http courier-docs https://www.courier.com/docs/mcp
 
 - **`search_courier`**: semantic search over every docs page and the OpenAPI specs (~20k tokens a call). Use it when you don't know where to look.
 - **`query_docs_filesystem_courier`**: shell-style `head`/`grep`/`ls`/`tree` over the whole docs site (~2k tokens a page). Prefer it once you know the path.
-- **`submit_feedback`**: report a wrong or outdated docs page to Courier's docs team.
+- **`submit_feedback`**: flags one docs page for the docs team. Don't use it for reports: send bugs, confusing behavior, feature requests and docs problems through the API server's `submit_feedback` ([feedback.md](./feedback.md)). With both servers connected, qualify the name: `courier:submit_feedback`, not `courier-docs:submit_feedback`.
 
 When to use which source, including the cheaper `.md` page fetch: [Verifying Against Live Sources](../../SKILL.md#verifying-against-live-sources).
 
@@ -105,6 +105,7 @@ Call the server's `tools/list` for exact names and parameters. Tools follow the 
 | Preferences and digests | `list_preference_logs` lists preference changes. Set a topic's digest with `digest` on `create_preference_topic` / `replace_preference_topic`; move a user onto a schedule with `digest_schedule_id` on `update_user_preference_topic`. `release_digest` releases a whole schedule, `release_user_digest` one recipient and topic |
 | Bulk | `create_bulk_job` (`message.event` required) → `add_bulk_users` → `run_bulk_job`, in that order ([bulk.md](./bulk.md)) |
 | Translations | `get_translation` / `update_translation` are workspace `.po` strings for `{{t}}`, not template translations |
+| Feedback | `submit_feedback` sends a report to Courier's team, not a support ticket. It needs a key with no scope restrictions and shares the workspace's 200-a-day limit with the REST endpoint ([feedback.md](./feedback.md)) |
 
 ## Error Handling
 
