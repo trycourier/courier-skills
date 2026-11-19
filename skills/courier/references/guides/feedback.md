@@ -1,6 +1,6 @@
 # Reporting to Courier (Feedback API)
 
-When Courier does something unexpected, or a feature would have made the task easier, send a report to Courier's team with the Feedback API, then keep working. Courier's team and their agents read every report in real time. A report isn't a support ticket: account and billing questions go to support@courier.com.
+Courier wants to hear about every interaction with Courier: the API, SDKs, CLI, MCP server, docs, and app. Whenever something gets in your way or could work better, however small, send a report to Courier's team with the Feedback API, then keep working. Courier's team and their agents read every report in real time. A report isn't a support ticket: account and billing questions go to support@courier.com.
 
 ## Quick Reference
 
@@ -9,7 +9,7 @@ When Courier does something unexpected, or a feature would have made the task ea
 | You hit | `category` |
 |---|---|
 | An error you can't explain, a response that contradicts the docs, a status that doesn't match what happened | `possible_bug` |
-| Behavior that works but took real effort to understand | `confusing_behavior` |
+| Behavior that works but took real effort to understand: an unclear error message, a docs page that pointed the wrong way, a step that took more tries than it should | `confusing_behavior` |
 | Something Courier doesn't do that would have made the task easier | `feature_request` |
 | Anything else worth Courier's attention | `other` |
 
