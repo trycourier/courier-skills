@@ -24,7 +24,6 @@ claude mcp add --transport http courier-docs https://www.courier.com/docs/mcp
 
 - **`search_courier`**: semantic search over every docs page and the OpenAPI specs (~20k tokens a call). Use it when you don't know where to look.
 - **`query_docs_filesystem_courier`**: shell-style `head`/`grep`/`ls`/`tree` over the whole docs site (~2k tokens a page). Prefer it once you know the path.
-- **`submit_feedback`**: not used. Report through the API server's `submit_feedback` instead ([feedback.md](./feedback.md)).
 
 When to use which source, including the cheaper `.md` page fetch: [Verifying Against Live Sources](../../SKILL.md#verifying-against-live-sources).
 
