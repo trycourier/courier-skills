@@ -9,7 +9,7 @@
 | URL | `https://mcp.courier.com` | `https://www.courier.com/docs/mcp` |
 | Auth | API key (required) in `api_key`, `Authorization: Bearer`, or `x-api-key` | **None**, public docs |
 | Purpose | **Do things**: send, manage templates, journeys, profiles, preferences | **Look things up**: search docs, read pages, read the OpenAPI specs |
-| Tools | ~170 (see inventory below) | `search_courier`, `query_docs_filesystem_courier`, `submit_feedback` |
+| Tools | ~170 (see inventory below) | `search_courier`, `query_docs_filesystem_courier` |
 | Reach for it when | You're operating on a workspace | You need semantics, a parameter shape, or a page you can't name |
 
 Most agent sessions want **both**: the docs MCP to learn the correct shape, the API MCP to execute it.
@@ -24,7 +24,7 @@ claude mcp add --transport http courier-docs https://www.courier.com/docs/mcp
 
 - **`search_courier`**: semantic search over every docs page and the OpenAPI specs (~20k tokens a call). Use it when you don't know where to look.
 - **`query_docs_filesystem_courier`**: shell-style `head`/`grep`/`ls`/`tree` over the whole docs site (~2k tokens a page). Prefer it once you know the path.
-- **`submit_feedback`**: flags one docs page for the docs team. Don't use it for reports: send bugs, confusing behavior, feature requests and docs problems through the API server's `submit_feedback` ([feedback.md](./feedback.md)). With both servers connected, qualify the name: `courier:submit_feedback`, not `courier-docs:submit_feedback`.
+- **`submit_feedback`**: not used. Report through the API server's `submit_feedback` instead ([feedback.md](./feedback.md)).
 
 When to use which source, including the cheaper `.md` page fetch: [Verifying Against Live Sources](../../SKILL.md#verifying-against-live-sources).
 

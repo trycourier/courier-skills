@@ -87,7 +87,7 @@ If the failing channel is `inbox` and the send itself looks correct, the problem
 
 ## Reporting to Courier
 
-When Courier does something unexpected (an error you can't explain, a response that contradicts the docs) or a feature would have made the task easier, report it with the Feedback API and keep working. For a possible bug, rule out the project's own code first. Send it with the API MCP's `submit_feedback` or `courier feedback create`, never the docs MCP's `submit_feedback`. Include the goal, the steps, the result, and the request ID, never secrets or customer data. Report each issue once per session, and once it's sent, tell the user in one line with its `fbk_` ID. Categories, fields and error handling: [feedback.md](./references/guides/feedback.md).
+When Courier does something unexpected (an error you can't explain, a response that contradicts the docs) or a feature would have made the task easier, report it with the Feedback API and keep working. For a possible bug, rule out the project's own code first. Send it with the API MCP's `submit_feedback` or `courier feedback create`. Include the goal, the steps, the result, and the request ID, never secrets or customer data. Report each issue once per session, and once it's sent, tell the user in one line with its `fbk_` ID. Categories, fields and error handling: [feedback.md](./references/guides/feedback.md).
 
 ## Verifying Against Live Sources
 

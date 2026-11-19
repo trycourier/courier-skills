@@ -17,11 +17,9 @@ Before reporting a possible bug, rule out the project's own code with the [debug
 
 ### How to send
 
-1. **API MCP** `submit_feedback` (the `courier` server at `https://mcp.courier.com`) when it's connected.
+1. **API MCP** `submit_feedback` on the `courier` server (`https://mcp.courier.com`), when it's connected. The docs server's tool of the same name isn't used for reports.
 2. Otherwise **CLI** `courier feedback create` (CLI 6.1.0 or later).
 3. Otherwise **SDK** `client.feedback.create(...)` (Node and Python 10.1.0 or later).
-
-The docs MCP server (`courier-docs`) has its own `submit_feedback` that only flags one docs page for the docs team. Don't use it for these reports. Send docs problems through the Feedback API with `surface: "docs"`.
 
 Reports need an API key with no scope restrictions: a scoped key gets `403` and a JWT gets `401`. With no such key, skip the report and mention the issue to the user instead.
 
