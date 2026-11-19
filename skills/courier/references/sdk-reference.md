@@ -12,14 +12,14 @@ package stubs. When they disagree with this file, they win. See
 
 ## Namespaces
 
-**The 23 namespaces are the complete SDK surface.** If an operation isn't here, it isn't in the SDK; use MCP, the CLI, or REST:
+**The 24 namespaces are the complete SDK surface.** If an operation isn't here, it isn't in the SDK; use MCP, the CLI, or REST:
 
 ```
-audiences  auditEvents  auth      automations  brands
-broadcasts  bulk        digests   inbound      journeys
-lists      messages     notifications  previews  profiles
-providers  requests     routingStrategies  send  tenants
-translations  users     workspacePreferences
+audiences   auditEvents   auth       automations        brands
+broadcasts  bulk          digests    feedback           inbound
+journeys    lists         messages   notifications      previews
+profiles    providers     requests   routingStrategies  send
+tenants     translations  users      workspacePreferences
 ```
 
 Sub-namespaces: `automations.invoke`, `automations.runs`, `digests.schedules`, `journeys.runs`, `journeys.templates`, `lists.subscriptions`, `notifications.checks`, `notifications.previews`, `notifications.previews.runs`, `profiles.lists`, `providers.catalog`, `tenants.preferences`, `tenants.preferences.items`, `tenants.templates`, `tenants.templates.versions`, `users.preferences`, `users.tenants`, `users.tokens`, `workspacePreferences.topics`.
@@ -80,6 +80,7 @@ Python uses the same method in snake_case (`listVersions` → `list_versions`, `
 | Replace a provider config (full PUT) | `client.providers.update(id, { provider, settings, ... })` |
 | List provider catalog (required `settings` schema) | `client.providers.catalog.list({ keys?, name?, channel? })` |
 | Cancel a message (only while it's still in flight; an unknown ID returns `404`) | `client.messages.cancel(messageId)` |
+| Report a Courier bug, confusing behavior, or feature request (Feedback API) | `client.feedback.create({ category, surface, title, description, location?, expected_behavior?, request_id?, model?, harness? })` → `{ feedback_id }`, see [feedback.md](./guides/feedback.md) |
 | Retrieve a template | `client.notifications.retrieve(templateId)` |
 | List templates | `client.notifications.list()` |
 | Replace a template (full PUT) | `client.notifications.replace(templateId, { notification, state })` |

@@ -38,6 +38,7 @@
 | Read a preview run | `courier notifications:previews:runs retrieve --id "nt_01kmrbq6ypf25tsge12qek41r0" --preview-run-id "pvr_..."` |
 | Send once per key (retries return the first response) | `courier send message --message '{"to":{"user_id":"user-123"},"template":"nt_01kmrbq6ypf25tsge12qek41r0"}' --idempotency-key "order-12345"` |
 | One-off broadcast to a list | `courier broadcasts create --name "Launch" --channel email`, then `courier broadcasts put-content --broadcast-id "$BROADCAST_ID" --content '{"version":"2022-01-01","elements":[...]}'`, then `courier broadcasts send --broadcast-id "$BROADCAST_ID" --recipient-type list --recipient-id "product-updates"` |
+| Report a Courier bug, confusing behavior, or feature request (CLI 6.1.0+, [feedback.md](./feedback.md)) | `courier feedback create --category possible_bug --surface api --title "..." --description "..."` |
 | Change one provider setting (JSON Patch, keeps the rest; repeat `--patch` for more operations) | `courier providers patch --id "$PROVIDER_ID" --patch '{"op":"add","path":"/settings/rate_limit","value":{"rate":10,"period":"second"}}'` |
 
 ### Output Formats

@@ -81,7 +81,7 @@ The same shape sends email, SMS, push, Slack, Teams, WhatsApp, or in-app. The ch
 
 **Core platform.** Quickstart and environments, journeys (delays, branches, batching, throttling, A/B experiments, cancellation), templates and Elemental (including how template variables resolve), template translations (the API workflow and Design Studio AI Translation), Device Preview (screenshots of an email on real clients), multi-channel routing, preferences and preference sections (including tracking preference changes by API and webhook), digests (topic schedules, categories, and early release), template delivery metrics, brands, audiences, tenants, reliability (idempotency, retries, delivery statuses), webhooks in both directions (outbound events and signature verification, inbound webhooks and journey triggers), sending to many recipients (list and audience fan-out, broadcasts, the Bulk API), routing strategies, and provider configuration (including send rate limits).
 
-**Tooling.** The CLI for ad-hoc operations and delivery debugging, and MCP: the [API server](https://mcp.courier.com) to operate a workspace and the [docs server](https://www.courier.com/docs/mcp) to look things up.
+**Tooling.** The CLI for ad-hoc operations and delivery debugging, and MCP: the [API server](https://mcp.courier.com) to operate a workspace and the [docs server](https://www.courier.com/docs/mcp) to look things up. The [Feedback API](./skills/courier/references/guides/feedback.md) lets the agent report bugs, confusing behavior, and feature requests to Courier's team as it works.
 
 ## Who it is for
 
