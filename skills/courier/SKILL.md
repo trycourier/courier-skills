@@ -93,7 +93,7 @@ When you need an API signature, SDK method, or feature not covered in these reso
 | **Installed SDK types**: `node_modules/@trycourier/courier/resources/*.d.ts`, or the Python package's stubs | What exists in the version this project has. Wins any disagreement about whether something exists |
 | **A docs page as markdown**: append `.md` to its URL, e.g. `…/journeys/nodes/batch.md` (~1–2k tokens; a bad path is a real `404`) | One page you can name |
 | **Docs MCP** `https://www.courier.com/docs/mcp` (no key): `query_docs_filesystem_courier` (`head`/`grep` over every page **and the OpenAPI specs**, ~2k per read), `search_courier` (~20k per call) | Finding a page you can't name. Current with the docs nav |
-| **API MCP** `https://mcp.courier.com` (needs `api_key`) or `courier <resource> --help` | The live operations and parameter shapes. A tool can outlive its endpoint ([mcp.md](./references/guides/mcp.md)) |
+| **API MCP** `https://mcp.courier.com` (needs your API key) or `courier <resource> --help` | The live operations and parameter shapes. A tool can outlive its endpoint ([mcp.md](./references/guides/mcp.md)) |
 | **[API reference](https://www.courier.com/docs/api-reference/)** | Request/response schemas, error codes |
 | **`https://www.courier.com/docs/llms.txt`** (~16k tokens) | A map of page URLs. A listed page is not proof an endpoint exists. Never fetch `llms-full.txt` (~530k tokens) |
 
