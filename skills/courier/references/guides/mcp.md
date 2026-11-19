@@ -90,7 +90,7 @@ Each takes the same URL and `api_key` header in its MCP config. Claude Desktop s
 
 ### Calling Courier MCP from your own agent
 
-Point any MCP client at `https://mcp.courier.com` with the key as a bearer token or in the `api_key` header. In the Claude Messages API connector, set `authorization_token` to the key. In Claude Managed Agents, store it in a vault as a `static_bearer` credential for that URL. Full setup: [courier.com/docs/resources/mcp](https://www.courier.com/docs/resources/mcp).
+Point any MCP client at `https://mcp.courier.com` with the key in any of the three auth headers above. In the Claude Messages API connector, set `authorization_token` to the key. In Claude Managed Agents, store it in a vault as a `static_bearer` credential for that URL. Full setup: [courier.com/docs/resources/mcp](https://www.courier.com/docs/resources/mcp).
 
 ## Available Tools
 
@@ -108,7 +108,7 @@ Call the server's `tools/list` for exact names and parameters. Tools follow the 
 
 ## Error Handling
 
-Tool errors come back as `{ "error": true, "status": 404, "message": "Profile not found" }`, carrying the API's HTTP status. A `403` is an invalid key, or a valid one without access to the resource: check the key's environment and scope.
+Tool errors come back as `{ "error": true, "status": 404, "message": "Profile not found" }`, carrying the API's HTTP status. A `403` is an invalid key, or a valid one without access to the resource: check the key's environment and scope. An HTTP `401` before any tool runs means no key arrived, usually a misnamed header (`Authorization` without `Bearer`, or `api-key`).
 
 
 ## Known gaps
