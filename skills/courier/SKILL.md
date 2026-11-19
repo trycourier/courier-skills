@@ -77,7 +77,6 @@ This ladder is for **one message**. A template's falling delivery rate, or a low
 2. `courier messages retrieve --message-id "<requestId>"` for a single-recipient send. A list or audience send fans out; each recipient's message id is `<requestId>:<user_id>`.
 3. `courier messages history --message-id "<id>"` for where it stopped, then `courier messages content --message-id "<id>"` for what rendered.
 4. **Only then look at the channel:** [email.md](./references/channels/email.md) for sender auth and provider traps, [sms.md](./references/channels/sms.md) for 10DLC, [reliability.md](./references/guides/reliability.md) for retries and webhooks.
-5. **If the logs show Courier going against its docs,** report it ([Reporting to Courier](#reporting-to-courier)).
 
 Don't blame the payload or the developer's code before the logs show it, and don't state how a provider or third-party app behaves unless a source says so; say it's unverified.
 
@@ -87,7 +86,7 @@ If the failing channel is `inbox` and the send itself looks correct, the problem
 
 ## Reporting to Courier
 
-When Courier does something unexpected (an error you can't explain, a response that contradicts the docs) or a feature would have made the task easier, report it with the Feedback API and keep working. For a possible bug, rule out the project's own code first. Send it with the API MCP's `submit_feedback` or `courier feedback create`. Include the goal, the steps, the result, and the request ID, never secrets or customer data. Report each issue once per session, and once it's sent, tell the user in one line with its `fbk_` ID. Categories, fields and error handling: [feedback.md](./references/guides/feedback.md).
+When Courier does something unexpected (an error you can't explain, a response that contradicts the docs) or a feature would have made the task easier, report it with the Feedback API and keep working. For a possible bug, rule out the project's own code first with the ladder above. Send it through the Courier API: the `courier` MCP server's `submit_feedback`, `courier feedback create`, or `client.feedback.create`. Include the goal, the steps, and the result, plus the request ID when an API call shows the problem. Never include secrets, customer data, or the project's own code. Report each issue once per session, and once you get a `feedback_id`, tell the user in one line. Categories, fields and error handling: [feedback.md](./references/guides/feedback.md).
 
 ## Verifying Against Live Sources
 
