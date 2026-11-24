@@ -59,10 +59,11 @@ await client.send.message({
   },
 }, {
   headers: { "Idempotency-Key": `otp-${userId}-${requestId}` },
+  maxRetries: 0, // the user is waiting on this request
 });
 ```
 
-`routing.method: "single"` delivers to the **first** channel that works, the fallback semantics you want. `"all"` would send the code twice. See [Multi-Channel](./guides/multi-channel.md).
+With `maxRetries: 0`, a connection error, `409` or `429` fails fast instead of holding the request open; retry it from a queue with the same key ([Reliability](./guides/reliability.md#retry-logic)). `routing.method: "single"` delivers to the **first** channel that works, the fallback semantics you want. `"all"` would send the code twice. See [Multi-Channel](./guides/multi-channel.md).
 
 ## A security alert with masked values
 

@@ -59,7 +59,7 @@ To write a profile, `client.profiles.create(id, { profile })` deep-merges; `prof
 
 ## Universal Rules
 
-- Use idempotency keys for sends where duplicates would be harmful (payments, security alerts, OTPs)
+- Use idempotency keys for sends where duplicates would be harmful (payments, security alerts, OTPs). Courier replays a stored `4xx` or `5xx` for the same key, so retry only connection errors, timeouts, `409` and `429`, starting at 60 seconds ([reliability.md](./references/guides/reliability.md#retry-logic))
 - Hold, delay or roll up notifications with Courier's delay, delivery window, digest or batch, not a queue in your app
 - Send one-time codes (OTPs) immediately, never through a batch, digest or delay, even when asked to. A late code has expired and locks the user out, so say so and send it on its own
 - Use E.164 format for phone numbers

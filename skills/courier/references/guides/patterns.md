@@ -23,12 +23,12 @@ Acknowledge with a 2xx inside 10 seconds and process asynchronously. Dedupe on `
 
 ## Retries (the SDK already does this)
 
-**Don't hand-roll retry around a Courier SDK call.** Both SDKs retry `408`, `409`, `429`, `5xx`, and connection errors with backoff (see [Reliability](./reliability.md#retry-logic)), so your own loop multiplies attempts: your 3 tries times the SDK's 3 is 9 requests for one send. Tune it per client or per request instead:
+**Don't hand-roll retry around a Courier SDK call.** Both SDKs retry `408`, `409`, `429`, `5xx`, and connection errors with backoff (see [Reliability](./reliability.md#retry-logic)), so your own loop multiplies attempts: your 3 tries times the SDK's 3 is 9 requests for one send. Tune it per client or per request instead. In a request handler, where a person waits, set it to `0` and retry from a queue: same key, only connection errors, timeouts, `409` and `429`, starting at 60 seconds ([retry a request safely](https://www.courier.com/docs/reference/api-overview#retry-a-request-safely)).
 
 ```typescript
 const client = new Courier({ maxRetries: 4 });            // default 2
 
-await client.send.message({ message }, { maxRetries: 0 }); // disable for one call
+await client.send.message({ message }, { maxRetries: 0 }); // fail fast while a person waits
 ```
 
 ```python

@@ -8,9 +8,9 @@
 
 ### Rules
 - ALWAYS use idempotency keys for transactional notifications, so a retried request returns the first response instead of sending the message twice
-- Courier keeps idempotency keys for 25 hours by default. Send `x-idempotency-expiration` (ISO 8601) to keep one up to a year
-- The SDK client already retries `408`, `409`, `429`, `5xx`, and connection errors (`maxRetries` defaults to 2). Tune it rather than wrapping calls in your own loop
-- Other `4xx` are not retried by anyone. Fix the request instead
+- Courier keeps idempotency keys for 25 hours by default. Send `x-idempotency-expiration` as a number of seconds, not a date (`604800` is a week), to keep one up to a year
+- A key replays its first response, errors included. Retry with the same key only after a connection error, a timeout, `409` or `429`, starting at 60 seconds. For any other `4xx` or `5xx`, fix the cause and send with a new key ([retry a request safely](https://www.courier.com/docs/reference/api-overview#retry-a-request-safely))
+- A send made while a person waits (an HTTP request handler) sets SDK `maxRetries: 0` and retries from a queue. The SDK's own retries wait out `Retry-After` and can hold the request for up to two minutes
 
 ### Idempotency Key Patterns
 | Notification | Key Pattern |
@@ -26,7 +26,8 @@ Use a **request id** (the unique id of the OTP/reset attempt from your own syste
 
 ### Common Mistakes
 - A static idempotency key on a send that should repeat (an OTP needs a per-request key, `otp-{userId}-{otpRequestId}`)
-- Wrapping an SDK call in your own retry loop, which multiplies attempts (the SDK already retries transient failures)
+- Wrapping an SDK call in your own retry loop, which multiplies attempts (the SDK already retries transient failures) and hits the key's 60-second hold as `409`
+- Retrying a `500` or a `400` with the same key, which only replays the stored error
 
 ### Message Status Glossary
 
@@ -57,7 +58,7 @@ Statuses are returned verbatim on webhooks and on `GET /messages/{id}`. For list
 
 ## Idempotency
 
-Send the `Idempotency-Key` header (retention is in the Rules above). A key is scoped to the endpoint it was sent to, and the stored response includes errors: a key whose first request got a `400` keeps returning it, so use a new key after fixing the request. Code in every language: [Patterns > Idempotency Keys](./patterns.md#idempotency-keys).
+Send the `Idempotency-Key` header (retention is in the Rules above). A key is scoped to the endpoint it was sent to, and the stored response includes errors: a key whose first request got a `400` or a `500` keeps returning it, so use a new key after fixing the cause. Only a request that stored nothing runs again: a connection error or timeout, a `429` (answered before the request runs), or a `409` while Courier holds the key for 60 seconds. See [retry a request safely](https://www.courier.com/docs/reference/api-overview#retry-a-request-safely). Code in every language: [Patterns > Idempotency Keys](./patterns.md#idempotency-keys).
 
 ## Retry Logic
 
@@ -67,9 +68,13 @@ Three layers retry independently. Know which one you're looking at before adding
 
 Both SDKs retry automatically: `maxRetries` defaults to **2** (3 requests total), covering `408`,
 `409`, `429`, `5xx`, and connection errors, with exponential backoff from 0.5s capped at 8s plus
-jitter. Other `4xx` are not retried. `retry-after` is honored when the server sends it.
+jitter. Other `4xx` are not retried. `retry-after` is honored when the server sends it, so a
+`409` or `429` can make the call wait up to 60 seconds per retry. A `5xx` retried with the same key
+gets the stored `5xx` back.
 
-**Don't wrap an SDK call in your own retry loop**, or the attempts multiply. Configure it instead:
+That wait is fine in a background job. **In a request handler, where a person waits, set
+`maxRetries: 0`** and hand failures to your queue ([layer 3](#3-your-ingest-path)). **Don't wrap an
+SDK call in your own retry loop**, or the attempts multiply. Configure it instead:
 `new Courier({ maxRetries: 4 })`, or per request `{ maxRetries: 0 }`. See
 [Patterns](./patterns.md#retries-the-sdk-already-does-this).
 
@@ -95,7 +100,9 @@ Those are both per-message views. For the aggregate trend across a whole templat
 
 The layer that is genuinely yours. If a send is part of a larger unit of work that must survive a
 process crash, that belongs in your queue or job runner, not in a wrapper around the SDK. Pair it
-with an [idempotency key](#idempotency) so a replay doesn't double-send.
+with an [idempotency key](#idempotency) so a replay doesn't double-send. Retry with the same key
+only connection errors, timeouts, `409` and `429`, and start the first retry at 60 seconds, after
+Courier's hold on the key ends. Fail the job on any other error.
 
 ## Webhooks
 
