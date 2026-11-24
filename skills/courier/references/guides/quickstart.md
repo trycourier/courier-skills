@@ -2,7 +2,7 @@
 
 Send your first notification with Courier using the SDK, CLI, or curl.
 
-**Contents:** [Quick Reference](#quick-reference) · [Start from a Framework Quickstart](#start-from-a-framework-quickstart) · [1. Get an API Key](#1-get-an-api-key) · [2. Install and Authenticate](#2-install-and-authenticate) · [3. Send a Message](#3-send-a-message) · [4. Check Delivery Status](#4-check-delivery-status) · [5. Send with a Template](#5-send-with-a-template) · [Common First-Run Errors](#common-first-run-errors) · [Environments](#environments) · [What's Next](#whats-next) · [Related](#related)
+**Contents:** [Quick Reference](#quick-reference) · [1. Get an API Key](#1-get-an-api-key) · [2. Install and Authenticate](#2-install-and-authenticate) · [3. Send a Message](#3-send-a-message) · [4. Check Delivery Status](#4-check-delivery-status) · [5. Send with a Template](#5-send-with-a-template) · [Common First-Run Errors](#common-first-run-errors) · [Environments](#environments) · [What's Next](#whats-next) · [Related](#related)
 
 ## Quick Reference
 
@@ -27,21 +27,6 @@ Send your first notification with Courier using the SDK, CLI, or curl.
 If a `user_id` has no contact info for a channel, Courier skips that channel's providers and the log shows `INCOMPLETE_PROFILE_DATA`. With `method: "single"`, it falls through to the next channel. If no channel can reach the user, the message ends `UNROUTABLE`. The send call itself doesn't error.
 
 ---
-
-## Start from a Framework Quickstart
-
-Adding Courier to an app in one of these frameworks? Read its guide (the `.md` link is the Markdown copy) and follow its structure; the repo is the finished, runnable app.
-
-| Framework: what it builds | Guide | Repo |
-|---|---|---|
-| Next.js: transactional email | [.md](https://www.courier.com/docs/guides/add-transactional-email-to-nextjs.md) | [courier-nextjs-email-quickstart](https://github.com/trycourier/courier-nextjs-email-quickstart) |
-| Django: order status email and SMS | [.md](https://www.courier.com/docs/guides/add-notifications-to-django.md) | [courier-django-quickstart](https://github.com/trycourier/courier-django-quickstart) |
-| Rails: email, SMS, inbox, preferences | [.md](https://www.courier.com/docs/guides/add-notifications-to-rails.md) | [courier-rails-quickstart](https://github.com/trycourier/courier-rails-quickstart) |
-| Laravel: email and SMS from a notification channel | [.md](https://www.courier.com/docs/guides/add-notifications-to-laravel.md) | [courier-laravel-quickstart](https://github.com/trycourier/courier-laravel-quickstart) |
-| FastAPI: background-task sends, email and inbox | [.md](https://www.courier.com/docs/guides/send-notifications-from-fastapi.md) | [courier-fastapi-quickstart](https://github.com/trycourier/courier-fastapi-quickstart) |
-| Express: email, SMS, inbox with a JWT route | [.md](https://www.courier.com/docs/guides/add-notifications-to-express.md) | [courier-express-quickstart](https://github.com/trycourier/courier-express-quickstart) |
-| Node.js: daily digest (journey batch node) | [.md](https://www.courier.com/docs/guides/batch-notifications-into-a-daily-digest-in-node.md) | [courier-node-digest-quickstart](https://github.com/trycourier/courier-node-digest-quickstart) |
-| Inbox in React, Next.js, Astro or Nuxt | [React](https://www.courier.com/docs/guides/add-an-inbox-to-react.md) · [Next.js](https://www.courier.com/docs/guides/add-an-inbox-to-nextjs.md) · [Astro](https://www.courier.com/docs/guides/add-an-inbox-to-astro.md) · [Nuxt](https://www.courier.com/docs/guides/add-an-inbox-to-nuxt.md) | [react](https://github.com/trycourier/courier-react-quickstart) · [nextjs](https://github.com/trycourier/courier-nextjs-quickstart) · [astro](https://github.com/trycourier/courier-astro-quickstart) · [nuxt](https://github.com/trycourier/courier-nuxt-quickstart) |
 
 ## 1. Get an API Key
 

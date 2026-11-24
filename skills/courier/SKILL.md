@@ -110,7 +110,6 @@ When you need an API signature, SDK method, or feature not covered in these reso
 | Working on | Read |
 |---|---|
 | **First notification / addressing (`to` field) / inline vs template** | [quickstart.md](./references/guides/quickstart.md) |
-| **Add notifications to my Next.js, Django, Rails, Laravel, FastAPI or Express app**, a Node daily digest, or an inbox in React, Next.js, Astro or Nuxt: start from that framework's guide and repo | [quickstart.md](./references/guides/quickstart.md#start-from-a-framework-quickstart) |
 | **Transactional**: password reset, OTP, orders, receipts, dunning, appointments, security alerts | [transactional.md](./references/transactional.md) |
 | **Lifecycle marketing**: onboarding, adoption, engagement, win-back, referral, campaigns | [lifecycle-marketing.md](./references/lifecycle-marketing.md) |
 | **Multi-step sequences**: triggers (API invoke, Segment, inbound webhook, a user joining an audience), delays, branches, batching, A/B, cancellation, run logs (`journeys.runs`), Slack/Teams send nodes, tenant-scoped sends. Also covers existing `client.automations.*` code | [journeys.md](./references/guides/journeys.md) |

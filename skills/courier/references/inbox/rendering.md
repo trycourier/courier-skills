@@ -53,8 +53,6 @@ Skipping the second means messages arrive but the UI never changes until reload.
 | Android (Kotlin) | `courier-android` | [SDK docs](https://www.courier.com/docs/sdk-libraries/android) |
 | Flutter | `courier_flutter` | [SDK docs](https://www.courier.com/docs/sdk-libraries/flutter) |
 
-New inbox in React, Next.js, Astro or Nuxt: start from the [framework quickstarts](../guides/quickstart.md#start-from-a-framework-quickstart), a working app with the JWT route.
-
 ## Version Check Before You Write Code
 
 This documents **v8**, the `@trycourier/courier-react` 8.x and 9.x releases. Check what the project is on before adding anything.
